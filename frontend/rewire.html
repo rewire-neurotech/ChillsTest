@@ -37,8 +37,37 @@
       textarea::placeholder {
         color: rgba(0, 0, 0, 0.25);
       }
+      input::placeholder {
+        color: rgba(0, 0, 0, 0.25);
+      }
       canvas {
         display: block;
+      }
+      input[type="range"] {
+        -webkit-appearance: none;
+        appearance: none;
+        width: 100%;
+        height: 4px;
+        background: rgba(0,0,0,0.1);
+        border-radius: 2px;
+        outline: none;
+      }
+      input[type="range"]::-webkit-slider-thumb {
+        -webkit-appearance: none;
+        appearance: none;
+        width: 22px;
+        height: 22px;
+        border-radius: 50%;
+        background: #1D1D1F;
+        cursor: pointer;
+      }
+      input[type="range"]::-moz-range-thumb {
+        width: 22px;
+        height: 22px;
+        border-radius: 50%;
+        background: #1D1D1F;
+        cursor: pointer;
+        border: none;
       }
     </style>
   </head>
@@ -205,7 +234,7 @@
       const CQ = [
         {
           id: "wound",
-          q: "What does the voice in your head say when you're at your lowest?",
+          q: "What does the voice in your head say when you\u2019re at your lowest?",
           ph: 'e.g. "you\'re faking it" or "nobody would notice if you disappeared" or "you had so much potential and you wasted it"',
         },
         {
@@ -215,7 +244,7 @@
         },
         {
           id: "hiddenTruth",
-          q: "What's something true about you that nobody sees?",
+          q: "What\u2019s something true about you that nobody sees?",
           ph: 'e.g. "I rehearse conversations in my head because I\'m terrified of saying the wrong thing" or "I haven\'t enjoyed anything in months but I keep pretending"',
         },
       ];
@@ -280,7 +309,7 @@
                   }}
                   disabled={!v.trim()}
                 >
-                  {qi < CQ.length - 1 ? "Next" : "I'm ready"}
+                  {qi < CQ.length - 1 ? "Next" : "I\u2019m ready"}
                 </Btn>
                 {qi > 0 && (
                   <button
@@ -306,6 +335,16 @@
         );
       }
 
+      // ——— Stage label mapping ———
+      const STAGE_LABELS = {
+        queued: "Starting\u2026",
+        writing: "Writing your experience\u2026",
+        synthesizing: "Creating the voice\u2026",
+        refining: "Fine-tuning\u2026",
+        mixing: "Mixing with music\u2026",
+        saving: "Almost there\u2026",
+      };
+
       // ——— Box Breathing + Generation (combined) ———
       function BreathingAndGenerating({ answers, onReady }) {
         const PHASE_MS = 4000;
@@ -323,14 +362,19 @@
         const [audioUrl, setAudioUrl] = useState(null);
         const [audioReady, setAudioReady] = useState(false);
         const [error, setError] = useState(null);
+        const [genStage, setGenStage] = useState("queued");
+        const [genProgress, setGenProgress] = useState(0);
 
         // Demographics
         const [age, setAge] = useState("");
         const [gender, setGender] = useState("");
         const [ethnicity, setEthnicity] = useState("");
 
-        // Start generation immediately on mount
+        // Start generation and poll for progress
         useEffect(() => {
+          let pollInterval = null;
+          let cancelled = false;
+
           fetch(API_BASE + "/api/demo/generate", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
@@ -345,13 +389,36 @@
               return r.json();
             })
             .then((data) => {
-              setSessionId(data.session_id);
-              setAudioUrl(data.audio_url);
-              setAudioReady(true);
+              if (cancelled) return;
+              const jobId = data.job_id;
+              pollInterval = setInterval(() => {
+                fetch(API_BASE + "/api/demo/generate/status/" + jobId)
+                  .then((r) => r.json())
+                  .then((status) => {
+                    if (cancelled) return;
+                    setGenStage(status.stage);
+                    setGenProgress(status.progress);
+                    if (status.stage === "done") {
+                      setSessionId(status.session_id);
+                      setAudioUrl(status.audio_url);
+                      setAudioReady(true);
+                      clearInterval(pollInterval);
+                    } else if (status.stage === "error") {
+                      setError(status.error || "Generation failed");
+                      clearInterval(pollInterval);
+                    }
+                  })
+                  .catch(() => {});
+              }, 2500);
             })
             .catch((err) => {
-              setError(err.message);
+              if (!cancelled) setError(err.message);
             });
+
+          return () => {
+            cancelled = true;
+            if (pollInterval) clearInterval(pollInterval);
+          };
         }, []);
 
         // Box breathing timer
@@ -421,6 +488,68 @@
           cursor: "pointer",
         };
 
+        // ——— Demographics form (shared between waiting and ready states) ———
+        const demographicsForm = (
+          <div
+            style={{
+              display: "flex",
+              flexDirection: "column",
+              gap: 16,
+              textAlign: "left",
+              width: "100%",
+              maxWidth: 320,
+            }}
+          >
+            <div>
+              <div style={{ fontSize: 12, color: D.sub, marginBottom: 6, letterSpacing: ".05em", textTransform: "uppercase" }}>Age range</div>
+              <select value={age} onChange={(e) => setAge(e.target.value)} style={ss}>
+                <option value="">Select</option>
+                <option value="18-24">18-24</option>
+                <option value="25-34">25-34</option>
+                <option value="35-44">35-44</option>
+                <option value="45-54">45-54</option>
+                <option value="55-64">55-64</option>
+                <option value="65+">65+</option>
+              </select>
+            </div>
+            <div>
+              <div style={{ fontSize: 12, color: D.sub, marginBottom: 6, letterSpacing: ".05em", textTransform: "uppercase" }}>Gender</div>
+              <select value={gender} onChange={(e) => setGender(e.target.value)} style={ss}>
+                <option value="">Select</option>
+                <option value="male">Male</option>
+                <option value="female">Female</option>
+                <option value="non-binary">Non-binary</option>
+                <option value="prefer-not">Prefer not to say</option>
+              </select>
+            </div>
+            <div>
+              <div style={{ fontSize: 12, color: D.sub, marginBottom: 6, letterSpacing: ".05em", textTransform: "uppercase" }}>Ethnicity</div>
+              <select value={ethnicity} onChange={(e) => setEthnicity(e.target.value)} style={ss}>
+                <option value="">Select</option>
+                <option value="white">White</option>
+                <option value="black">Black / African American</option>
+                <option value="hispanic">Hispanic / Latino</option>
+                <option value="asian">Asian</option>
+                <option value="mixed">Mixed / Multiple</option>
+                <option value="other">Other</option>
+                <option value="prefer-not">Prefer not to say</option>
+              </select>
+            </div>
+          </div>
+        );
+
+        // ——— Progress bar component ———
+        const progressBar = (
+          <div style={{ width: "100%", maxWidth: 320, marginBottom: 28 }}>
+            <div style={{ width: "100%", height: 4, background: "rgba(0,0,0,0.06)", borderRadius: 2, overflow: "hidden", marginBottom: 12 }}>
+              <div style={{ width: genProgress + "%", height: "100%", background: D.accent, borderRadius: 2, transition: "width 0.8s ease" }} />
+            </div>
+            <p style={{ fontSize: 14, fontWeight: 300, color: D.sub, textAlign: "center" }}>
+              {STAGE_LABELS[genStage] || "Preparing\u2026"}
+            </p>
+          </div>
+        );
+
         // ——— Post-breathing: demographics + waiting/ready ———
         if (breathingDone) {
           return (
@@ -438,136 +567,22 @@
               {error && (
                 <>
                   <FadeIn delay={0}>
-                    <p
-                      style={{ fontSize: 16, color: "#c00", marginBottom: 20 }}
-                    >
+                    <p style={{ fontSize: 16, color: "#c00", marginBottom: 20 }}>
                       Something went wrong: {error}
                     </p>
                   </FadeIn>
                   <FadeIn delay={200}>
-                    <Btn onClick={() => window.location.reload()}>
-                      Try again
-                    </Btn>
+                    <Btn onClick={() => window.location.reload()}>Try again</Btn>
                   </FadeIn>
                 </>
               )}
               {!error && !audioReady && (
                 <>
                   <FadeIn delay={200}>
-                    <div
-                      style={{
-                        width: 40,
-                        height: 40,
-                        borderRadius: "50%",
-                        border: "2px solid " + D.accent,
-                        borderTopColor: "transparent",
-                        animation: "spin 1s linear infinite",
-                        margin: "0 auto 24px",
-                      }}
-                    />
-                    <style>{`@keyframes spin{to{transform:rotate(360deg)}}`}</style>
+                    {progressBar}
                   </FadeIn>
-                  <FadeIn delay={400}>
-                    <p
-                      style={{
-                        fontSize: 15,
-                        fontWeight: 300,
-                        color: D.sub,
-                        marginBottom: 40,
-                      }}
-                    >
-                      Almost ready...
-                    </p>
-                  </FadeIn>
-                  <FadeIn delay={600} style={{ width: "100%", maxWidth: 320 }}>
-                    <div
-                      style={{
-                        display: "flex",
-                        flexDirection: "column",
-                        gap: 16,
-                        textAlign: "left",
-                      }}
-                    >
-                      <div>
-                        <div
-                          style={{
-                            fontSize: 12,
-                            color: D.sub,
-                            marginBottom: 6,
-                            letterSpacing: ".05em",
-                            textTransform: "uppercase",
-                          }}
-                        >
-                          Age range
-                        </div>
-                        <select
-                          value={age}
-                          onChange={(e) => setAge(e.target.value)}
-                          style={ss}
-                        >
-                          <option value="">Select</option>
-                          <option value="18-24">18-24</option>
-                          <option value="25-34">25-34</option>
-                          <option value="35-44">35-44</option>
-                          <option value="45-54">45-54</option>
-                          <option value="55-64">55-64</option>
-                          <option value="65+">65+</option>
-                        </select>
-                      </div>
-                      <div>
-                        <div
-                          style={{
-                            fontSize: 12,
-                            color: D.sub,
-                            marginBottom: 6,
-                            letterSpacing: ".05em",
-                            textTransform: "uppercase",
-                          }}
-                        >
-                          Gender
-                        </div>
-                        <select
-                          value={gender}
-                          onChange={(e) => setGender(e.target.value)}
-                          style={ss}
-                        >
-                          <option value="">Select</option>
-                          <option value="male">Male</option>
-                          <option value="female">Female</option>
-                          <option value="non-binary">Non-binary</option>
-                          <option value="prefer-not">Prefer not to say</option>
-                        </select>
-                      </div>
-                      <div>
-                        <div
-                          style={{
-                            fontSize: 12,
-                            color: D.sub,
-                            marginBottom: 6,
-                            letterSpacing: ".05em",
-                            textTransform: "uppercase",
-                          }}
-                        >
-                          Ethnicity
-                        </div>
-                        <select
-                          value={ethnicity}
-                          onChange={(e) => setEthnicity(e.target.value)}
-                          style={ss}
-                        >
-                          <option value="">Select</option>
-                          <option value="white">White</option>
-                          <option value="black">
-                            Black / African American
-                          </option>
-                          <option value="hispanic">Hispanic / Latino</option>
-                          <option value="asian">Asian</option>
-                          <option value="mixed">Mixed / Multiple</option>
-                          <option value="other">Other</option>
-                          <option value="prefer-not">Prefer not to say</option>
-                        </select>
-                      </div>
-                    </div>
+                  <FadeIn delay={600}>
+                    {demographicsForm}
                   </FadeIn>
                 </>
               )}
@@ -576,157 +591,30 @@
                   <FadeIn delay={0}>
                     <div
                       style={{
-                        width: 64,
-                        height: 64,
-                        borderRadius: "50%",
-                        background:
-                          "linear-gradient(145deg," +
-                          D.accent +
-                          "30," +
-                          D.warm +
-                          "20)",
+                        width: 64, height: 64, borderRadius: "50%",
+                        background: "linear-gradient(145deg," + D.accent + "30," + D.warm + "20)",
                         border: "1px solid " + D.accentGlow,
-                        display: "flex",
-                        alignItems: "center",
-                        justifyContent: "center",
-                        margin: "0 auto 24px",
-                        fontSize: 28,
+                        display: "flex", alignItems: "center", justifyContent: "center",
+                        margin: "0 auto 24px", fontSize: 28,
                       }}
-                    >
-                      &#10003;
-                    </div>
+                    >&#10003;</div>
                   </FadeIn>
                   <FadeIn delay={300}>
-                    <h2
-                      style={{
-                        fontSize: 22,
-                        fontWeight: 300,
-                        color: D.text,
-                        marginBottom: 12,
-                      }}
-                    >
+                    <h2 style={{ fontSize: 22, fontWeight: 300, color: D.text, marginBottom: 12 }}>
                       Your experience is ready
                     </h2>
-                    <p
-                      style={{
-                        fontSize: 14,
-                        fontWeight: 400,
-                        lineHeight: 1.7,
-                        color: D.sub,
-                        maxWidth: 300,
-                        margin: "0 auto 12px",
-                      }}
-                    >
-                      Put on headphones. When you feel a chill &ndash; a shiver,
-                      goosebumps, a tingle &ndash;{" "}
-                      <span style={{ color: D.text, fontWeight: 500 }}>
-                        tap the screen
-                      </span>
-                      .
+                    <p style={{ fontSize: 14, fontWeight: 400, lineHeight: 1.7, color: D.sub, maxWidth: 300, margin: "0 auto 12px" }}>
+                      Put on headphones. When you feel a chill &ndash; a shiver, goosebumps, a tingle &ndash;{" "}
+                      <span style={{ color: D.text, fontWeight: 500 }}>tap the screen</span>.
                     </p>
                   </FadeIn>
-                  <FadeIn
-                    delay={600}
-                    style={{ width: "100%", maxWidth: 320, marginTop: 20 }}
-                  >
-                    <div
-                      style={{
-                        display: "flex",
-                        flexDirection: "column",
-                        gap: 16,
-                        textAlign: "left",
-                        marginBottom: 30,
-                      }}
-                    >
-                      <div>
-                        <div
-                          style={{
-                            fontSize: 12,
-                            color: D.sub,
-                            marginBottom: 6,
-                            letterSpacing: ".05em",
-                            textTransform: "uppercase",
-                          }}
-                        >
-                          Age range
-                        </div>
-                        <select
-                          value={age}
-                          onChange={(e) => setAge(e.target.value)}
-                          style={ss}
-                        >
-                          <option value="">Select</option>
-                          <option value="18-24">18-24</option>
-                          <option value="25-34">25-34</option>
-                          <option value="35-44">35-44</option>
-                          <option value="45-54">45-54</option>
-                          <option value="55-64">55-64</option>
-                          <option value="65+">65+</option>
-                        </select>
-                      </div>
-                      <div>
-                        <div
-                          style={{
-                            fontSize: 12,
-                            color: D.sub,
-                            marginBottom: 6,
-                            letterSpacing: ".05em",
-                            textTransform: "uppercase",
-                          }}
-                        >
-                          Gender
-                        </div>
-                        <select
-                          value={gender}
-                          onChange={(e) => setGender(e.target.value)}
-                          style={ss}
-                        >
-                          <option value="">Select</option>
-                          <option value="male">Male</option>
-                          <option value="female">Female</option>
-                          <option value="non-binary">Non-binary</option>
-                          <option value="prefer-not">Prefer not to say</option>
-                        </select>
-                      </div>
-                      <div>
-                        <div
-                          style={{
-                            fontSize: 12,
-                            color: D.sub,
-                            marginBottom: 6,
-                            letterSpacing: ".05em",
-                            textTransform: "uppercase",
-                          }}
-                        >
-                          Ethnicity
-                        </div>
-                        <select
-                          value={ethnicity}
-                          onChange={(e) => setEthnicity(e.target.value)}
-                          style={ss}
-                        >
-                          <option value="">Select</option>
-                          <option value="white">White</option>
-                          <option value="black">
-                            Black / African American
-                          </option>
-                          <option value="hispanic">Hispanic / Latino</option>
-                          <option value="asian">Asian</option>
-                          <option value="mixed">Mixed / Multiple</option>
-                          <option value="other">Other</option>
-                          <option value="prefer-not">Prefer not to say</option>
-                        </select>
-                      </div>
+                  <FadeIn delay={600} style={{ width: "100%", maxWidth: 320, marginTop: 20 }}>
+                    <div style={{ display: "flex", flexDirection: "column", gap: 16, textAlign: "left", marginBottom: 30 }}>
+                      {demographicsForm}
                     </div>
                   </FadeIn>
                   <FadeIn delay={900}>
-                    <Btn
-                      green
-                      onClick={handleContinue}
-                      style={{ maxWidth: 300 }}
-                    >
-                      Start listening
-                    </Btn>
+                    <Btn green onClick={handleContinue} style={{ maxWidth: 300 }}>Start listening</Btn>
                   </FadeIn>
                 </>
               )}
@@ -770,176 +658,51 @@
             <FadeIn delay={200}>
               <div
                 style={{
-                  fontSize: 11,
-                  fontWeight: 500,
-                  letterSpacing: ".15em",
-                  textTransform: "uppercase",
-                  color: D.hint,
-                  marginBottom: 50,
+                  fontSize: 11, fontWeight: 500, letterSpacing: ".15em",
+                  textTransform: "uppercase", color: D.hint, marginBottom: 50,
                 }}
-              >
-                Settle in
-              </div>
+              >Settle in</div>
             </FadeIn>
 
-            <div
-              style={{
-                position: "relative",
-                width: boxSize + 80,
-                height: boxSize + 80,
-                marginBottom: 40,
-              }}
-            >
-              <div
-                style={{
-                  position: "absolute",
-                  top: "50%",
-                  left: "50%",
-                  transform: "translate(-50%, -50%)",
-                  fontSize: 48,
-                  fontWeight: 200,
-                  color: D.text,
-                }}
-              >
+            <div style={{ position: "relative", width: boxSize + 80, height: boxSize + 80, marginBottom: 40 }}>
+              <div style={{ position: "absolute", top: "50%", left: "50%", transform: "translate(-50%, -50%)", fontSize: 48, fontWeight: 200, color: D.text }}>
                 {countdown}
               </div>
-
-              <div
-                style={{
-                  position: "absolute",
-                  top: "50%",
-                  left: "50%",
-                  transform: "translate(-50%, -50%)",
-                  width: boxSize,
-                  height: boxSize,
-                  border: "1px solid rgba(0,0,0,0.12)",
-                  borderRadius: 4,
-                }}
-              />
-
-              <div
-                style={{
-                  position: "absolute",
-                  top: 40 + dotY - 6,
-                  left: 40 + dotX - 6,
-                  width: 12,
-                  height: 12,
-                  borderRadius: "50%",
-                  background: D.accent,
-                  boxShadow: "0 0 16px rgba(0,0,0,0.15)",
-                  transition: "top 0.1s linear, left 0.1s linear",
-                }}
-              />
-
-              <div
-                style={{
-                  position: "absolute",
-                  top: 15,
-                  left: "50%",
-                  transform: "translateX(-50%)",
-                  fontSize: 12,
-                  fontWeight: 400,
-                  letterSpacing: ".08em",
-                  color: phaseIndex === 0 ? D.text : D.hint,
-                  transition: "color 0.3s",
-                }}
-              >
-                Breathe In
-              </div>
-              <div
-                style={{
-                  position: "absolute",
-                  right: 0,
-                  top: "50%",
-                  transform: "translateY(-50%)",
-                  fontSize: 12,
-                  fontWeight: 400,
-                  letterSpacing: ".08em",
-                  color: phaseIndex === 1 ? D.text : D.hint,
-                  transition: "color 0.3s",
-                }}
-              >
-                Hold
-              </div>
-              <div
-                style={{
-                  position: "absolute",
-                  bottom: 15,
-                  left: "50%",
-                  transform: "translateX(-50%)",
-                  fontSize: 12,
-                  fontWeight: 400,
-                  letterSpacing: ".08em",
-                  color: phaseIndex === 2 ? D.text : D.hint,
-                  transition: "color 0.3s",
-                }}
-              >
-                Breathe Out
-              </div>
-              <div
-                style={{
-                  position: "absolute",
-                  left: 0,
-                  top: "50%",
-                  transform: "translateY(-50%)",
-                  fontSize: 12,
-                  fontWeight: 400,
-                  letterSpacing: ".08em",
-                  color: phaseIndex === 3 ? D.text : D.hint,
-                  transition: "color 0.3s",
-                }}
-              >
-                Hold
-              </div>
+              <div style={{ position: "absolute", top: "50%", left: "50%", transform: "translate(-50%, -50%)", width: boxSize, height: boxSize, border: "1px solid rgba(0,0,0,0.12)", borderRadius: 4 }} />
+              <div style={{ position: "absolute", top: 40 + dotY - 6, left: 40 + dotX - 6, width: 12, height: 12, borderRadius: "50%", background: D.accent, boxShadow: "0 0 16px rgba(0,0,0,0.15)", transition: "top 0.1s linear, left 0.1s linear" }} />
+              <div style={{ position: "absolute", top: 15, left: "50%", transform: "translateX(-50%)", fontSize: 12, fontWeight: 400, letterSpacing: ".08em", color: phaseIndex === 0 ? D.text : D.hint, transition: "color 0.3s" }}>Breathe In</div>
+              <div style={{ position: "absolute", right: 0, top: "50%", transform: "translateY(-50%)", fontSize: 12, fontWeight: 400, letterSpacing: ".08em", color: phaseIndex === 1 ? D.text : D.hint, transition: "color 0.3s" }}>Hold</div>
+              <div style={{ position: "absolute", bottom: 15, left: "50%", transform: "translateX(-50%)", fontSize: 12, fontWeight: 400, letterSpacing: ".08em", color: phaseIndex === 2 ? D.text : D.hint, transition: "color 0.3s" }}>Breathe Out</div>
+              <div style={{ position: "absolute", left: 0, top: "50%", transform: "translateY(-50%)", fontSize: 12, fontWeight: 400, letterSpacing: ".08em", color: phaseIndex === 3 ? D.text : D.hint, transition: "color 0.3s" }}>Hold</div>
             </div>
 
-            <div
-              style={{
-                fontSize: 13,
-                fontWeight: 300,
-                color: D.hint,
-                marginBottom: 30,
-              }}
-            >
+            <div style={{ fontSize: 13, fontWeight: 300, color: D.hint, marginBottom: 30 }}>
               {cycle} of {TOTAL_CYCLES}
             </div>
 
-            <div
-              style={{
-                width: 200,
-                height: 2,
-                background: "rgba(0,0,0,0.06)",
-                borderRadius: 1,
-                overflow: "hidden",
-                marginBottom: 40,
-              }}
-            >
-              <div
-                style={{
-                  width: `${progress * 100}%`,
-                  height: "100%",
-                  background: "rgba(0,0,0,0.2)",
-                  transition: "width 0.1s linear",
-                }}
-              />
+            <div style={{ width: 200, height: 2, background: "rgba(0,0,0,0.06)", borderRadius: 1, overflow: "hidden", marginBottom: 16 }}>
+              <div style={{ width: (progress * 100) + "%", height: "100%", background: "rgba(0,0,0,0.2)", transition: "width 0.1s linear" }} />
+            </div>
+
+            {/* Subtle generation progress during breathing */}
+            <div style={{ width: 200, marginBottom: 24 }}>
+              <div style={{ width: "100%", height: 2, background: "rgba(0,0,0,0.04)", borderRadius: 1, overflow: "hidden", marginBottom: 6 }}>
+                <div style={{ width: genProgress + "%", height: "100%", background: D.warm, borderRadius: 1, transition: "width 0.8s ease" }} />
+              </div>
+              <div style={{ fontSize: 10, fontWeight: 300, color: D.hint, letterSpacing: ".03em" }}>
+                {STAGE_LABELS[genStage] || ""}
+              </div>
             </div>
 
             {canSkip && (
               <button
                 onClick={handleSkip}
                 style={{
-                  background: "none",
-                  border: "none",
-                  color: D.hint,
-                  fontSize: 13,
-                  fontFamily: "inherit",
-                  cursor: "pointer",
-                  padding: 8,
-                  letterSpacing: ".03em",
+                  background: "none", border: "none", color: D.hint,
+                  fontSize: 13, fontFamily: "inherit", cursor: "pointer",
+                  padding: 8, letterSpacing: ".03em",
                 }}
-              >
-                Skip
-              </button>
+              >Skip</button>
             )}
           </div>
         );
@@ -1004,7 +767,7 @@
               const a = p.life * pulse;
               const sz = p.size * (1 + Math.random() * 0.3);
               ctx.globalAlpha = a * 0.95;
-              ctx.fillStyle = `hsla(${p.h},40%,${p.l}%,${a})`;
+              ctx.fillStyle = "hsla(" + p.h + ",40%," + p.l + "%," + a + ")";
               ctx.beginPath();
               ctx.arc(p.x, p.y, sz, 0, Math.PI * 2);
               ctx.fill();
@@ -1097,71 +860,16 @@
         }, []);
 
         return (
-          <div
-            style={{
-              position: "fixed",
-              top: 0,
-              left: 0,
-              width: "100vw",
-              height: "100vh",
-              background: "#000",
-              zIndex: 50,
-            }}
-          >
-            <canvas
-              ref={cvR}
-              style={{ position: "absolute", inset: 0, zIndex: 1 }}
-            />
-            <div
-              style={{
-                position: "absolute",
-                inset: 0,
-                zIndex: 5,
-                cursor: "crosshair",
-              }}
-              onPointerDown={tap}
-            />
-            <div
-              style={{
-                position: "absolute",
-                top: 22,
-                left: 24,
-                right: 24,
-                zIndex: 60,
-                display: "flex",
-                justifyContent: "space-between",
-                alignItems: "center",
-                pointerEvents: "none",
-              }}
-            >
-              <span
-                style={{
-                  fontSize: 11,
-                  fontWeight: 300,
-                  letterSpacing: ".1em",
-                  color: "rgba(255,255,255,.7)",
-                }}
-              >
-                {spots > 0 ? `chills: ${spots}` : ""}
+          <div style={{ position: "fixed", top: 0, left: 0, width: "100vw", height: "100vh", background: "#000", zIndex: 50 }}>
+            <canvas ref={cvR} style={{ position: "absolute", inset: 0, zIndex: 1 }} />
+            <div style={{ position: "absolute", inset: 0, zIndex: 5, cursor: "crosshair" }} onPointerDown={tap} />
+            <div style={{ position: "absolute", top: 22, left: 24, right: 24, zIndex: 60, display: "flex", justifyContent: "space-between", alignItems: "center", pointerEvents: "none" }}>
+              <span style={{ fontSize: 11, fontWeight: 300, letterSpacing: ".1em", color: "rgba(255,255,255,.7)" }}>
+                {spots > 0 ? "chills: " + spots : ""}
               </span>
             </div>
             {!hGone && (
-              <div
-                style={{
-                  position: "absolute",
-                  bottom: 88,
-                  left: "50%",
-                  transform: "translateX(-50%)",
-                  zIndex: 10,
-                  fontSize: 13,
-                  fontWeight: 300,
-                  color: "rgba(255,255,255,.3)",
-                  letterSpacing: ".02em",
-                  whiteSpace: "nowrap",
-                  transition: "opacity 1.5s",
-                  opacity: hint ? 1 : 0,
-                }}
-              >
+              <div style={{ position: "absolute", bottom: 88, left: "50%", transform: "translateX(-50%)", zIndex: 10, fontSize: 13, fontWeight: 300, color: "rgba(255,255,255,.3)", letterSpacing: ".02em", whiteSpace: "nowrap", transition: "opacity 1.5s", opacity: hint ? 1 : 0 }}>
                 tap when you feel something
               </div>
             )}
@@ -1169,15 +877,136 @@
         );
       }
 
+      // ——— Reusable survey components ———
+
+      function SurveyCard({ children, style = {} }) {
+        return (
+          <div style={{ padding: "18px 20px", borderRadius: 16, background: "rgba(0,0,0,0.02)", border: "1px solid rgba(0,0,0,0.06)", marginBottom: 20, textAlign: "left", ...style }}>
+            {children}
+          </div>
+        );
+      }
+
+      function SurveyLabel({ children }) {
+        return (
+          <div style={{ fontSize: 13, fontWeight: 400, color: D.text, lineHeight: 1.5, marginBottom: 10 }}>
+            {children}
+          </div>
+        );
+      }
+
+      function PillSelect({ options, value, onChange, multi = false }) {
+        const toggle = (val) => {
+          if (multi) {
+            const arr = value || [];
+            onChange(arr.includes(val) ? arr.filter((v) => v !== val) : [...arr, val]);
+          } else {
+            onChange(val);
+          }
+        };
+        const isSelected = (val) => multi ? (value || []).includes(val) : value === val;
+        return (
+          <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+            {options.map((opt) => {
+              const val = typeof opt === "string" ? opt : opt.value;
+              const label = typeof opt === "string" ? opt : opt.label;
+              const sel = isSelected(val);
+              return (
+                <button
+                  key={val}
+                  onClick={() => toggle(val)}
+                  style={{
+                    padding: "10px 16px", background: sel ? "rgba(0,0,0,0.08)" : "rgba(0,0,0,0.02)",
+                    border: sel ? "1px solid " + D.accent : "1px solid rgba(0,0,0,0.06)",
+                    borderRadius: 20, fontSize: 13, cursor: "pointer", fontFamily: "inherit",
+                    color: D.text, transition: "all .15s",
+                  }}
+                >{label}</button>
+              );
+            })}
+          </div>
+        );
+      }
+
+      function LikertRow({ label, value, onChange }) {
+        return (
+          <div style={{ marginBottom: 20 }}>
+            <div style={{ fontSize: 13, fontWeight: 400, color: D.text, lineHeight: 1.5, marginBottom: 8 }}>{label}</div>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 4 }}>
+              <span style={{ fontSize: 10, color: D.hint, width: 52, textAlign: "left" }}>Strongly disagree</span>
+              {[1, 2, 3, 4, 5, 6, 7].map((n) => (
+                <button
+                  key={n}
+                  onClick={() => onChange(n)}
+                  style={{
+                    width: 32, height: 32, borderRadius: "50%",
+                    background: value === n ? D.accent : "rgba(0,0,0,0.03)",
+                    color: value === n ? "#fff" : D.text,
+                    border: value === n ? "none" : "1px solid rgba(0,0,0,0.1)",
+                    fontSize: 12, fontFamily: "inherit", cursor: "pointer",
+                    display: "flex", alignItems: "center", justifyContent: "center",
+                    transition: "all .15s", padding: 0,
+                  }}
+                >{n}</button>
+              ))}
+              <span style={{ fontSize: 10, color: D.hint, width: 52, textAlign: "right" }}>Strongly agree</span>
+            </div>
+          </div>
+        );
+      }
+
       // ——— Feedback ———
       function Feedback({ spots, timestamps, sessionId }) {
         const keyboardInset = useKeyboardInset();
-        const [feltChills, setFeltChills] = useState(null);
-        const [driver, setDriver] = useState("");
-        const [note, setNote] = useState("");
+        const [step, setStep] = useState(0);
         const [submitted, setSubmitted] = useState(false);
 
-        const submit = () => {
+        // Universal
+        const [feltChills, setFeltChills] = useState(null);
+        const [crying, setCrying] = useState("");
+        const [eyes, setEyes] = useState("");
+
+        // Chills YES
+        const [chillsIntensity, setChillsIntensity] = useState(5);
+        const [chillsTriggers, setChillsTriggers] = useState([]);
+        const [triggerOther, setTriggerOther] = useState("");
+        const [bodyLocations, setBodyLocations] = useState([]);
+        const [peakTiming, setPeakTiming] = useState("");
+        const [chillsReflection, setChillsReflection] = useState("");
+
+        // Chills NO
+        const [barriers, setBarriers] = useState([]);
+        const [closeness, setCloseness] = useState("");
+        const [emotionalShift, setEmotionalShift] = useState(null);
+        const [emotionalDescribe, setEmotionalDescribe] = useState("");
+
+        // EBI
+        const [ebi, setEbi] = useState({});
+        const setEbiVal = (key, val) => setEbi((prev) => ({ ...prev, [key]: val }));
+
+        // Content quality
+        const [relevance, setRelevance] = useState(null);
+        const [inauthentic, setInauthentic] = useState(null);
+        const [inauthenticDetail, setInauthenticDetail] = useState("");
+        const [musicMatch, setMusicMatch] = useState("");
+        const [pacing, setPacing] = useState("");
+
+        // Open-ended
+        const [inspired, setInspired] = useState("");
+        const [improve, setImprove] = useState("");
+        const [finalThoughts, setFinalThoughts] = useState("");
+
+        // Optional
+        const [prolificId, setProlificId] = useState("");
+        const [email, setEmail] = useState("");
+
+        const inputStyle = {
+          width: "100%", padding: "14px 16px", background: "rgba(0,0,0,0.02)",
+          border: "1px solid rgba(0,0,0,0.06)", borderRadius: 12, color: D.text,
+          fontSize: 14, fontFamily: "inherit", resize: "none", outline: "none", lineHeight: 1.6,
+        };
+
+        const doSubmit = () => {
           fetch(API_BASE + "/api/demo/feedback", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
@@ -1186,8 +1015,38 @@
               felt_chills: feltChills,
               chills_count: spots || 0,
               chills_timestamps_json: JSON.stringify(timestamps || []),
-              experience_driver: driver,
-              feedback_note: note,
+              experience_driver: feltChills ? (chillsTriggers.join(",") || null) : null,
+              feedback_note: finalThoughts || null,
+              crying_response: crying || null,
+              eyes_open_closed: eyes || null,
+              inspired_to_do: inspired || null,
+              chills_intensity: feltChills ? chillsIntensity : null,
+              chills_trigger_json: feltChills ? JSON.stringify(chillsTriggers) : null,
+              chills_trigger_other: feltChills ? (triggerOther || null) : null,
+              chills_body_location_json: feltChills ? JSON.stringify(bodyLocations) : null,
+              chills_peak_timing: feltChills ? (peakTiming || null) : null,
+              chills_reflection: feltChills ? (chillsReflection || null) : null,
+              no_chills_barriers_json: !feltChills ? JSON.stringify(barriers) : null,
+              no_chills_closeness: !feltChills ? (closeness || null) : null,
+              no_chills_emotional_shift: !feltChills ? emotionalShift : null,
+              no_chills_emotional_describe: !feltChills ? (emotionalDescribe || null) : null,
+              ebi_faced_difficult: ebi.faced || null,
+              ebi_resolution: ebi.resolution || null,
+              ebi_explore: ebi.explore || null,
+              ebi_breakthrough: ebi.breakthrough || null,
+              ebi_closure: ebi.closure || null,
+              ebi_release: ebi.release || null,
+              ebi_stuck_resisting: ebi.stuck_resisting || null,
+              ebi_stuck_throughout: ebi.stuck_throughout || null,
+              content_relevance: relevance,
+              content_inauthentic: inauthentic,
+              content_inauthentic_detail: inauthenticDetail || null,
+              content_music_match: musicMatch || null,
+              content_pacing: pacing || null,
+              open_improve: improve || null,
+              open_final_thoughts: finalThoughts || null,
+              prolific_id: prolificId || null,
+              email: email || null,
             }),
           })
             .then(() => setSubmitted(true))
@@ -1196,191 +1055,352 @@
 
         if (submitted) return <Done />;
 
-        return (
-          <div
-            style={{
-              minHeight: "100%",
-              display: "flex",
-              flexDirection: "column",
-              padding: "60px 28px 176px",
-            }}
-          >
-            <FadeIn delay={300}>
-              <h2
-                style={{
-                  fontSize: 22,
-                  fontWeight: 200,
-                  color: D.text,
-                  marginBottom: 6,
-                  textAlign: "center",
-                }}
-              >
-                {spots > 0
-                  ? `You felt ${spots} moment${spots === 1 ? "" : "s"}`
-                  : ""}
-              </h2>
-              <p
-                style={{
-                  fontSize: 14,
-                  color: D.sub,
-                  textAlign: "center",
-                  marginBottom: 32,
-                }}
-              >
-                Session complete
-              </p>
-            </FadeIn>
-            <FadeIn delay={600}>
-              <div
-                style={{
-                  padding: "18px 20px",
-                  borderRadius: 16,
-                  background: "rgba(0,0,0,0.02)",
-                  border: "1px solid rgba(0,0,0,0.06)",
-                  marginBottom: 24,
-                  textAlign: "left",
-                }}
-              >
-                <div
-                  style={{
-                    fontSize: 11,
-                    color: D.accent,
-                    letterSpacing: ".1em",
-                    textTransform: "uppercase",
-                    marginBottom: 8,
-                  }}
-                >
-                  Did you experience chills?
-                </div>
-                <div style={{ display: "flex", gap: 12 }}>
-                  <button
-                    onClick={() => setFeltChills(true)}
-                    style={{
-                      flex: 1,
-                      padding: "12px",
-                      background:
-                        feltChills === true
-                          ? "rgba(0,0,0,0.08)"
-                          : "rgba(0,0,0,0.02)",
-                      border:
-                        feltChills === true
-                          ? "1px solid " + D.accent
-                          : "1px solid rgba(0,0,0,0.06)",
-                      borderRadius: 12,
-                      fontSize: 15,
-                      cursor: "pointer",
-                      fontFamily: "inherit",
-                    }}
-                  >
-                    Yes
-                  </button>
-                  <button
-                    onClick={() => setFeltChills(false)}
-                    style={{
-                      flex: 1,
-                      padding: "12px",
-                      background:
-                        feltChills === false
-                          ? "rgba(0,0,0,0.08)"
-                          : "rgba(0,0,0,0.02)",
-                      border:
-                        feltChills === false
-                          ? "1px solid " + D.accent
-                          : "1px solid rgba(0,0,0,0.06)",
-                      borderRadius: 12,
-                      fontSize: 15,
-                      cursor: "pointer",
-                      fontFamily: "inherit",
-                    }}
-                  >
-                    No
-                  </button>
-                </div>
+        // Total steps: 0=universal, 1=chills branch, 2=EBI, 3=content+open+optional
+        const totalSteps = 4;
+
+        // ——— Step 0: Universal ———
+        if (step === 0) {
+          return (
+            <div style={{ height: "100%", overflowY: "auto", WebkitOverflowScrolling: "touch", padding: "50px 24px 160px" }}>
+              <FadeIn delay={200}>
+                <h2 style={{ fontSize: 22, fontWeight: 200, color: D.text, marginBottom: 6, textAlign: "center" }}>
+                  {spots > 0 ? "You felt " + spots + " moment" + (spots === 1 ? "" : "s") : ""}
+                </h2>
+                <p style={{ fontSize: 14, color: D.sub, textAlign: "center", marginBottom: 28 }}>Session complete</p>
+              </FadeIn>
+
+              <FadeIn delay={400}>
+                <SurveyCard>
+                  <SurveyLabel>Did you experience chills?</SurveyLabel>
+                  <PillSelect options={[{value: true, label: "Yes"}, {value: false, label: "No"}]} value={feltChills} onChange={setFeltChills} />
+                </SurveyCard>
+              </FadeIn>
+
+              <FadeIn delay={600}>
+                <SurveyCard>
+                  <SurveyLabel>Did you cry or tear up?</SurveyLabel>
+                  <PillSelect
+                    options={[
+                      {value: "full_tears", label: "Yes, full tears"},
+                      {value: "eyes_watered", label: "Eyes watered"},
+                      {value: "lump_in_throat", label: "Lump in throat"},
+                      {value: "no", label: "No"},
+                    ]}
+                    value={crying}
+                    onChange={setCrying}
+                  />
+                </SurveyCard>
+              </FadeIn>
+
+              <FadeIn delay={800}>
+                <SurveyCard>
+                  <SurveyLabel>Did you keep your eyes open or closed?</SurveyLabel>
+                  <PillSelect
+                    options={[
+                      {value: "open", label: "Open"},
+                      {value: "closed", label: "Closed"},
+                      {value: "both", label: "Both"},
+                    ]}
+                    value={eyes}
+                    onChange={setEyes}
+                  />
+                </SurveyCard>
+              </FadeIn>
+
+              <FadeIn delay={1000}>
+                <BottomDock inset={keyboardInset}>
+                  <Btn green onClick={() => setStep(1)} disabled={feltChills === null}>Continue</Btn>
+                </BottomDock>
+              </FadeIn>
+            </div>
+          );
+        }
+
+        // ——— Step 1: Chills YES or NO branch ———
+        if (step === 1) {
+          if (feltChills) {
+            return (
+              <div style={{ height: "100%", overflowY: "auto", WebkitOverflowScrolling: "touch", padding: "50px 24px 160px" }}>
+                <FadeIn delay={200}>
+                  <SurveyCard>
+                    <SurveyLabel>Chills intensity</SurveyLabel>
+                    <div style={{ padding: "0 4px" }}>
+                      <input type="range" min="0" max="10" value={chillsIntensity} onChange={(e) => setChillsIntensity(parseInt(e.target.value))} style={{ width: "100%" }} />
+                      <div style={{ display: "flex", justifyContent: "space-between", fontSize: 11, color: D.hint, marginTop: 6 }}>
+                        <span>0 &ndash; Mild tingle</span>
+                        <span style={{ fontWeight: 500, color: D.text }}>{chillsIntensity}</span>
+                        <span>10 &ndash; Full-body shivers</span>
+                      </div>
+                    </div>
+                  </SurveyCard>
+                </FadeIn>
+
+                <FadeIn delay={400}>
+                  <SurveyCard>
+                    <SurveyLabel>What triggered the chills? (select all)</SurveyLabel>
+                    <PillSelect
+                      multi
+                      options={["Music", "Voice", "Speech text", "A specific phrase", "The build-up/crescendo", "Other"]}
+                      value={chillsTriggers}
+                      onChange={setChillsTriggers}
+                    />
+                    {chillsTriggers.includes("Other") && (
+                      <textarea value={triggerOther} onChange={(e) => setTriggerOther(e.target.value)} placeholder="What else triggered chills?" rows={2} style={{ ...inputStyle, marginTop: 10 }} />
+                    )}
+                  </SurveyCard>
+                </FadeIn>
+
+                <FadeIn delay={600}>
+                  <SurveyCard>
+                    <SurveyLabel>Where did you feel it? (select all)</SurveyLabel>
+                    <PillSelect
+                      multi
+                      options={["Scalp", "Back of neck", "Spine", "Arms", "Chest", "Full body"]}
+                      value={bodyLocations}
+                      onChange={setBodyLocations}
+                    />
+                  </SurveyCard>
+                </FadeIn>
+
+                <FadeIn delay={800}>
+                  <SurveyCard>
+                    <SurveyLabel>When did chills peak?</SurveyLabel>
+                    <PillSelect
+                      options={[
+                        {value: "beginning", label: "Beginning"},
+                        {value: "middle", label: "Middle"},
+                        {value: "end", label: "End"},
+                        {value: "specific_phrase", label: "During a specific phrase"},
+                      ]}
+                      value={peakTiming}
+                      onChange={setPeakTiming}
+                    />
+                  </SurveyCard>
+                </FadeIn>
+
+                <FadeIn delay={1000}>
+                  <SurveyCard>
+                    <SurveyLabel>What gave you chills? Did this make you think of anything?</SurveyLabel>
+                    <textarea value={chillsReflection} onChange={(e) => setChillsReflection(e.target.value)} placeholder="Share what came up for you..." rows={3} style={inputStyle} />
+                  </SurveyCard>
+                </FadeIn>
+
+                <FadeIn delay={1200}>
+                  <BottomDock inset={keyboardInset}>
+                    <Btn green onClick={() => setStep(2)}>Continue</Btn>
+                  </BottomDock>
+                </FadeIn>
               </div>
-            </FadeIn>
-            <FadeIn delay={900}>
-              <div
-                style={{
-                  padding: "18px 20px",
-                  borderRadius: 16,
-                  background: "rgba(0,0,0,0.02)",
-                  border: "1px solid rgba(0,0,0,0.06)",
-                  marginBottom: 24,
-                  textAlign: "left",
-                }}
-              >
-                <div
-                  style={{
-                    fontSize: 11,
-                    color: D.accent,
-                    letterSpacing: ".1em",
-                    textTransform: "uppercase",
-                    marginBottom: 8,
-                  }}
-                >
-                  What gave you chills?
-                </div>
-                <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-                  {["music", "voice", "speech text", "combination"].map((d) => (
-                    <button
-                      key={d}
-                      onClick={() => setDriver(d)}
-                      style={{
-                        padding: "10px 16px",
-                        background:
-                          driver === d
-                            ? "rgba(0,0,0,0.08)"
-                            : "rgba(0,0,0,0.02)",
-                        border:
-                          driver === d
-                            ? "1px solid " + D.accent
-                            : "1px solid rgba(0,0,0,0.06)",
-                        borderRadius: 20,
-                        fontSize: 13,
-                        cursor: "pointer",
-                        fontFamily: "inherit",
-                        textTransform: "capitalize",
-                      }}
-                    >
-                      {d}
-                    </button>
-                  ))}
-                </div>
+            );
+          } else {
+            // Chills NO branch
+            return (
+              <div style={{ height: "100%", overflowY: "auto", WebkitOverflowScrolling: "touch", padding: "50px 24px 160px" }}>
+                <FadeIn delay={200}>
+                  <SurveyCard>
+                    <SurveyLabel>What got in the way? (select all)</SurveyLabel>
+                    <PillSelect
+                      multi
+                      options={[
+                        "Didn\u2019t feel personally relevant",
+                        "Voice felt unnatural",
+                        "Music was distracting",
+                        "Too short to build up",
+                        "I was distracted",
+                        "I don\u2019t typically get chills",
+                        "Speech felt generic",
+                        "It felt forced or manipulative",
+                      ]}
+                      value={barriers}
+                      onChange={setBarriers}
+                    />
+                  </SurveyCard>
+                </FadeIn>
+
+                <FadeIn delay={400}>
+                  <SurveyCard>
+                    <SurveyLabel>How close did you get?</SurveyLabel>
+                    <PillSelect
+                      options={[
+                        {value: "not_at_all", label: "Not at all"},
+                        {value: "flicker_faded", label: "A flicker but it faded"},
+                        {value: "almost_there", label: "Almost there"},
+                        {value: "felt_something", label: "I felt something but wouldn\u2019t call it chills"},
+                      ]}
+                      value={closeness}
+                      onChange={setCloseness}
+                    />
+                  </SurveyCard>
+                </FadeIn>
+
+                <FadeIn delay={600}>
+                  <SurveyCard>
+                    <SurveyLabel>Even without chills, did you experience any emotional shift or breakthrough?</SurveyLabel>
+                    <PillSelect options={[{value: true, label: "Yes"}, {value: false, label: "No"}]} value={emotionalShift} onChange={setEmotionalShift} />
+                    {emotionalShift === true && (
+                      <textarea value={emotionalDescribe} onChange={(e) => setEmotionalDescribe(e.target.value)} placeholder="Describe what you felt..." rows={3} style={{ ...inputStyle, marginTop: 10 }} />
+                    )}
+                  </SurveyCard>
+                </FadeIn>
+
+                <FadeIn delay={800}>
+                  <BottomDock inset={keyboardInset}>
+                    <Btn green onClick={() => setStep(2)}>Continue</Btn>
+                  </BottomDock>
+                </FadeIn>
               </div>
-            </FadeIn>
-            <FadeIn delay={1100}>
-              <div style={{ fontSize: 12, color: D.sub, marginBottom: 10 }}>
-                Any thoughts or feelings after that? (optional)
-              </div>
-              <textarea
-                value={note}
-                onChange={(e) => setNote(e.target.value)}
-                placeholder="What came up for you..."
-                rows={4}
-                style={{
-                  width: "100%",
-                  padding: "16px 18px",
-                  background: "rgba(0,0,0,0.02)",
-                  border: "1px solid rgba(0,0,0,0.06)",
-                  borderRadius: 14,
-                  color: D.text,
-                  fontSize: 14,
-                  fontFamily: "inherit",
-                  resize: "none",
-                  outline: "none",
-                  lineHeight: 1.6,
-                }}
-              />
-            </FadeIn>
-            <FadeIn delay={1400}>
-              <BottomDock inset={keyboardInset}>
-                <Btn green onClick={submit}>
-                  Continue
-                </Btn>
-              </BottomDock>
-            </FadeIn>
-          </div>
-        );
+            );
+          }
+        }
+
+        // ——— Step 2: EBI ———
+        if (step === 2) {
+          return (
+            <div style={{ height: "100%", overflowY: "auto", WebkitOverflowScrolling: "touch", padding: "50px 24px 160px" }}>
+              <FadeIn delay={200}>
+                <h2 style={{ fontSize: 18, fontWeight: 300, color: D.text, textAlign: "center", marginBottom: 24 }}>
+                  How did this experience feel?
+                </h2>
+              </FadeIn>
+
+              <FadeIn delay={400}>
+                <SurveyCard style={{ padding: "20px 16px" }}>
+                  <LikertRow label="I faced emotionally difficult feelings that I usually push aside." value={ebi.faced} onChange={(v) => setEbiVal("faced", v)} />
+                  <LikertRow label="I experienced a resolution of a personal conflict or trauma." value={ebi.resolution} onChange={(v) => setEbiVal("resolution", v)} />
+                  <LikertRow label="I felt able to explore challenging emotions and memories." value={ebi.explore} onChange={(v) => setEbiVal("explore", v)} />
+                  <LikertRow label="I had an emotional breakthrough." value={ebi.breakthrough} onChange={(v) => setEbiVal("breakthrough", v)} />
+                  <LikertRow label="I was able to get a sense of closure on an emotional problem." value={ebi.closure} onChange={(v) => setEbiVal("closure", v)} />
+                  <LikertRow label="I achieved an emotional release followed by a sense of relief." value={ebi.release} onChange={(v) => setEbiVal("release", v)} />
+                  <div style={{ height: 1, background: "rgba(0,0,0,0.06)", margin: "16px 0" }} />
+                  <LikertRow label="I was resisting and avoiding challenging feelings throughout, without breakthrough." value={ebi.stuck_resisting} onChange={(v) => setEbiVal("stuck_resisting", v)} />
+                  <LikertRow label="I felt emotionally stuck throughout, without breakthrough." value={ebi.stuck_throughout} onChange={(v) => setEbiVal("stuck_throughout", v)} />
+                </SurveyCard>
+              </FadeIn>
+
+              <FadeIn delay={600}>
+                <BottomDock inset={keyboardInset}>
+                  <Btn green onClick={() => setStep(3)}>Continue</Btn>
+                </BottomDock>
+              </FadeIn>
+            </div>
+          );
+        }
+
+        // ——— Step 3: Content quality + Open-ended + Optional + Submit ———
+        if (step === 3) {
+          return (
+            <div style={{ height: "100%", overflowY: "auto", WebkitOverflowScrolling: "touch", padding: "50px 24px 160px" }}>
+              <FadeIn delay={200}>
+                <SurveyCard>
+                  <SurveyLabel>How personally relevant did the speech feel?</SurveyLabel>
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                    <span style={{ fontSize: 11, color: D.hint }}>Generic</span>
+                    {[1, 2, 3, 4, 5].map((n) => (
+                      <button
+                        key={n}
+                        onClick={() => setRelevance(n)}
+                        style={{
+                          width: 40, height: 40, borderRadius: "50%",
+                          background: relevance === n ? D.accent : "rgba(0,0,0,0.03)",
+                          color: relevance === n ? "#fff" : D.text,
+                          border: relevance === n ? "none" : "1px solid rgba(0,0,0,0.1)",
+                          fontSize: 14, fontFamily: "inherit", cursor: "pointer",
+                          display: "flex", alignItems: "center", justifyContent: "center",
+                          transition: "all .15s", padding: 0,
+                        }}
+                      >{n}</button>
+                    ))}
+                    <span style={{ fontSize: 11, color: D.hint }}>Deeply personal</span>
+                  </div>
+                </SurveyCard>
+              </FadeIn>
+
+              <FadeIn delay={350}>
+                <SurveyCard>
+                  <SurveyLabel>Did any line feel "off" or inauthentic?</SurveyLabel>
+                  <PillSelect options={[{value: true, label: "Yes"}, {value: false, label: "No"}]} value={inauthentic} onChange={setInauthentic} />
+                  {inauthentic === true && (
+                    <textarea value={inauthenticDetail} onChange={(e) => setInauthenticDetail(e.target.value)} placeholder="What felt off?" rows={2} style={{ ...inputStyle, marginTop: 10 }} />
+                  )}
+                </SurveyCard>
+              </FadeIn>
+
+              <FadeIn delay={500}>
+                <SurveyCard>
+                  <SurveyLabel>How was the music match?</SurveyLabel>
+                  <PillSelect
+                    options={[
+                      {value: "perfect", label: "Perfect"},
+                      {value: "good_not_ideal", label: "Good but not ideal"},
+                      {value: "distracting", label: "Distracting"},
+                      {value: "wrong_mood", label: "Wrong mood entirely"},
+                    ]}
+                    value={musicMatch}
+                    onChange={setMusicMatch}
+                  />
+                </SurveyCard>
+              </FadeIn>
+
+              <FadeIn delay={650}>
+                <SurveyCard>
+                  <SurveyLabel>How was the pacing?</SurveyLabel>
+                  <PillSelect
+                    options={[
+                      {value: "too_fast", label: "Too fast"},
+                      {value: "just_right", label: "Just right"},
+                      {value: "too_slow", label: "Too slow"},
+                    ]}
+                    value={pacing}
+                    onChange={setPacing}
+                  />
+                </SurveyCard>
+              </FadeIn>
+
+              <FadeIn delay={800}>
+                <SurveyCard>
+                  <SurveyLabel>What do you feel inspired to do now?</SurveyLabel>
+                  <textarea value={inspired} onChange={(e) => setInspired(e.target.value)} placeholder="Nothing particular, or share what comes to mind..." rows={2} style={inputStyle} />
+                </SurveyCard>
+              </FadeIn>
+
+              <FadeIn delay={950}>
+                <SurveyCard>
+                  <SurveyLabel>What's one thing that would make this hit harder next time?</SurveyLabel>
+                  <textarea value={improve} onChange={(e) => setImprove(e.target.value)} placeholder="Any suggestions..." rows={2} style={inputStyle} />
+                </SurveyCard>
+              </FadeIn>
+
+              <FadeIn delay={1100}>
+                <SurveyCard>
+                  <SurveyLabel>Any thoughts or feelings after that?</SurveyLabel>
+                  <textarea value={finalThoughts} onChange={(e) => setFinalThoughts(e.target.value)} placeholder="What came up for you..." rows={3} style={inputStyle} />
+                </SurveyCard>
+              </FadeIn>
+
+              <FadeIn delay={1250}>
+                <SurveyCard>
+                  <SurveyLabel>Prolific ID (optional)</SurveyLabel>
+                  <input type="text" value={prolificId} onChange={(e) => setProlificId(e.target.value)} placeholder="Enter your Prolific ID" style={inputStyle} />
+                </SurveyCard>
+              </FadeIn>
+
+              <FadeIn delay={1400}>
+                <SurveyCard>
+                  <SurveyLabel>Email (optional)</SurveyLabel>
+                  <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="Get notified when we launch" style={inputStyle} />
+                </SurveyCard>
+              </FadeIn>
+
+              <FadeIn delay={1550}>
+                <BottomDock inset={keyboardInset}>
+                  <Btn green onClick={doSubmit}>Submit</Btn>
+                </BottomDock>
+              </FadeIn>
+            </div>
+          );
+        }
+
+        return null;
       }
 
       // ——— Welcome ———
@@ -1400,42 +1420,26 @@
             <FadeIn delay={200}>
               <div
                 style={{
-                  fontSize: 12,
-                  fontWeight: 500,
-                  letterSpacing: ".12em",
-                  textTransform: "uppercase",
-                  color: D.hint,
-                  marginBottom: 40,
+                  fontSize: 12, fontWeight: 500, letterSpacing: ".12em",
+                  textTransform: "uppercase", color: D.hint, marginBottom: 40,
                 }}
-              >
-                ReWire
-              </div>
+              >ReWire</div>
             </FadeIn>
             <FadeIn delay={600}>
               <h1
                 style={{
-                  fontSize: 32,
-                  fontWeight: 600,
-                  lineHeight: 1.25,
-                  color: D.text,
-                  marginBottom: 20,
-                  letterSpacing: "-.02em",
+                  fontSize: 32, fontWeight: 600, lineHeight: 1.25,
+                  color: D.text, marginBottom: 20, letterSpacing: "-.02em",
                 }}
               >
-                Discover what
-                <br />
-                truly moves you.
+                Discover what<br />truly moves you.
               </h1>
             </FadeIn>
             <FadeIn delay={1000}>
               <p
                 style={{
-                  fontSize: 16,
-                  fontWeight: 400,
-                  lineHeight: 1.7,
-                  color: D.sub,
-                  maxWidth: 320,
-                  margin: "0 auto 36px",
+                  fontSize: 16, fontWeight: 400, lineHeight: 1.7,
+                  color: D.sub, maxWidth: 320, margin: "0 auto 36px",
                 }}
               >
                 Chills &ndash; goosebumps, shivers, that feeling when something
@@ -1444,9 +1448,7 @@
               </p>
             </FadeIn>
             <FadeIn delay={1400}>
-              <Btn green onClick={onNext}>
-                Get started
-              </Btn>
+              <Btn green onClick={onNext}>Get started</Btn>
             </FadeIn>
           </div>
         );
@@ -1469,47 +1471,24 @@
             <FadeIn delay={300}>
               <div
                 style={{
-                  width: 64,
-                  height: 64,
-                  borderRadius: "50%",
-                  background:
-                    "linear-gradient(145deg," +
-                    D.accent +
-                    "30," +
-                    D.warm +
-                    "20)",
+                  width: 64, height: 64, borderRadius: "50%",
+                  background: "linear-gradient(145deg," + D.accent + "30," + D.warm + "20)",
                   border: "1px solid " + D.accentGlow,
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  margin: "0 auto 24px",
-                  fontSize: 28,
+                  display: "flex", alignItems: "center", justifyContent: "center",
+                  margin: "0 auto 24px", fontSize: 28,
                 }}
-              >
-                &#10003;
-              </div>
+              >&#10003;</div>
             </FadeIn>
             <FadeIn delay={700}>
-              <h2
-                style={{
-                  fontSize: 28,
-                  fontWeight: 200,
-                  color: D.text,
-                  marginBottom: 12,
-                }}
-              >
+              <h2 style={{ fontSize: 28, fontWeight: 200, color: D.text, marginBottom: 12 }}>
                 Thank you
               </h2>
             </FadeIn>
             <FadeIn delay={1100}>
               <p
                 style={{
-                  fontSize: 15,
-                  fontWeight: 300,
-                  color: D.sub,
-                  lineHeight: 1.7,
-                  maxWidth: 280,
-                  margin: "0 auto 40px",
+                  fontSize: 15, fontWeight: 300, color: D.sub,
+                  lineHeight: 1.7, maxWidth: 280, margin: "0 auto 40px",
                 }}
               >
                 Your response helps us understand what moves people. That
@@ -1517,9 +1496,7 @@
               </p>
             </FadeIn>
             <FadeIn delay={1500}>
-              <Btn green onClick={() => window.location.reload()}>
-                Start over
-              </Btn>
+              <Btn green onClick={() => window.location.reload()}>Start over</Btn>
             </FadeIn>
           </div>
         );
