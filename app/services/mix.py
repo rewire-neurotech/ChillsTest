@@ -411,7 +411,7 @@ def mix(
     final_mix = _apply_peak_guard(final_mix, ceiling_dbfs=final_peak_dbfs)
     final_mix = _hard_fit_samples(final_mix, target_samples_per_ch)
 
-    tail_ms = min(900, max(350, target_ms // 18))
+    tail_ms = min(2000, max(800, target_ms // 12))
     final_mix = final_mix.fade_out(tail_ms)
 
     # Final loudness normalization
