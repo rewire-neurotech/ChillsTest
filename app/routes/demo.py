@@ -27,7 +27,7 @@ from app.utils.audio import load_audio, duration_ms, content_duration_ms
 r = APIRouter(prefix="/api/demo", tags=["demo"])
 
 MUSIC_FADEIN_MS = 5000   # Music fades in over 5 seconds (voice-only opening statements)
-TAIL_BUFFER_MS = 2000    # Music plays 2 seconds after voice ends
+TAIL_BUFFER_MS = 4000    # Music plays 2 seconds after voice ends
 
 
 # --- In-memory job tracking for progress ---
