@@ -27,7 +27,7 @@ from app.utils.audio import load_audio, duration_ms, content_duration_ms
 r = APIRouter(prefix="/api/demo", tags=["demo"])
 
 MUSIC_FADEIN_MS = 5000   # Music fades in over 5 seconds (voice-only opening statements)
-TAIL_BUFFER_MS = 4000    # Music plays 2 seconds after voice ends
+TAIL_BUFFER_MS = 4000    # Music plays 4 seconds after voice ends
 
 
 # --- In-memory job tracking for progress ---
@@ -228,10 +228,15 @@ Continue now. Only the continuation text. No preamble."""
                 if more and more not in best_script:
                     best_script = (best_script + " " + more).strip()
             else:
-                # Too long -- trim from the end
+                # Too long -- trim from the end at a sentence boundary
                 print(f"[Demo] Speech too long by {abs(delta_ms)}ms, trimming ~{delta_words} words")
                 words = best_script.strip().split()
-                best_script = " ".join(words[:-delta_words])
+                trimmed = " ".join(words[:-delta_words])
+                # Find last sentence boundary to avoid cutting mid-sentence
+                last_end = max(trimmed.rfind("."), trimmed.rfind("!"), trimmed.rfind("?"))
+                if last_end > len(trimmed) * 0.5:
+                    trimmed = trimmed[: last_end + 1]
+                best_script = trimmed
 
             # Re-synthesize
             best_wav = synth(
