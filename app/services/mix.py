@@ -181,14 +181,91 @@ def analyze_music(music_path: str | Path, frame_ms: int = 200) -> dict:
     return {"drop_ms": drop_ms, "frame_ms": win}
 
 
+def _duck_music_to_voice(
+    music: AudioSegment,
+    voice: AudioSegment,
+    floor_boost_db: float = 3.0,
+    max_duck_db: float = -1.0,
+    attack_ms: int = 180,
+    release_ms: int = 650,
+    win_ms: int = 60,
+    lookahead_ms: int = 500,
+    gap_hold_ms: int = 2600,
+) -> AudioSegment:
+
+    win = max(20, win_ms)
+    step = win
+    out = AudioSegment.silent(duration=0, frame_rate=music.frame_rate)
+    prev_gain = 0.0
+
+    silence_threshold_db = -45.0
+
+    in_voice_region = False
+    silence_run_ms = 0
+
+    for i in range(0, len(music), step):
+        i_ms = i
+
+        m_chunk = music[i_ms: i_ms + win]
+
+        # Lookahead: check voice energy slightly ahead
+        start_v_la = i_ms + lookahead_ms
+        end_v_la = start_v_la + win
+        v_chunk_la = voice[start_v_la:end_v_la]
+        v_db_la = _rms_dbfs(v_chunk_la)
+
+        # Current voice energy
+        v_now = voice[i_ms: i_ms + win]
+        v_now_db = _rms_dbfs(v_now)
+        voice_now = v_now_db > silence_threshold_db
+
+        if voice_now:
+            in_voice_region = True
+            silence_run_ms = 0
+        else:
+            if in_voice_region:
+                silence_run_ms += step
+                if silence_run_ms >= gap_hold_ms:
+                    in_voice_region = False
+            else:
+                silence_run_ms = 0
+
+        # Calculate target gain based on voice energy
+        if v_db_la <= -48.0:
+            target = floor_boost_db
+        elif v_db_la >= -26.0:
+            target = max_duck_db
+        else:
+            t = (v_db_la + 48.0) / 22.0  # 0..1
+            target = max_duck_db * t + floor_boost_db * (1 - t)
+
+        # Hold ducking during short gaps in voice
+        short_gap = (not voice_now) and in_voice_region and (silence_run_ms < gap_hold_ms)
+        if short_gap:
+            hold_level = max(max_duck_db + 1.5, -1.5)
+            target = min(target, hold_level)
+
+        # Smooth gain transitions
+        if target < prev_gain:
+            alpha = min(1.0, step / float(max(1, attack_ms)))
+        else:
+            alpha = min(1.0, step / float(max(1, release_ms)))
+        gain = prev_gain + alpha * (target - prev_gain)
+        prev_gain = gain
+
+        out += m_chunk.apply_gain(gain)
+
+    return out
+
+
 def mix(
     voice_path: str | Path,
     music_path: str | Path,
     out_path: str | Path,
     duck_db: float = 4.0,
     sync_mode: Literal["retime_voice_to_music", "retime_music_to_voice", "no_retime_trim_pad"] = "retime_voice_to_music",
-    voice_target_dbfs: float = -12.0,
-    music_target_dbfs: float = -18.0,
+    voice_target_dbfs: float = -13.0,
+    music_target_dbfs: float = -14.5,
     final_peak_dbfs: float = -1.0,
     music_fadein_ms: int = 3000,
     ffmpeg_bin: str | None = None,
@@ -197,19 +274,86 @@ def mix(
 
     ffmpeg_path = _ffmpeg_bin(ffmpeg_bin)
 
-    # ── MUSIC: load, normalize ──────────────────────────────────────
+    # Load and normalize music
     music = make_stereo(load_audio(music_path).set_frame_rate(44100))
     music = normalize_dbfs(music, music_target_dbfs)
     if len(music) <= 0:
         raise ValueError("Music stem is empty or unreadable.")
 
-    # ── VOICE: load, normalize ──────────────────────────────────────
+    # Apply fade-in to music (voice starts first, music enters gradually)
+    if music_fadein_ms > 0:
+        music = music.fade_in(music_fadein_ms)
+
+    # EQ: gentle bass reduction to avoid muddiness
+    if _ffmpeg_has(ffmpeg_path, "equalizer"):
+        tmp_m_in = tempfile.NamedTemporaryFile(delete=False, suffix=".wav")
+        tmp_m_out = tempfile.NamedTemporaryFile(delete=False, suffix=".wav")
+        music.export(tmp_m_in.name, format="wav")
+        try:
+            af = "equalizer=f=50:t=h:w=2:g=-2,equalizer=f=80:t=h:w=2:g=-1"
+            subprocess.run(
+                [
+                    ffmpeg_path,
+                    "-y",
+                    "-i",
+                    tmp_m_in.name,
+                    "-af",
+                    af,
+                    tmp_m_out.name,
+                ],
+                check=True,
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.DEVNULL,
+            )
+            music = AudioSegment.from_file(tmp_m_out.name)
+        except Exception:
+            pass
+
+    # Light compression to even out dynamics without saturating
+    if _ffmpeg_has(ffmpeg_path, "acompressor") or _ffmpeg_has(ffmpeg_path, "dynaudnorm"):
+        tmp_m2_in = tempfile.NamedTemporaryFile(delete=False, suffix=".wav")
+        tmp_m2_out = tempfile.NamedTemporaryFile(delete=False, suffix=".wav")
+        music.export(tmp_m2_in.name, format="wav")
+        try:
+            if _ffmpeg_has(ffmpeg_path, "acompressor"):
+                af = "acompressor=threshold=-20dB:ratio=2:attack=18:release=280:makeup=1.5"
+            else:
+                af = "dynaudnorm=f=125:s=8"
+            subprocess.run(
+                [ffmpeg_path, "-y", "-i", tmp_m2_in.name, "-af", af, tmp_m2_out.name],
+                check=True,
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.DEVNULL,
+            )
+            music = AudioSegment.from_file(tmp_m2_out.name)
+        except Exception:
+            pass
+
+    # Load and normalize voice
     voice = make_stereo(load_audio(voice_path).set_frame_rate(44100))
     voice = normalize_dbfs(voice, voice_target_dbfs)
     if len(voice) <= 0:
         raise ValueError("Voice stem is empty or unreadable.")
 
-    # ── SYNC LENGTHS ────────────────────────────────────────────────
+    # Voice EQ: clarity boost
+    if _ffmpeg_has(ffmpeg_path, "equalizer") or _ffmpeg_has(ffmpeg_path, "highpass"):
+        tmp_v_in = tempfile.NamedTemporaryFile(delete=False, suffix=".wav")
+        tmp_v_out = tempfile.NamedTemporaryFile(delete=False, suffix=".wav")
+        voice.export(tmp_v_in.name, format="wav")
+
+        vf = "highpass=f=70,equalizer=f=150:t=h:w=1.5:g=2,equalizer=f=3800:t=h:w=2:g=-1.5"
+        try:
+            subprocess.run(
+                [ffmpeg_path, "-y", "-i", tmp_v_in.name, "-af", vf, tmp_v_out.name],
+                check=True,
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.DEVNULL,
+            )
+            voice = AudioSegment.from_file(tmp_v_out.name).set_frame_rate(44100).set_channels(2)
+        except Exception:
+            pass
+
+    # Sync lengths
     ch = music.channels
     sw = music.sample_width
     frame_bytes = ch * sw
@@ -225,6 +369,7 @@ def mix(
         music_exact = music
 
     elif sync_mode == "retime_music_to_voice":
+        # Here we retime music to match the voice duration.
         voice_frames = len(voice.raw_data) // frame_bytes
         target_samples_per_ch = voice_frames
         target_ms = int(round(1000 * target_samples_per_ch / voice.frame_rate))
@@ -246,32 +391,71 @@ def mix(
     voice_exact = _hard_fit_samples(voice_exact, target_samples_per_ch)
     music_exact = _hard_fit_samples(music_exact, target_samples_per_ch)
 
-    # ── FADE-IN + MIX ──────────────────────────────────────────────
-    # No ducking. Voice sits 6dB above music -- that's enough separation.
-    # The level difference does the work without any chunk processing.
-    if music_fadein_ms > 0:
-        music_exact = music_exact.fade_in(music_fadein_ms)
+    # Duck music around voice with softer settings
+    music_adapt = _duck_music_to_voice(
+        music_exact,
+        voice_exact,
+        floor_boost_db=3.0,
+        max_duck_db=-1.0,
+        attack_ms=180,
+        release_ms=650,
+        win_ms=60,
+        lookahead_ms=500,
+        gap_hold_ms=2600,
+    )
+    music_adapt = _hard_fit_samples(music_adapt, target_samples_per_ch)
 
-    final_mix = music_exact.overlay(voice_exact)
+    final_mix = music_adapt.overlay(voice_exact)
 
-    # ── FINALIZE ────────────────────────────────────────────────────
+    # Peak guard
     final_mix = _apply_peak_guard(final_mix, ceiling_dbfs=final_peak_dbfs)
     final_mix = _hard_fit_samples(final_mix, target_samples_per_ch)
 
-    tail_ms = min(2000, max(800, target_ms // 12))
+    tail_ms = min(900, max(350, target_ms // 18))
     final_mix = final_mix.fade_out(tail_ms)
 
-    # ── EXPORT TO MP3 ──────────────────────────────────────────────
-    tmp_wav_final = tempfile.NamedTemporaryFile(delete=False, suffix=".wav")
-    final_mix.export(tmp_wav_final.name, format="wav")
+    # Final loudness normalization
+    tmp_wav_in = tempfile.NamedTemporaryFile(delete=False, suffix=".wav")
+    final_mix.export(tmp_wav_in.name, format="wav")
 
-    t_sec = f"{target_samples_per_ch / final_mix.frame_rate:.6f}"
+    tmp_wav_polished = tempfile.NamedTemporaryFile(delete=False, suffix=".wav")
+    if _ffmpeg_has(ffmpeg_path, "loudnorm"):
+        af = "loudnorm=I=-16.0:TP=-1.0:LRA=11:linear=1"
+    else:
+        af = "dynaudnorm=f=125:s=12,volume=-0.6dB"
+
     subprocess.run(
         [
             ffmpeg_path,
             "-y",
             "-i",
-            tmp_wav_final.name,
+            tmp_wav_in.name,
+            "-af",
+            af,
+            "-ar",
+            "44100",
+            "-ac",
+            str(ch),
+            tmp_wav_polished.name,
+        ],
+        check=True,
+        stdout=subprocess.DEVNULL,
+        stderr=subprocess.DEVNULL,
+    )
+
+    polished = AudioSegment.from_file(tmp_wav_polished.name).set_channels(ch).set_frame_rate(44100)
+    polished = _hard_fit_samples(polished, target_samples_per_ch)
+
+    tmp_wav_exact = tempfile.NamedTemporaryFile(delete=False, suffix=".wav")
+    polished.export(tmp_wav_exact.name, format="wav")
+
+    t_sec = f"{target_samples_per_ch / polished.frame_rate:.6f}"
+    subprocess.run(
+        [
+            ffmpeg_path,
+            "-y",
+            "-i",
+            tmp_wav_exact.name,
             "-t",
             t_sec,
             "-shortest",
@@ -310,4 +494,4 @@ def mix(
                 f"({out_frames} vs {target_samples_per_ch} samples)."
             )
 
-    return int(round(1000 * target_samples_per_ch / final_mix.frame_rate))
+    return int(round(1000 * target_samples_per_ch / polished.frame_rate))
