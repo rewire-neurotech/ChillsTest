@@ -186,10 +186,10 @@ def _duck_music_to_voice(
     voice: AudioSegment,
     floor_boost_db: float = 1.5,
     max_duck_db: float = -1.0,
-    attack_ms: int = 300,
-    release_ms: int = 1200,
-    win_ms: int = 120,
-    lookahead_ms: int = 500,
+    attack_ms: int = 400,
+    release_ms: int = 1500,
+    win_ms: int = 250,
+    lookahead_ms: int = 600,
     gap_hold_ms: int = 2600,
 ) -> AudioSegment:
 
@@ -280,17 +280,11 @@ def mix(
     if len(music) <= 0:
         raise ValueError("Music stem is empty or unreadable.")
 
-    # Remove sub-bass rumble from music too (pydub, no FFmpeg)
-    music = music.high_pass_filter(40)
-
     # ── VOICE: load, normalize ────────────────────────────────────────
     voice = make_stereo(load_audio(voice_path).set_frame_rate(44100))
     voice = normalize_dbfs(voice, voice_target_dbfs)
     if len(voice) <= 0:
         raise ValueError("Voice stem is empty or unreadable.")
-
-    # Remove sub-bass hum baked into TTS output (below any human voice range)
-    voice = voice.high_pass_filter(60)
 
     # ── SYNC LENGTHS ────────────────────────────────────────────────────
     ch = music.channels
@@ -335,10 +329,10 @@ def mix(
         voice_exact,
         floor_boost_db=1.5,
         max_duck_db=-1.0,
-        attack_ms=300,
-        release_ms=1200,
-        win_ms=120,
-        lookahead_ms=500,
+        attack_ms=400,
+        release_ms=1500,
+        win_ms=250,
+        lookahead_ms=600,
         gap_hold_ms=2600,
     )
     music_adapt = _hard_fit_samples(music_adapt, target_samples_per_ch)
