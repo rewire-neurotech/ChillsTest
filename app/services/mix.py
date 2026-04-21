@@ -302,28 +302,13 @@ def mix(
         except Exception:
             pass
 
-    # ── VOICE: load, normalize, EQ ──────────────────────────────────────
+    # ── VOICE: load, normalize ────────────────────────────────────────
     voice = make_stereo(load_audio(voice_path).set_frame_rate(44100))
     voice = normalize_dbfs(voice, voice_target_dbfs)
     if len(voice) <= 0:
         raise ValueError("Voice stem is empty or unreadable.")
 
-    # Single EQ pass: highpass to remove rumble + subtle presence lift
-    if _ffmpeg_has(ffmpeg_path, "highpass"):
-        tmp_v_in = tempfile.NamedTemporaryFile(delete=False, suffix=".wav")
-        tmp_v_out = tempfile.NamedTemporaryFile(delete=False, suffix=".wav")
-        voice.export(tmp_v_in.name, format="wav")
-        try:
-            vf = "highpass=f=80,equalizer=f=3000:t=h:w=2:g=1.5"
-            subprocess.run(
-                [ffmpeg_path, "-y", "-i", tmp_v_in.name, "-af", vf, tmp_v_out.name],
-                check=True,
-                stdout=subprocess.DEVNULL,
-                stderr=subprocess.DEVNULL,
-            )
-            voice = AudioSegment.from_file(tmp_v_out.name).set_frame_rate(44100).set_channels(2)
-        except Exception:
-            pass
+    # No EQ on voice. ElevenLabs TTS output is already clean.
 
     # ── SYNC LENGTHS ────────────────────────────────────────────────────
     ch = music.channels
