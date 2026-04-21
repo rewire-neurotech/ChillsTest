@@ -274,33 +274,14 @@ def mix(
 
     ffmpeg_path = _ffmpeg_bin(ffmpeg_bin)
 
-    # ── MUSIC: load, normalize, EQ ──────────────────────────────────────
+    # ── MUSIC: load, normalize ──────────────────────────────────────
     music = make_stereo(load_audio(music_path).set_frame_rate(44100))
     music = normalize_dbfs(music, music_target_dbfs)
     if len(music) <= 0:
         raise ValueError("Music stem is empty or unreadable.")
 
-    # Single EQ pass: bass reduction + subtle voice-frequency carve
-    if _ffmpeg_has(ffmpeg_path, "equalizer"):
-        tmp_m_in = tempfile.NamedTemporaryFile(delete=False, suffix=".wav")
-        tmp_m_out = tempfile.NamedTemporaryFile(delete=False, suffix=".wav")
-        music.export(tmp_m_in.name, format="wav")
-        try:
-            af = (
-                "equalizer=f=50:t=h:w=2:g=-2,"
-                "equalizer=f=80:t=h:w=2:g=-1,"
-                "equalizer=f=300:t=h:w=2:g=-1.5,"
-                "equalizer=f=2500:t=h:w=1.5:g=-1"
-            )
-            subprocess.run(
-                [ffmpeg_path, "-y", "-i", tmp_m_in.name, "-af", af, tmp_m_out.name],
-                check=True,
-                stdout=subprocess.DEVNULL,
-                stderr=subprocess.DEVNULL,
-            )
-            music = AudioSegment.from_file(tmp_m_out.name)
-        except Exception:
-            pass
+    # Remove sub-bass rumble from music too (pydub, no FFmpeg)
+    music = music.high_pass_filter(40)
 
     # ── VOICE: load, normalize ────────────────────────────────────────
     voice = make_stereo(load_audio(voice_path).set_frame_rate(44100))
