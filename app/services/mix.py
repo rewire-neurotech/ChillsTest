@@ -181,91 +181,14 @@ def analyze_music(music_path: str | Path, frame_ms: int = 200) -> dict:
     return {"drop_ms": drop_ms, "frame_ms": win}
 
 
-def _duck_music_to_voice(
-    music: AudioSegment,
-    voice: AudioSegment,
-    floor_boost_db: float = 1.5,
-    max_duck_db: float = -1.0,
-    attack_ms: int = 400,
-    release_ms: int = 1500,
-    win_ms: int = 250,
-    lookahead_ms: int = 600,
-    gap_hold_ms: int = 2600,
-) -> AudioSegment:
-
-    win = max(20, win_ms)
-    step = win
-    out = AudioSegment.silent(duration=0, frame_rate=music.frame_rate)
-    prev_gain = 0.0
-
-    silence_threshold_db = -45.0
-
-    in_voice_region = False
-    silence_run_ms = 0
-
-    for i in range(0, len(music), step):
-        i_ms = i
-
-        m_chunk = music[i_ms: i_ms + win]
-
-        # Lookahead: check voice energy slightly ahead
-        start_v_la = i_ms + lookahead_ms
-        end_v_la = start_v_la + win
-        v_chunk_la = voice[start_v_la:end_v_la]
-        v_db_la = _rms_dbfs(v_chunk_la)
-
-        # Current voice energy
-        v_now = voice[i_ms: i_ms + win]
-        v_now_db = _rms_dbfs(v_now)
-        voice_now = v_now_db > silence_threshold_db
-
-        if voice_now:
-            in_voice_region = True
-            silence_run_ms = 0
-        else:
-            if in_voice_region:
-                silence_run_ms += step
-                if silence_run_ms >= gap_hold_ms:
-                    in_voice_region = False
-            else:
-                silence_run_ms = 0
-
-        # Calculate target gain based on voice energy
-        if v_db_la <= -48.0:
-            target = floor_boost_db
-        elif v_db_la >= -26.0:
-            target = max_duck_db
-        else:
-            t = (v_db_la + 48.0) / 22.0  # 0..1
-            target = max_duck_db * t + floor_boost_db * (1 - t)
-
-        # Hold ducking during short gaps in voice
-        short_gap = (not voice_now) and in_voice_region and (silence_run_ms < gap_hold_ms)
-        if short_gap:
-            hold_level = max(max_duck_db + 1.5, -1.5)
-            target = min(target, hold_level)
-
-        # Smooth gain transitions
-        if target < prev_gain:
-            alpha = min(1.0, step / float(max(1, attack_ms)))
-        else:
-            alpha = min(1.0, step / float(max(1, release_ms)))
-        gain = prev_gain + alpha * (target - prev_gain)
-        prev_gain = gain
-
-        out += m_chunk.apply_gain(gain)
-
-    return out
-
-
 def mix(
     voice_path: str | Path,
     music_path: str | Path,
     out_path: str | Path,
     duck_db: float = 4.0,
     sync_mode: Literal["retime_voice_to_music", "retime_music_to_voice", "no_retime_trim_pad"] = "retime_voice_to_music",
-    voice_target_dbfs: float = -14.0,
-    music_target_dbfs: float = -13.5,
+    voice_target_dbfs: float = -12.0,
+    music_target_dbfs: float = -18.0,
     final_peak_dbfs: float = -1.0,
     music_fadein_ms: int = 3000,
     ffmpeg_bin: str | None = None,
@@ -280,13 +203,13 @@ def mix(
     if len(music) <= 0:
         raise ValueError("Music stem is empty or unreadable.")
 
-    # ── VOICE: load, normalize ────────────────────────────────────────
+    # ── VOICE: load, normalize ──────────────────────────────────────
     voice = make_stereo(load_audio(voice_path).set_frame_rate(44100))
     voice = normalize_dbfs(voice, voice_target_dbfs)
     if len(voice) <= 0:
         raise ValueError("Voice stem is empty or unreadable.")
 
-    # ── SYNC LENGTHS ────────────────────────────────────────────────────
+    # ── SYNC LENGTHS ────────────────────────────────────────────────
     ch = music.channels
     sw = music.sample_width
     frame_bytes = ch * sw
@@ -323,34 +246,22 @@ def mix(
     voice_exact = _hard_fit_samples(voice_exact, target_samples_per_ch)
     music_exact = _hard_fit_samples(music_exact, target_samples_per_ch)
 
-    # ── DUCK + FADE-IN + MIX ───────────────────────────────────────────
-    music_adapt = _duck_music_to_voice(
-        music_exact,
-        voice_exact,
-        floor_boost_db=1.5,
-        max_duck_db=-1.0,
-        attack_ms=400,
-        release_ms=1500,
-        win_ms=250,
-        lookahead_ms=600,
-        gap_hold_ms=2600,
-    )
-    music_adapt = _hard_fit_samples(music_adapt, target_samples_per_ch)
-
-    # Fade-in applied after ducking so the ramp stays clean
+    # ── FADE-IN + MIX ──────────────────────────────────────────────
+    # No ducking. Voice sits 6dB above music -- that's enough separation.
+    # The level difference does the work without any chunk processing.
     if music_fadein_ms > 0:
-        music_adapt = music_adapt.fade_in(music_fadein_ms)
+        music_exact = music_exact.fade_in(music_fadein_ms)
 
-    final_mix = music_adapt.overlay(voice_exact)
+    final_mix = music_exact.overlay(voice_exact)
 
-    # ── FINALIZE ────────────────────────────────────────────────────────
+    # ── FINALIZE ────────────────────────────────────────────────────
     final_mix = _apply_peak_guard(final_mix, ceiling_dbfs=final_peak_dbfs)
     final_mix = _hard_fit_samples(final_mix, target_samples_per_ch)
 
     tail_ms = min(2000, max(800, target_ms // 12))
     final_mix = final_mix.fade_out(tail_ms)
 
-    # ── EXPORT TO MP3 (single clean FFmpeg pass) ───────────────────────
+    # ── EXPORT TO MP3 ──────────────────────────────────────────────
     tmp_wav_final = tempfile.NamedTemporaryFile(delete=False, suffix=".wav")
     final_mix.export(tmp_wav_final.name, format="wav")
 
