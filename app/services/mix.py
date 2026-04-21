@@ -441,13 +441,9 @@ def mix(
     final_mix.export(tmp_wav_in.name, format="wav")
 
     tmp_wav_polished = tempfile.NamedTemporaryFile(delete=False, suffix=".wav")
-    if _ffmpeg_has(ffmpeg_path, "alimiter"):
-        af = "alimiter=limit=0.891:attack=5:release=50"
-    elif _ffmpeg_has(ffmpeg_path, "acompressor"):
-        # Brick-wall limiter fallback via aggressive compressor
-        af = "acompressor=threshold=-1dB:ratio=20:attack=0.1:release=50"
-    else:
-        af = "volume=0dB"  # no-op fallback if neither filter exists
+    # Peak guard already prevents clipping above.
+    # Just pass through cleanly -- no limiter, no loudnorm, no dynamic processing.
+    af = "volume=0dB"
 
     subprocess.run(
         [
