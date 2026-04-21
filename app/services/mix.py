@@ -280,9 +280,7 @@ def mix(
     if len(music) <= 0:
         raise ValueError("Music stem is empty or unreadable.")
 
-    # Apply fade-in to music (voice starts first, music enters gradually)
-    if music_fadein_ms > 0:
-        music = music.fade_in(music_fadein_ms)
+    # CHANGED: fade-in moved to after ducking (see below)
 
     # EQ: gentle bass reduction to avoid muddiness
     if _ffmpeg_has(ffmpeg_path, "equalizer"):
@@ -309,25 +307,8 @@ def mix(
         except Exception:
             pass
 
-    # Light compression to even out dynamics without saturating
-    if _ffmpeg_has(ffmpeg_path, "acompressor") or _ffmpeg_has(ffmpeg_path, "dynaudnorm"):
-        tmp_m2_in = tempfile.NamedTemporaryFile(delete=False, suffix=".wav")
-        tmp_m2_out = tempfile.NamedTemporaryFile(delete=False, suffix=".wav")
-        music.export(tmp_m2_in.name, format="wav")
-        try:
-            if _ffmpeg_has(ffmpeg_path, "acompressor"):
-                af = "acompressor=threshold=-20dB:ratio=2:attack=18:release=280:makeup=1.5"
-            else:
-                af = "dynaudnorm=f=125:s=8"
-            subprocess.run(
-                [ffmpeg_path, "-y", "-i", tmp_m2_in.name, "-af", af, tmp_m2_out.name],
-                check=True,
-                stdout=subprocess.DEVNULL,
-                stderr=subprocess.DEVNULL,
-            )
-            music = AudioSegment.from_file(tmp_m2_out.name)
-        except Exception:
-            pass
+    # REMOVED: music compressor block (acompressor/dynaudnorm)
+    # This was causing gain pumping on sustained notes, especially during fade-in.
 
     # Load and normalize voice
     voice = make_stereo(load_audio(voice_path).set_frame_rate(44100))
@@ -404,6 +385,10 @@ def mix(
         gap_hold_ms=2600,
     )
     music_adapt = _hard_fit_samples(music_adapt, target_samples_per_ch)
+
+    # CHANGED: fade-in applied here after ducking so the ramp stays clean
+    if music_fadein_ms > 0:
+        music_adapt = music_adapt.fade_in(music_fadein_ms)
 
     final_mix = music_adapt.overlay(voice_exact)
 
