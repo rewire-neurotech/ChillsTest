@@ -308,7 +308,8 @@ def mix(
     if len(voice) <= 0:
         raise ValueError("Voice stem is empty or unreadable.")
 
-    # No EQ on voice. ElevenLabs TTS output is already clean.
+    # Remove sub-bass hum baked into TTS output (below any human voice range)
+    voice = voice.high_pass_filter(60)
 
     # ── SYNC LENGTHS ────────────────────────────────────────────────────
     ch = music.channels
