@@ -70,7 +70,7 @@ def _retime_with_ffmpeg(src_wav: str, target_ms: int, ffmpeg_path: str) -> str:
     seg.export(mid_wav.name, format="wav")
 
     cur_ms2 = len(AudioSegment.from_file(mid_wav.name))
-    factor = max(1e-6, cur_ms2 / float(target_ms))  # >1 => faster/shorter, <1 => slower/longer
+    factor = max(1e-6, cur_ms2 / float(target_ms))
 
     out_wav = tempfile.NamedTemporaryFile(delete=False, suffix=".wav")
     cmd = [
@@ -182,12 +182,7 @@ def analyze_music(music_path: str | Path, frame_ms: int = 200) -> dict:
     return {"drop_ms": drop_ms, "frame_ms": win}
 
 
-# ---------------------------------------------------------------------------
-#  Sample-level RMS helper (operates on raw array, no pydub overhead)
-# ---------------------------------------------------------------------------
-
 def _rms_dbfs_from_samples(samples, sample_width: int) -> float:
-    """Compute RMS in dBFS from a stdlib array of PCM samples."""
     n = len(samples)
     if n == 0:
         return -120.0
@@ -200,19 +195,6 @@ def _rms_dbfs_from_samples(samples, sample_width: int) -> float:
     full_scale = float(1 << (8 * sample_width - 1))
     return 20.0 * math.log10(rms / full_scale)
 
-
-# ---------------------------------------------------------------------------
-#  Smooth sidechain ducker  (replaces the old chunk-concatenation version)
-#
-#  The old version applied a per-window gain via pydub's apply_gain() and
-#  concatenated the chunks.  Every splice boundary introduced a waveform
-#  discontinuity; at 60 ms windows that produced ~16 Hz of clicks, which
-#  the ear hears as a low hum / motor sound.
-#
-#  This version computes the same gain envelope but applies it at the
-#  *sample* level with linear interpolation between windows, so the gain
-#  curve is perfectly smooth and no splice artefacts exist.
-# ---------------------------------------------------------------------------
 
 def _duck_music_to_voice(
     music: AudioSegment,
@@ -231,7 +213,6 @@ def _duck_music_to_voice(
     channels = music.channels
     sr = music.frame_rate
 
-    # Determine array type code from sample width
     if sw == 1:
         typecode = "b"
         maxv = 127
@@ -242,24 +223,21 @@ def _duck_music_to_voice(
         typecode = "i"
         maxv = 2147483647
     else:
-        # Fallback to 16-bit
         typecode = "h"
         maxv = 32767
 
     minv = -(maxv + 1)
 
-    # ── Unpack raw PCM into fast arrays ──
     m_samples = _array.array(typecode, music.raw_data)
     v_samples = _array.array(typecode, voice.raw_data)
 
     frames_per_win = int(sr * win / 1000)
-    spw = frames_per_win * channels          # samples per window (interleaved)
+    spw = frames_per_win * channels
     total_samples = len(m_samples)
     total_wins = max(1, (total_samples + spw - 1) // spw)
 
     lookahead_wins = max(1, int(round(lookahead_ms / win)))
 
-    # ── Pre-compute voice RMS per window (one pass) ──
     voice_rms: list[float] = []
     for w in range(total_wins):
         s0 = min(w * spw, len(v_samples))
@@ -269,7 +247,6 @@ def _duck_music_to_voice(
         else:
             voice_rms.append(-120.0)
 
-    # ── First pass: build per-window gain envelope (dB) ──
     silence_threshold_db = -45.0
     in_voice_region = False
     silence_run_ms = 0
@@ -280,11 +257,9 @@ def _duck_music_to_voice(
         v_now_db = voice_rms[w]
         voice_now = v_now_db > silence_threshold_db
 
-        # Voice energy with lookahead
         la_w = min(w + lookahead_wins, len(voice_rms) - 1)
         v_la_db = voice_rms[la_w]
 
-        # Track voice regions for gap holding
         if voice_now:
             in_voice_region = True
             silence_run_ms = 0
@@ -296,22 +271,19 @@ def _duck_music_to_voice(
             else:
                 silence_run_ms = 0
 
-        # Calculate target gain
         if v_la_db <= -48.0:
             target = floor_boost_db
         elif v_la_db >= -26.0:
             target = max_duck_db
         else:
-            t = (v_la_db + 48.0) / 22.0  # 0..1
+            t = (v_la_db + 48.0) / 22.0
             target = max_duck_db * t + floor_boost_db * (1 - t)
 
-        # Hold ducking during short gaps in voice
         short_gap = (not voice_now) and in_voice_region and (silence_run_ms < gap_hold_ms)
         if short_gap:
             hold_level = max(max_duck_db + 1.5, -1.5)
             target = min(target, hold_level)
 
-        # Smooth gain transitions (attack / release)
         if target < prev_gain:
             alpha = min(1.0, win / float(max(1, attack_ms)))
         else:
@@ -321,14 +293,7 @@ def _duck_music_to_voice(
 
         gains_db.append(gain)
 
-    # ── Convert dB envelope to linear multipliers ──
     gains_lin: list[float] = [10.0 ** (g / 20.0) for g in gains_db]
-
-    # ── Second pass: apply gain with per-sample linear interpolation ──
-    #
-    # Between window w and window w+1 the gain ramps linearly from
-    # gains_lin[w] to gains_lin[w+1].  This means the gain curve is
-    # continuous everywhere -- no jumps, no clicks, no hum.
 
     for w in range(total_wins):
         s0 = w * spw
@@ -341,9 +306,8 @@ def _duck_music_to_voice(
         g1 = gains_lin[min(w + 1, len(gains_lin) - 1)]
 
         if abs(g0 - g1) < 1e-9:
-            # Constant gain across this window -- fast path
             if abs(g0 - 1.0) < 1e-9:
-                continue  # gain is unity, nothing to do
+                continue
             for j in range(n):
                 val = int(m_samples[s0 + j] * g0)
                 if val > maxv:
@@ -352,7 +316,6 @@ def _duck_music_to_voice(
                     val = minv
                 m_samples[s0 + j] = val
         else:
-            # Linearly interpolate gain across the window
             inv_n = 1.0 / n
             for j in range(n):
                 g = g0 + (g1 - g0) * (j * inv_n)
@@ -382,17 +345,14 @@ def mix(
 
     ffmpeg_path = _ffmpeg_bin(ffmpeg_bin)
 
-    # Load and normalize music
     music = make_stereo(load_audio(music_path).set_frame_rate(44100))
     music = normalize_dbfs(music, music_target_dbfs)
     if len(music) <= 0:
         raise ValueError("Music stem is empty or unreadable.")
 
-    # Apply fade-in to music (voice starts first, music enters gradually)
     if music_fadein_ms > 0:
         music = music.fade_in(music_fadein_ms)
 
-    # EQ: gentle bass reduction to avoid muddiness
     if _ffmpeg_has(ffmpeg_path, "equalizer"):
         tmp_m_in = tempfile.NamedTemporaryFile(delete=False, suffix=".wav")
         tmp_m_out = tempfile.NamedTemporaryFile(delete=False, suffix=".wav")
@@ -417,7 +377,6 @@ def mix(
         except Exception:
             pass
 
-    # Light compression to even out dynamics without saturating
     if _ffmpeg_has(ffmpeg_path, "acompressor") or _ffmpeg_has(ffmpeg_path, "dynaudnorm"):
         tmp_m2_in = tempfile.NamedTemporaryFile(delete=False, suffix=".wav")
         tmp_m2_out = tempfile.NamedTemporaryFile(delete=False, suffix=".wav")
@@ -437,13 +396,11 @@ def mix(
         except Exception:
             pass
 
-    # Load and normalize voice
     voice = make_stereo(load_audio(voice_path).set_frame_rate(44100))
     voice = normalize_dbfs(voice, voice_target_dbfs)
     if len(voice) <= 0:
         raise ValueError("Voice stem is empty or unreadable.")
 
-    # Voice EQ: clarity boost
     if _ffmpeg_has(ffmpeg_path, "equalizer") or _ffmpeg_has(ffmpeg_path, "highpass"):
         tmp_v_in = tempfile.NamedTemporaryFile(delete=False, suffix=".wav")
         tmp_v_out = tempfile.NamedTemporaryFile(delete=False, suffix=".wav")
@@ -461,7 +418,6 @@ def mix(
         except Exception:
             pass
 
-    # Sync lengths
     ch = music.channels
     sw = music.sample_width
     frame_bytes = ch * sw
@@ -477,7 +433,6 @@ def mix(
         music_exact = music
 
     elif sync_mode == "retime_music_to_voice":
-        # Here we retime music to match the voice duration.
         voice_frames = len(voice.raw_data) // frame_bytes
         target_samples_per_ch = voice_frames
         target_ms = int(round(1000 * target_samples_per_ch / voice.frame_rate))
@@ -499,7 +454,6 @@ def mix(
     voice_exact = _hard_fit_samples(voice_exact, target_samples_per_ch)
     music_exact = _hard_fit_samples(music_exact, target_samples_per_ch)
 
-    # Duck music around voice with softer settings
     music_adapt = _duck_music_to_voice(
         music_exact,
         voice_exact,
@@ -515,14 +469,12 @@ def mix(
 
     final_mix = music_adapt.overlay(voice_exact)
 
-    # Peak guard
     final_mix = _apply_peak_guard(final_mix, ceiling_dbfs=final_peak_dbfs)
     final_mix = _hard_fit_samples(final_mix, target_samples_per_ch)
 
     tail_ms = min(900, max(350, target_ms // 18))
     final_mix = final_mix.fade_out(tail_ms)
 
-    # Final loudness normalization
     tmp_wav_in = tempfile.NamedTemporaryFile(delete=False, suffix=".wav")
     final_mix.export(tmp_wav_in.name, format="wav")
 
