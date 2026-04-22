@@ -1,4 +1,5 @@
 from __future__ import annotations
+import array as _array
 import math
 import shutil
 import subprocess
@@ -181,6 +182,38 @@ def analyze_music(music_path: str | Path, frame_ms: int = 200) -> dict:
     return {"drop_ms": drop_ms, "frame_ms": win}
 
 
+# ---------------------------------------------------------------------------
+#  Sample-level RMS helper (operates on raw array, no pydub overhead)
+# ---------------------------------------------------------------------------
+
+def _rms_dbfs_from_samples(samples, sample_width: int) -> float:
+    """Compute RMS in dBFS from a stdlib array of PCM samples."""
+    n = len(samples)
+    if n == 0:
+        return -120.0
+    sum_sq = 0.0
+    for s in samples:
+        sum_sq += s * s
+    rms = math.sqrt(sum_sq / n)
+    if rms <= 0:
+        return -120.0
+    full_scale = float(1 << (8 * sample_width - 1))
+    return 20.0 * math.log10(rms / full_scale)
+
+
+# ---------------------------------------------------------------------------
+#  Smooth sidechain ducker  (replaces the old chunk-concatenation version)
+#
+#  The old version applied a per-window gain via pydub's apply_gain() and
+#  concatenated the chunks.  Every splice boundary introduced a waveform
+#  discontinuity; at 60 ms windows that produced ~16 Hz of clicks, which
+#  the ear hears as a low hum / motor sound.
+#
+#  This version computes the same gain envelope but applies it at the
+#  *sample* level with linear interpolation between windows, so the gain
+#  curve is perfectly smooth and no splice artefacts exist.
+# ---------------------------------------------------------------------------
+
 def _duck_music_to_voice(
     music: AudioSegment,
     voice: AudioSegment,
@@ -194,49 +227,82 @@ def _duck_music_to_voice(
 ) -> AudioSegment:
 
     win = max(20, win_ms)
-    step = win
-    out = AudioSegment.silent(duration=0, frame_rate=music.frame_rate)
-    prev_gain = 0.0
+    sw = music.sample_width
+    channels = music.channels
+    sr = music.frame_rate
 
+    # Determine array type code from sample width
+    if sw == 1:
+        typecode = "b"
+        maxv = 127
+    elif sw == 2:
+        typecode = "h"
+        maxv = 32767
+    elif sw == 4:
+        typecode = "i"
+        maxv = 2147483647
+    else:
+        # Fallback to 16-bit
+        typecode = "h"
+        maxv = 32767
+
+    minv = -(maxv + 1)
+
+    # ── Unpack raw PCM into fast arrays ──
+    m_samples = _array.array(typecode, music.raw_data)
+    v_samples = _array.array(typecode, voice.raw_data)
+
+    frames_per_win = int(sr * win / 1000)
+    spw = frames_per_win * channels          # samples per window (interleaved)
+    total_samples = len(m_samples)
+    total_wins = max(1, (total_samples + spw - 1) // spw)
+
+    lookahead_wins = max(1, int(round(lookahead_ms / win)))
+
+    # ── Pre-compute voice RMS per window (one pass) ──
+    voice_rms: list[float] = []
+    for w in range(total_wins):
+        s0 = min(w * spw, len(v_samples))
+        s1 = min(s0 + spw, len(v_samples))
+        if s1 > s0:
+            voice_rms.append(_rms_dbfs_from_samples(v_samples[s0:s1], sw))
+        else:
+            voice_rms.append(-120.0)
+
+    # ── First pass: build per-window gain envelope (dB) ──
     silence_threshold_db = -45.0
-
     in_voice_region = False
     silence_run_ms = 0
+    prev_gain = 0.0
+    gains_db: list[float] = []
 
-    for i in range(0, len(music), step):
-        i_ms = i
-
-        m_chunk = music[i_ms: i_ms + win]
-
-        # Lookahead: check voice energy slightly ahead
-        start_v_la = i_ms + lookahead_ms
-        end_v_la = start_v_la + win
-        v_chunk_la = voice[start_v_la:end_v_la]
-        v_db_la = _rms_dbfs(v_chunk_la)
-
-        # Current voice energy
-        v_now = voice[i_ms: i_ms + win]
-        v_now_db = _rms_dbfs(v_now)
+    for w in range(total_wins):
+        v_now_db = voice_rms[w]
         voice_now = v_now_db > silence_threshold_db
 
+        # Voice energy with lookahead
+        la_w = min(w + lookahead_wins, len(voice_rms) - 1)
+        v_la_db = voice_rms[la_w]
+
+        # Track voice regions for gap holding
         if voice_now:
             in_voice_region = True
             silence_run_ms = 0
         else:
             if in_voice_region:
-                silence_run_ms += step
+                silence_run_ms += win
                 if silence_run_ms >= gap_hold_ms:
                     in_voice_region = False
             else:
                 silence_run_ms = 0
 
-        # Calculate target gain based on voice energy
-        if v_db_la <= -48.0:
+        # Calculate target gain
+        if v_la_db <= -48.0:
             target = floor_boost_db
-        elif v_db_la >= -26.0:
+        elif v_la_db >= -26.0:
             target = max_duck_db
         else:
-            t = (v_db_la + 48.0) / 22.0  # 0..1
+            t = (v_la_db + 48.0) / 22.0  # 0..1
             target = max_duck_db * t + floor_boost_db * (1 - t)
 
         # Hold ducking during short gaps in voice
@@ -245,17 +311,59 @@ def _duck_music_to_voice(
             hold_level = max(max_duck_db + 1.5, -1.5)
             target = min(target, hold_level)
 
-        # Smooth gain transitions
+        # Smooth gain transitions (attack / release)
         if target < prev_gain:
-            alpha = min(1.0, step / float(max(1, attack_ms)))
+            alpha = min(1.0, win / float(max(1, attack_ms)))
         else:
-            alpha = min(1.0, step / float(max(1, release_ms)))
+            alpha = min(1.0, win / float(max(1, release_ms)))
         gain = prev_gain + alpha * (target - prev_gain)
         prev_gain = gain
 
-        out += m_chunk.apply_gain(gain)
+        gains_db.append(gain)
 
-    return out
+    # ── Convert dB envelope to linear multipliers ──
+    gains_lin: list[float] = [10.0 ** (g / 20.0) for g in gains_db]
+
+    # ── Second pass: apply gain with per-sample linear interpolation ──
+    #
+    # Between window w and window w+1 the gain ramps linearly from
+    # gains_lin[w] to gains_lin[w+1].  This means the gain curve is
+    # continuous everywhere -- no jumps, no clicks, no hum.
+
+    for w in range(total_wins):
+        s0 = w * spw
+        s1 = min(s0 + spw, total_samples)
+        n = s1 - s0
+        if n <= 0:
+            continue
+
+        g0 = gains_lin[w]
+        g1 = gains_lin[min(w + 1, len(gains_lin) - 1)]
+
+        if abs(g0 - g1) < 1e-9:
+            # Constant gain across this window -- fast path
+            if abs(g0 - 1.0) < 1e-9:
+                continue  # gain is unity, nothing to do
+            for j in range(n):
+                val = int(m_samples[s0 + j] * g0)
+                if val > maxv:
+                    val = maxv
+                elif val < minv:
+                    val = minv
+                m_samples[s0 + j] = val
+        else:
+            # Linearly interpolate gain across the window
+            inv_n = 1.0 / n
+            for j in range(n):
+                g = g0 + (g1 - g0) * (j * inv_n)
+                val = int(m_samples[s0 + j] * g)
+                if val > maxv:
+                    val = maxv
+                elif val < minv:
+                    val = minv
+                m_samples[s0 + j] = val
+
+    return music._spawn(m_samples.tobytes())
 
 
 def mix(
