@@ -335,9 +335,9 @@ def mix(
     out_path: str | Path,
     duck_db: float = 4.0,
     sync_mode: Literal["retime_voice_to_music", "retime_music_to_voice", "no_retime_trim_pad"] = "retime_voice_to_music",
-    voice_target_dbfs: float = -13.0,
-    music_target_dbfs: float = -14.5,
-    final_peak_dbfs: float = -1.0,
+    voice_target_dbfs: float = -16.0,
+    music_target_dbfs: float = -16.0,
+    final_peak_dbfs: float = -3.0,
     music_fadein_ms: int = 3000,
     ffmpeg_bin: str | None = None,
     **_ignored,
@@ -383,7 +383,7 @@ def mix(
         music.export(tmp_m2_in.name, format="wav")
         try:
             if _ffmpeg_has(ffmpeg_path, "acompressor"):
-                af = "acompressor=threshold=-20dB:ratio=2:attack=18:release=280:makeup=1.5"
+                af = "acompressor=threshold=-20dB:ratio=2:attack=18:release=280:makeup=1.0"
             else:
                 af = "dynaudnorm=f=125:s=8"
             subprocess.run(
@@ -406,7 +406,7 @@ def mix(
         tmp_v_out = tempfile.NamedTemporaryFile(delete=False, suffix=".wav")
         voice.export(tmp_v_in.name, format="wav")
 
-        vf = "highpass=f=70,equalizer=f=150:t=h:w=1.5:g=2,equalizer=f=3800:t=h:w=2:g=-1.5"
+        vf = "highpass=f=70,equalizer=f=150:t=h:w=1.5:g=1,equalizer=f=3800:t=h:w=2:g=-1.5"
         try:
             subprocess.run(
                 [ffmpeg_path, "-y", "-i", tmp_v_in.name, "-af", vf, tmp_v_out.name],
@@ -458,7 +458,7 @@ def mix(
         music_exact,
         voice_exact,
         floor_boost_db=3.0,
-        max_duck_db=-1.0,
+        max_duck_db=-0.5,
         attack_ms=180,
         release_ms=650,
         win_ms=60,
@@ -480,7 +480,7 @@ def mix(
 
     tmp_wav_polished = tempfile.NamedTemporaryFile(delete=False, suffix=".wav")
     if _ffmpeg_has(ffmpeg_path, "loudnorm"):
-        af = "loudnorm=I=-16.0:TP=-1.0:LRA=11:linear=1"
+        af = "loudnorm=I=-16.0:TP=-2.0:LRA=11:linear=1"
     else:
         af = "dynaudnorm=f=125:s=12,volume=-0.6dB"
 
