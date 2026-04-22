@@ -3,6 +3,7 @@ import time
 import json
 import csv
 import io
+import shutil
 import tempfile
 import threading
 from datetime import datetime, timezone
@@ -263,6 +264,13 @@ Continue now. Only the continuation text. No preamble."""
         voice_wav_path = padded_wav.name
 
         print(f"[Demo] Padded {TAIL_BUFFER_MS}ms silence at end. Voice file now {duration_ms(padded)}ms")
+
+        # Save raw inputs for DSP analysis
+        raw_voice_name = f"{session_id}_voice_raw.wav"
+        raw_music_name = f"{session_id}_music_raw.mp3"
+        shutil.copy2(voice_wav_path, str(cfg.out_dir_path / raw_voice_name))
+        shutil.copy2(str(music_path), str(cfg.out_dir_path / raw_music_name))
+        print(f"[Demo] Saved raw inputs: {raw_voice_name}, {raw_music_name}")
 
         # 7. Mix with music (voice starts first, music fades in)
         print(f"[Demo] Mixing with music...")
