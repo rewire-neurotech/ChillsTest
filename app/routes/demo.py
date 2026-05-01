@@ -253,17 +253,39 @@ Continue now. Only the continuation text. No preamble."""
         speech_text = best_script
         voice_wav_path = best_wav
 
+        # --- Hard-cap: voice MUST NOT exceed spoken_target_ms ---
+        # The correction loop has 4% tolerance which can leave voice too long.
+        # If voice exceeds the target, the music gets stretched past its content
+        # and you hear voice playing over silence at the end.
+        final_tts_ms = duration_ms(load_audio(voice_wav_path))
+        if final_tts_ms > spoken_target_ms:
+            print(f"[Demo] Voice {final_tts_ms}ms exceeds spoken target {spoken_target_ms}ms, trimming audio to fit")
+            vc = AudioSegment.from_file(voice_wav_path)
+            vc = vc[:spoken_target_ms].fade_out(800)
+            capped_wav = tempfile.NamedTemporaryFile(delete=False, suffix=".wav")
+            vc.export(capped_wav.name, format="wav")
+            voice_wav_path = capped_wav.name
+            print(f"[Demo] Voice hard-capped to {spoken_target_ms}ms")
+
         _update_job(job_id, stage="mixing", progress=78)
 
         # 6. Pad silence at end of voice (music plays TAIL_BUFFER_MS after speech stops)
         voice_audio = AudioSegment.from_file(voice_wav_path)
         tail_silence = AudioSegment.silent(duration=TAIL_BUFFER_MS, frame_rate=voice_audio.frame_rate)
         padded = voice_audio + tail_silence
+
+        # --- Hard-cap: padded voice must not exceed music content duration ---
+        # This ensures music retiming is ~1:1, never stretched past its content.
+        padded_total_ms = duration_ms(padded)
+        if padded_total_ms > music_ms:
+            print(f"[Demo] Padded voice {padded_total_ms}ms exceeds music content {music_ms}ms, capping to {music_ms}ms")
+            padded = padded[:music_ms]
+
         padded_wav = tempfile.NamedTemporaryFile(delete=False, suffix=".wav")
         padded.export(padded_wav.name, format="wav")
         voice_wav_path = padded_wav.name
 
-        print(f"[Demo] Padded {TAIL_BUFFER_MS}ms silence at end. Voice file now {duration_ms(padded)}ms")
+        print(f"[Demo] Final voice file: {duration_ms(padded)}ms (music content: {music_ms}ms)")
 
         # Save raw inputs for DSP analysis
         raw_voice_name = f"{session_id}_voice_raw.wav"
