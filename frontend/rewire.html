@@ -77,7 +77,7 @@
         background: linear-gradient(180deg, rgba(255,255,255,0) 42%, rgba(255,255,255,0.88) 100%),
                     conic-gradient(from 90deg at 50% 48%, #b6c4ee, #8aa1d6, #e8d8ce, #c8b4d4, #b6c4ee);
       }
-      .splash-logo { font-size: 56px; font-weight: 800; letter-spacing: -0.03em; margin-bottom: 12px; }
+      .splash-logo { width: 200px; height: 200px; object-fit: contain; margin-bottom: 20px; }
       .splash-actions { width: 100%; max-width: 340px; margin-top: auto; display: grid; gap: 10px; }
 
       /* --- Onboarding --- */
@@ -357,7 +357,7 @@
         return (
           <div className="splash-bg">
             <FadeIn delay={200}><div style={{fontSize:12,fontWeight:600,letterSpacing:".15em",textTransform:"uppercase",color:"rgba(0,0,0,0.35)",marginBottom:60}}>REWIRE</div></FadeIn>
-            <FadeIn delay={500}><div className="splash-logo">Jolt</div></FadeIn>
+            <FadeIn delay={500}><img className="splash-logo" src="/assets/jolter-logo.jpeg" alt="Jolter" /></FadeIn>
             <FadeIn delay={800}><p className="copy" style={{maxWidth:300,textAlign:"center",marginBottom:40,fontSize:16.5,lineHeight:1.38}}>A 3-minute experience made to give you chills and connect you back to yourself.</p></FadeIn>
             <FadeIn delay={1200}>
               <div className="splash-actions">
