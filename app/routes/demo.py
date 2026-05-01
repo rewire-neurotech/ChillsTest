@@ -150,20 +150,22 @@ def _run_generate(job_id: str, q1: str, q2: str, q3: str):
 
         _update_job(job_id, stage="writing", progress=5)
 
-        # 1. Get music content duration and calculate target words
+        # 1. Get music duration info
         music_path = cfg.MUSIC_FILE
         if not music_path.exists():
             _update_job(job_id, stage="error", error="Music file not found in assets")
             return
 
         music_audio = load_audio(str(music_path))
-        music_ms = content_duration_ms(music_audio)
-        # Voice fills most of the music duration, leaving tail buffer at the end
-        spoken_target_ms = max(int(music_ms - TAIL_BUFFER_MS), int(0.75 * music_ms))
+        full_music_ms = duration_ms(music_audio)
+        content_ms = content_duration_ms(music_audio)
+
+        # Voice should end before the music content ends
+        spoken_target_ms = max(int(content_ms - TAIL_BUFFER_MS), int(0.75 * content_ms))
         # ElevenLabs v3 at style=1.0 speaks at ~2.0 words per second
         target_words = min(int((spoken_target_ms / 1000) * 2.0), 1200)
 
-        print(f"[Demo] Music content: {music_ms}ms, spoken target: {spoken_target_ms}ms, target words: {target_words}")
+        print(f"[Demo] Music file: {full_music_ms}ms, content: {content_ms}ms, spoken target: {spoken_target_ms}ms, target words: {target_words}")
 
         # 2. Build prompt with target word count (AI selects format)
         user_prompt = build_user_prompt(
@@ -254,9 +256,6 @@ Continue now. Only the continuation text. No preamble."""
         voice_wav_path = best_wav
 
         # --- Hard-cap: voice MUST NOT exceed spoken_target_ms ---
-        # The correction loop has 4% tolerance which can leave voice too long.
-        # If voice exceeds the target, the music gets stretched past its content
-        # and you hear voice playing over silence at the end.
         final_tts_ms = duration_ms(load_audio(voice_wav_path))
         if final_tts_ms > spoken_target_ms:
             print(f"[Demo] Voice {final_tts_ms}ms exceeds spoken target {spoken_target_ms}ms, trimming audio to fit")
@@ -269,32 +268,44 @@ Continue now. Only the continuation text. No preamble."""
 
         _update_job(job_id, stage="mixing", progress=78)
 
-        # 6. Pad silence at end of voice (music plays TAIL_BUFFER_MS after speech stops)
+        # 6. Pad silence so voice file matches content_ms exactly.
+        #    This ensures retime_music_to_voice has a ~1:1 ratio
+        #    and the music plays at its natural speed.
         voice_audio = AudioSegment.from_file(voice_wav_path)
-        tail_silence = AudioSegment.silent(duration=TAIL_BUFFER_MS, frame_rate=voice_audio.frame_rate)
-        padded = voice_audio + tail_silence
-
-        # --- Hard-cap: padded voice must not exceed music content duration ---
-        # This ensures music retiming is ~1:1, never stretched past its content.
-        padded_total_ms = duration_ms(padded)
-        if padded_total_ms > music_ms:
-            print(f"[Demo] Padded voice {padded_total_ms}ms exceeds music content {music_ms}ms, capping to {music_ms}ms")
-            padded = padded[:music_ms]
+        voice_len = duration_ms(voice_audio)
+        pad_needed = max(0, content_ms - voice_len)
+        if pad_needed > 0:
+            tail_silence = AudioSegment.silent(duration=pad_needed, frame_rate=voice_audio.frame_rate)
+            padded = voice_audio + tail_silence
+        else:
+            padded = voice_audio[:content_ms]
 
         padded_wav = tempfile.NamedTemporaryFile(delete=False, suffix=".wav")
         padded.export(padded_wav.name, format="wav")
         voice_wav_path = padded_wav.name
 
-        print(f"[Demo] Final voice file: {duration_ms(padded)}ms (music content: {music_ms}ms)")
+        print(f"[Demo] Voice speech: {voice_len}ms, padded to: {duration_ms(padded)}ms (music content: {content_ms}ms)")
 
-        # Save raw inputs for DSP analysis
+        # 7. Trim music file to content duration only.
+        #    The raw file may have trailing silence. If we pass the full file
+        #    to mix, retime_music_to_voice compresses it (e.g. 360s -> 330s = 1.09x),
+        #    making the actual music end BEFORE the voice does.
+        #    By trimming first, the retiming factor is ~1:1 and music plays at natural speed.
+        music_trimmed = music_audio[:content_ms]
+        trimmed_music_tmp = tempfile.NamedTemporaryFile(delete=False, suffix=".mp3")
+        music_trimmed.export(trimmed_music_tmp.name, format="mp3", bitrate="256k")
+        music_mix_path = trimmed_music_tmp.name
+
+        print(f"[Demo] Music trimmed from {full_music_ms}ms to {content_ms}ms for mix")
+
+        # Save raw inputs for DSP analysis (original untrimmed)
         raw_voice_name = f"{session_id}_voice_raw.wav"
         raw_music_name = f"{session_id}_music_raw.mp3"
         shutil.copy2(voice_wav_path, str(cfg.out_dir_path / raw_voice_name))
         shutil.copy2(str(music_path), str(cfg.out_dir_path / raw_music_name))
         print(f"[Demo] Saved raw inputs: {raw_voice_name}, {raw_music_name}")
 
-        # 7. Mix with music (Joaquin's new DSP pipeline)
+        # 8. Mix with music (Joaquin's DSP pipeline, untouched)
         print(f"[Demo] Mixing with music...")
         audio_filename = f"{session_id}.mp3"
         out_path = cfg.out_dir_path / audio_filename
@@ -303,7 +314,7 @@ Continue now. Only the continuation text. No preamble."""
 
         mix_audio(
             voice_path=voice_wav_path,
-            music_path=str(music_path),
+            music_path=music_mix_path,
             out_path=str(out_path),
             sync_mode="retime_music_to_voice",
             music_fadein_ms=MUSIC_FADEIN_MS,
@@ -316,7 +327,7 @@ Continue now. Only the continuation text. No preamble."""
 
         _update_job(job_id, stage="saving", progress=92)
 
-        # 8. Save session to DB (manual session since we're in a thread)
+        # 9. Save session to DB (manual session since we're in a thread)
         db = SessionLocal()
         try:
             session = DemoSession(
