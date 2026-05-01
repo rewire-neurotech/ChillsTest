@@ -27,7 +27,7 @@ from app.utils.audio import load_audio, duration_ms, content_duration_ms
 
 r = APIRouter(prefix="/api/demo", tags=["demo"])
 
-MUSIC_FADEIN_MS = 3000   # CHANGED: was 5000 -- tighter opening, music enters over 3 seconds
+MUSIC_FADEIN_MS = 10     # Joaquin's new mix: near-zero fade-in, music enters immediately
 TAIL_BUFFER_MS = 4000    # Music plays 4 seconds after voice ends
 
 
@@ -272,7 +272,7 @@ Continue now. Only the continuation text. No preamble."""
         shutil.copy2(str(music_path), str(cfg.out_dir_path / raw_music_name))
         print(f"[Demo] Saved raw inputs: {raw_voice_name}, {raw_music_name}")
 
-        # 7. Mix with music (voice starts first, music fades in)
+        # 7. Mix with music (Joaquin's new DSP pipeline)
         print(f"[Demo] Mixing with music...")
         audio_filename = f"{session_id}.mp3"
         out_path = cfg.out_dir_path / audio_filename
@@ -285,6 +285,7 @@ Continue now. Only the continuation text. No preamble."""
             out_path=str(out_path),
             sync_mode="retime_music_to_voice",
             music_fadein_ms=MUSIC_FADEIN_MS,
+            music_premix_gain_db=-1.5,
             ffmpeg_bin=cfg.FFMPEG_BIN,
         )
         print(f"[Demo] Mix done: {out_path}")
