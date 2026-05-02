@@ -49,6 +49,7 @@ class GenerateRequest(BaseModel):
     q1_wound: str
     q2_chills_trigger: str
     q3_hidden_truth: str
+    q4_first_tell: str = ""
 
 
 class GenerateJobResponse(BaseModel):
@@ -130,6 +131,16 @@ class FeedbackResponse(BaseModel):
     status: str
 
 
+class NotesRequest(BaseModel):
+    session_id: str
+    notes_json: str  # JSON array of note objects
+
+
+class NotesResponse(BaseModel):
+    status: str
+    notes_json: Optional[str] = None
+
+
 # --- Helper functions ---
 
 def _word_count(txt: str) -> int:
@@ -142,7 +153,7 @@ def _within(ms: int, target: int, tol: float = 0.04) -> bool:
 
 # --- Background generation pipeline ---
 
-def _run_generate(job_id: str, q1: str, q2: str, q3: str):
+def _run_generate(job_id: str, q1: str, q2: str, q3: str, q4: str):
     """Run the full generation pipeline in a background thread."""
     try:
         start = time.time()
@@ -172,6 +183,7 @@ def _run_generate(job_id: str, q1: str, q2: str, q3: str):
             q1_wound=q1,
             q2_chills_trigger=q2,
             q3_hidden_truth=q3,
+            q4_first_tell=q4,
             target_words=target_words,
         )
         speech_format = "AI_SELECTED"
@@ -335,6 +347,7 @@ Continue now. Only the continuation text. No preamble."""
                 q1_wound=q1,
                 q2_chills_trigger=q2,
                 q3_hidden_truth=q3,
+                q4_first_tell=q4,
                 speech_format=speech_format,
                 speech_text=speech_text,
                 voice_id=voice_id,
@@ -388,7 +401,7 @@ def generate(req: GenerateRequest):
 
     t = threading.Thread(
         target=_run_generate,
-        args=(job_id, req.q1_wound, req.q2_chills_trigger, req.q3_hidden_truth),
+        args=(job_id, req.q1_wound, req.q2_chills_trigger, req.q3_hidden_truth, req.q4_first_tell),
         daemon=True,
     )
     t.start()
@@ -490,6 +503,28 @@ def save_feedback(req: FeedbackRequest, db: Session = Depends(get_db)):
     return FeedbackResponse(status="ok")
 
 
+@r.post("/notes", response_model=NotesResponse)
+def save_notes(req: NotesRequest, db: Session = Depends(get_db)):
+    """Auto-save journal notes for a session."""
+    session = db.query(DemoSession).filter(DemoSession.session_id == req.session_id).first()
+    if not session:
+        raise HTTPException(status_code=404, detail="Session not found")
+
+    session.notes_json = req.notes_json
+    db.commit()
+    return NotesResponse(status="ok", notes_json=session.notes_json)
+
+
+@r.get("/notes/{session_id}", response_model=NotesResponse)
+def get_notes(session_id: str, db: Session = Depends(get_db)):
+    """Retrieve journal notes for a session."""
+    session = db.query(DemoSession).filter(DemoSession.session_id == session_id).first()
+    if not session:
+        raise HTTPException(status_code=404, detail="Session not found")
+
+    return NotesResponse(status="ok", notes_json=session.notes_json)
+
+
 @r.get("/audio/{filename}")
 def serve_audio(filename: str):
     """Serve a generated audio file."""
@@ -517,6 +552,7 @@ def export_csv(db: Session = Depends(get_db)):
         "q1_wound",
         "q2_chills_trigger",
         "q3_hidden_truth",
+        "q4_first_tell",
         "age",
         "gender",
         "ethnicity",
@@ -568,6 +604,8 @@ def export_csv(db: Session = Depends(get_db)):
         # Optional
         "prolific_id",
         "email",
+        # Journal
+        "notes_json",
         # Timing
         "generation_time_seconds",
         "created_at",
@@ -580,6 +618,7 @@ def export_csv(db: Session = Depends(get_db)):
             s.q1_wound,
             s.q2_chills_trigger,
             s.q3_hidden_truth,
+            s.q4_first_tell,
             s.age,
             s.gender,
             s.ethnicity,
@@ -631,6 +670,8 @@ def export_csv(db: Session = Depends(get_db)):
             # Optional
             s.prolific_id,
             s.email,
+            # Journal
+            s.notes_json,
             # Timing
             s.generation_time_seconds,
             s.created_at,
