@@ -55,6 +55,8 @@ class GenerateRequest(BaseModel):
 
 class GenerateJobResponse(BaseModel):
     job_id: str
+    track_name: str
+    meditation_url: str
 
 
 class GenerateStatusResponse(BaseModel):
@@ -195,7 +197,7 @@ def _trim_at_boundary(text: str, words_to_cut: int) -> str:
 
 # --- Background generation pipeline ---
 
-def _run_generate(job_id: str, q1: str, q2: str, q3: str, q4: str):
+def _run_generate(job_id: str, q1: str, q2: str, q3: str, q4: str, track_name: str):
     """Run the full generation pipeline in a background thread."""
     try:
         start = time.time()
@@ -203,10 +205,9 @@ def _run_generate(job_id: str, q1: str, q2: str, q3: str, q4: str):
 
         _update_job(job_id, stage="writing", progress=5)
 
-        # 0. Select music track based on user answers
-        track_name = select_track(q1_wound=q1, q2_chills_trigger=q2, q3_hidden_truth=q3, q4_first_tell=q4)
+        # 0. Get track info (track already selected in /generate endpoint)
         track = cfg.get_track(track_name)
-        print(f"[Demo] Selected track: {track['name']} ({track['description']})")
+        print(f"[Demo] Using track: {track['name']} ({track['description']})")
 
         # 1. Get music duration info
         music_path = track["file"]
@@ -427,10 +428,25 @@ Continue now. Only the continuation text. No preamble."""
 @r.post("/generate", response_model=GenerateJobResponse)
 def generate(req: GenerateRequest):
     """
-    Start generation in background. Returns a job_id immediately.
+    Start generation in background. Returns a job_id immediately,
+    along with the selected track name and meditation audio URL
+    so the frontend can start playing meditation while generation runs.
     Poll /generate/status/{job_id} for progress.
     """
     job_id = uuid.uuid4().hex[:16]
+
+    # Select track synchronously so the frontend gets it immediately
+    track_name = select_track(
+        q1_wound=req.q1_wound,
+        q2_chills_trigger=req.q2_chills_trigger,
+        q3_hidden_truth=req.q3_hidden_truth,
+        q4_first_tell=req.q4_first_tell,
+    )
+    track = cfg.get_track(track_name)
+
+    # Build meditation URL (served from /assets/ static mount)
+    base = cfg.PUBLIC_BASE_URL.rstrip("/") if cfg.PUBLIC_BASE_URL else ""
+    meditation_url = f"{base}/assets/{cfg.TRACKS[track_name]['meditation']}"
 
     with _jobs_lock:
         _jobs[job_id] = {
@@ -444,12 +460,12 @@ def generate(req: GenerateRequest):
 
     t = threading.Thread(
         target=_run_generate,
-        args=(job_id, req.q1_wound, req.q2_chills_trigger, req.q3_hidden_truth, req.q4_first_tell),
+        args=(job_id, req.q1_wound, req.q2_chills_trigger, req.q3_hidden_truth, req.q4_first_tell, track_name),
         daemon=True,
     )
     t.start()
 
-    return GenerateJobResponse(job_id=job_id)
+    return GenerateJobResponse(job_id=job_id, track_name=track_name, meditation_url=meditation_url)
 
 
 @r.get("/generate/status/{job_id}", response_model=GenerateStatusResponse)
@@ -729,14 +745,14 @@ def export_csv(db: Session = Depends(get_db)):
     )
 
 
-# --- TEMPORARY: One-time meditation premix endpoint ---
-# Hit POST /api/demo/premix-meditation once in /docs, then download the files.
-# DELETE THIS ENDPOINT after uploading the output files to app/assets/ on GitHub.
+# --- Meditation premix endpoint ---
+# Mixes meditation audio with each music track using Joaquin's DSP pipeline.
+# Keep this for re-generating when Felix swaps meditation audio or adds tracks.
 
 @r.post("/premix-meditation")
 def premix_meditation():
     """
-    One-time endpoint: mix meditation audio with each music track.
+    Mix meditation audio with each music track.
     Loops the music to match meditation duration, then runs Joaquin's
     full DSP pipeline (mix.py) exactly as the main generate does.
 
@@ -744,7 +760,7 @@ def premix_meditation():
       /api/demo/audio/meditation_heroes_wwii.mp3
       /api/demo/audio/meditation_a_thousand_hearts.mp3
 
-    Then upload both to app/assets/ on GitHub and DELETE this endpoint.
+    Then upload both to app/assets/ on GitHub.
     """
     meditation_path = cfg.ASSETS_DIR / "christian_meditation.mpeg"
     if not meditation_path.exists():
