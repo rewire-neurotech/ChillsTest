@@ -3,165 +3,24 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
     <title>ReWire</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.9/babel.min.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
     <style>
-      :root { --ink:#1a1815; --muted:#6b6458; --soft:#f2f2f4; --blue:#0a84ff; --violet:#5b4af0; --violet-deep:#4a3cd9; --jolt:#ffd86b; --jolt-deep:#ffb300; --jolt-ink:#241700; }
-      * { box-sizing:border-box; margin:0; padding:0; }
-      html,body,#root { height:100%; width:100%; overflow:hidden; }
-      body { background:#fff; font-family:-apple-system,BlinkMacSystemFont,"SF Pro Display",system-ui,sans-serif; -webkit-font-smoothing:antialiased; -webkit-tap-highlight-color:transparent; user-select:none; color:var(--ink); }
-      button,input,textarea { font:inherit; } button { border:0; background:none; color:inherit; cursor:pointer; }
-      input,textarea { border:0; outline:0; color:inherit; background:transparent; }
-      textarea::placeholder,input::placeholder { color:rgba(0,0,0,0.25); }
-      .accent { color:var(--blue); } .mono { font-family:"SF Mono",ui-monospace,Menlo,monospace; }
-      .copy { margin:0; color:var(--muted); font-size:15px; line-height:1.45; font-weight:500; }
-      .eyebrow { color:#80786c; font-size:13px; font-weight:800; letter-spacing:0.24em; }
-
-      .btn-primary { width:100%; min-height:56px; border-radius:999px; display:flex; align-items:center; justify-content:center; font-size:17px; font-weight:600; background:var(--ink); color:#fff; border:none; cursor:pointer; transition:transform 160ms ease; }
-      .btn-primary:active { transform:scale(0.98); } .btn-primary:disabled { background:rgba(0,0,0,0.08); color:rgba(0,0,0,0.3); }
-      .btn-secondary { width:100%; min-height:56px; border-radius:999px; display:flex; align-items:center; justify-content:center; font-size:17px; font-weight:600; background:#fff; color:var(--ink); border:1px solid rgba(0,0,0,0.12); cursor:pointer; }
-      .pill-btn { min-height:32px; padding:0 12px; border-radius:999px; background:var(--soft); color:var(--ink); font-size:13px; font-weight:600; border:none; cursor:pointer; }
-      .back-btn { width:32px; height:32px; border-radius:50%; display:grid; place-items:center; color:var(--ink); font-size:22px; background:none; border:none; cursor:pointer; }
-      .topbar { min-height:34px; display:flex; align-items:center; justify-content:space-between; }
-
-      /* Splash */
-      .splash-bg { min-height:100%; display:flex; flex-direction:column; align-items:center; justify-content:center; padding:60px 24px 40px; text-align:center; background:linear-gradient(180deg,rgba(255,255,255,0) 42%,rgba(255,255,255,0.88) 100%),conic-gradient(from 90deg at 50% 48%,#b6c4ee,#8aa1d6,#e8d8ce,#c8b4d4,#b6c4ee); }
-      .splash-logo { width:220px; height:220px; object-fit:contain; margin-bottom:24px; mix-blend-mode:multiply; }
-      .splash-actions { width:100%; margin-top:auto; display:grid; gap:10px; padding:0 24px; }
-
-      /* Onboarding */
-      .onboard-wrap { height:100%; display:flex; flex-direction:column; padding:16px 24px calc(16px + env(safe-area-inset-bottom,0px)); }
-      .onboard-preview { display:grid; place-items:center; padding:20px 0; }
-      .onboard-copy { text-align:center; display:grid; gap:13px; padding:20px 0 28px; }
-      .onboard-copy h1 { margin:0; font-size:38px; line-height:1.02; font-weight:700; }
-      .onboard-copy .copy { max-width:340px; margin:0 auto; font-size:16px; line-height:1.38; }
-      .dark-jolt-card { position:relative; width:240px; min-height:240px; border-radius:30px; padding:20px; overflow:hidden; color:#fff; background:radial-gradient(circle at 50% 43%,rgba(150,133,255,0.54),transparent 26%),radial-gradient(circle at 25% 70%,rgba(10,132,255,0.26),transparent 38%),linear-gradient(160deg,#211c46 0%,#0b081b 54%,#05030d 100%); box-shadow:0 24px 50px rgba(20,17,42,0.28); display:flex; flex-direction:column; }
-      .jolt-chip { display:inline-flex; align-items:center; min-height:26px; padding:0 9px; border-radius:999px; background:var(--jolt); color:var(--jolt-ink); font-size:10px; font-weight:800; }
-      .bars { height:80px; display:flex; justify-content:center; align-items:center; gap:5px; margin:28px 0 20px; }
-      .bars span { width:5px; border-radius:999px; background:linear-gradient(180deg,var(--jolt),#8fb8ff); transform-origin:center; animation:barPulse 1100ms ease-in-out infinite; }
-      .bars span:nth-child(1){height:22px;animation-delay:0ms} .bars span:nth-child(2){height:48px;animation-delay:80ms} .bars span:nth-child(3){height:70px;animation-delay:160ms} .bars span:nth-child(4){height:40px;animation-delay:240ms} .bars span:nth-child(5){height:60px;animation-delay:320ms} .bars span:nth-child(6){height:28px;animation-delay:400ms}
-      .mini-stack { position:relative; width:240px; height:280px; }
-      .mini-note { position:absolute; left:18px; right:18px; top:24px; aspect-ratio:1/1; border-radius:20px; padding:16px; background:var(--violet); color:#fff; box-shadow:0 14px 30px rgba(91,74,240,0.22); }
-      .mini-note:nth-child(1){z-index:3} .mini-note:nth-child(2){z-index:2;top:48px;transform:scale(0.94) rotate(2deg);background:var(--violet-deep)} .mini-note:nth-child(3){z-index:1;top:72px;transform:scale(0.88) rotate(-1.5deg);background:#3d32bd}
-      .mini-note.jolted { background:linear-gradient(145deg,var(--jolt) 0%,var(--jolt-deep) 100%); color:var(--jolt-ink); }
-      .note-meta { font-size:10px; letter-spacing:0.08em; opacity:0.72; margin-bottom:10px; text-transform:uppercase; }
-      .mini-note p { margin:0; font-size:13px; line-height:1.36; font-weight:520; }
-      .mini-plus { position:absolute; z-index:4; left:50%; bottom:4px; width:48px; height:48px; transform:translateX(-50%); border-radius:50%; background:var(--ink); color:#fff; display:grid; place-items:center; font-size:32px; font-weight:250; }
-
-      /* Questions */
-      .q-wrap { height:100%; display:flex; flex-direction:column; padding:16px 24px 0; }
-      .q-title { padding:28px 0 0; font-size:26px; line-height:1.2; font-weight:650; }
-      .q-sub { margin-top:10px; color:#7a7a85; font-size:14px; line-height:1.4; }
-      .composer { display:flex; gap:10px; padding-bottom:calc(12px + env(safe-area-inset-bottom,0px)); }
-      .composer-box { width:100%; border-radius:24px; background:var(--soft); padding:10px; }
-      .composer-pill { display:flex; align-items:center; gap:8px; min-height:46px; border-radius:22px; background:#fff; padding:6px 6px 6px 16px; }
-      .composer-pill input { flex:1; min-width:0; height:34px; font-size:17px; }
-      .send-btn { width:32px; height:32px; border-radius:50%; display:grid; place-items:center; background:#cfcfd6; color:#fff; font-size:15px; font-weight:800; border:none; cursor:pointer; flex-shrink:0; }
-      .send-btn.ready { background:var(--blue); }
-
-      /* Breathing - original style, white background */
-      .breathing-screen { min-height:100%; display:flex; flex-direction:column; align-items:center; justify-content:center; padding:40px 24px; background:#fff; }
-      .breath-box-wrap { position:relative; width:200px; height:200px; margin-bottom:30px; }
-      .breath-box { width:100%; height:100%; border:1.5px solid rgba(0,0,0,0.1); border-radius:8px; display:grid; place-items:center; }
-      .breath-countdown { font-size:52px; font-weight:200; color:var(--ink); }
-      .breath-dot { position:absolute; width:12px; height:12px; border-radius:50%; background:var(--ink); box-shadow:0 0 12px rgba(0,0,0,0.15); transition:left 0.1s linear,top 0.1s linear; }
-      .breath-phase-label { position:absolute; font-size:12px; font-weight:500; letter-spacing:0.06em; transition:color 0.3s; }
-      .breath-phase-label.top { top:-22px; left:50%; transform:translateX(-50%); }
-      .breath-phase-label.right { right:-58px; top:50%; transform:translateY(-50%); }
-      .breath-phase-label.bottom { bottom:-22px; left:50%; transform:translateX(-50%); }
-      .breath-phase-label.left { left:-44px; top:50%; transform:translateY(-50%); }
-      .breath-phase-label.active { color:var(--ink); font-weight:700; }
-      .breath-phase-label:not(.active) { color:rgba(0,0,0,0.2); }
-      .breath-cycle { font-size:13px; color:var(--muted); margin-bottom:24px; }
-      .breath-progress { width:200px; height:3px; background:rgba(0,0,0,0.06); border-radius:2px; overflow:hidden; margin-bottom:12px; }
-      .breath-progress-fill { height:100%; background:rgba(0,0,0,0.15); transition:width 0.1s linear; }
-      .gen-progress { width:200px; margin-bottom:8px; }
-      .gen-bar { width:100%; height:3px; background:rgba(0,0,0,0.04); border-radius:2px; overflow:hidden; margin-bottom:6px; }
-      .gen-fill { height:100%; background:var(--jolt); border-radius:2px; transition:width 0.8s ease; }
-      .gen-label { font-size:11px; color:var(--muted); text-align:center; }
-      .skip-btn { background:none; border:none; color:var(--muted); font-size:13px; cursor:pointer; padding:8px; margin-top:12px; }
-
-      /* Demographics */
-      .demo-form { display:flex; flex-direction:column; gap:14px; text-align:left; width:100%; max-width:420px; margin-top:20px; }
-      .demo-form label { font-size:12px; color:var(--muted); margin-bottom:4px; letter-spacing:0.05em; text-transform:uppercase; display:block; }
-      .demo-form select { width:100%; padding:12px 14px; background:#f4f4f6; border:1px solid rgba(0,0,0,0.1); border-radius:12px; font-size:15px; font-family:inherit; color:var(--ink); outline:none; appearance:none; cursor:pointer; }
-
-      .wait-screen { min-height:100%; display:flex; flex-direction:column; align-items:center; justify-content:center; padding:40px 24px; text-align:center; }
-      .wait-progress { width:100%; max-width:420px; margin-bottom:24px; }
-      .wait-bar { width:100%; height:4px; background:rgba(0,0,0,0.06); border-radius:2px; overflow:hidden; margin-bottom:10px; }
-      .wait-fill { height:100%; background:var(--ink); border-radius:2px; transition:width 0.8s ease; }
-      .ready-icon { width:64px; height:64px; border-radius:50%; background:linear-gradient(145deg,rgba(91,74,240,0.2),rgba(255,216,107,0.15)); border:1px solid rgba(0,0,0,0.06); display:flex; align-items:center; justify-content:center; margin:0 auto 20px; font-size:28px; }
-
-      /* Player */
-      .jolt-screen { position:fixed; inset:0; z-index:50; background:radial-gradient(circle at 50% 54%,rgba(115,92,255,0.32),transparent 34%),radial-gradient(circle at 50% 52%,rgba(255,216,107,0.12),transparent 18%),linear-gradient(180deg,#0f1020 0%,#050310 100%); color:#fff; }
-      .jolt-inner { height:100%; display:flex; flex-direction:column; padding:calc(16px + env(safe-area-inset-top,0px)) 24px calc(16px + env(safe-area-inset-bottom,0px)); }
-      .jolt-hero { position:relative; flex:1; display:grid; place-items:center; overflow:hidden; }
-      .jolt-glow { position:relative; z-index:2; width:220px; height:220px; border-radius:50%; background:radial-gradient(circle,rgba(255,255,255,0.98) 0 5%,rgba(255,216,107,0.38) 8%,rgba(119,91,255,0.42) 26%,rgba(107,91,255,0.14) 50%,transparent 70%); animation:orbBreathe 6200ms ease-in-out infinite; }
-      .particle-field { position:absolute; inset:-20px; overflow:hidden; pointer-events:none; }
-      .particle { position:absolute; width:var(--s); height:var(--s); left:var(--x); top:var(--y); border-radius:50%; background:radial-gradient(circle,rgba(255,255,255,0.96),rgba(255,216,107,0.22) 62%,transparent 70%); box-shadow:0 0 20px rgba(255,216,107,0.5); animation:particleDrift var(--d) ease-in-out infinite; animation-delay:var(--delay); }
-      .star-dust { position:absolute; inset:16px; opacity:0.74; background-image:radial-gradient(circle,rgba(255,255,255,0.96) 0 1px,transparent 1.6px),radial-gradient(circle,rgba(255,216,107,0.9) 0 1px,transparent 1.7px),radial-gradient(circle,rgba(143,184,255,0.82) 0 1px,transparent 1.5px); background-size:58px 54px,78px 82px,92px 88px; mask-image:radial-gradient(circle at 50% 48%,#000 0%,transparent 74%); }
-      .mark-chill-btn { width:auto; min-width:200px; margin:0 auto; min-height:68px; padding:0 30px; border-radius:999px; background:rgba(255,255,255,0.15); color:var(--jolt); font-size:18px; font-weight:700; border:none; cursor:pointer; }
-      .mark-chill-btn:active { transform:scale(0.96); }
-      .player-line { height:5px; border-radius:999px; background:rgba(255,255,255,0.16); overflow:hidden; margin-top:18px; }
-      .player-line-fill { height:100%; border-radius:inherit; background:#fff; transition:width 0.3s linear; }
-      .jolt-time-row { display:flex; justify-content:space-between; color:rgba(255,255,255,0.52); font-size:14px; font-weight:520; margin-top:8px; }
-
-      /* Survey */
-      .survey-wrap { height:100%; overflow-y:auto; -webkit-overflow-scrolling:touch; padding:40px 20px 220px; }
-      .survey-inner { max-width:560px; margin:0 auto; }
-      .survey-card { border-radius:20px; padding:16px; background:#fff; border:1px solid rgba(0,0,0,0.06); box-shadow:0 12px 30px rgba(26,24,21,0.06); margin-bottom:16px; }
-      .survey-card h3 { margin:0 0 10px; font-size:16px; font-weight:600; }
-      .choice-grid { display:grid; grid-template-columns:1fr 1fr; gap:10px; }
-      .choice-btn { min-height:48px; border-radius:16px; background:#f1f1f3; color:var(--ink); font-size:15px; font-weight:620; border:none; cursor:pointer; }
-      .choice-btn.sel { background:var(--ink); color:#fff; }
-      .pill-choice { padding:10px 14px; border-radius:18px; background:rgba(0,0,0,0.03); border:1px solid rgba(0,0,0,0.06); font-size:13.5px; font-weight:550; cursor:pointer; color:var(--ink); }
-      .pill-choice.sel { background:var(--ink); color:#fff; border-color:var(--ink); }
-      .intensity-row { display:grid; grid-template-columns:repeat(5,1fr); gap:10px; }
-      .intensity-btn { min-height:48px; border-radius:50%; background:#f4f4f5; color:#9a958c; font-size:15px; font-weight:720; border:none; cursor:pointer; }
-      .intensity-btn.sel { background:var(--jolt); color:var(--jolt-ink); }
-      .range-labels { display:flex; justify-content:space-between; margin-top:7px; color:#b0aaa0; font-size:12px; font-weight:650; }
-      .likert-row { display:flex; justify-content:space-between; align-items:center; gap:3px; }
-      .likert-btn { width:32px; height:32px; border-radius:50%; background:rgba(0,0,0,0.03); color:var(--ink); border:1px solid rgba(0,0,0,0.1); font-size:12px; cursor:pointer; display:flex; align-items:center; justify-content:center; padding:0; flex-shrink:0; }
-      .likert-btn.sel { background:var(--ink); color:#fff; border:none; }
-      .survey-textarea { width:100%; padding:12px; background:rgba(0,0,0,0.02); border:1px solid rgba(0,0,0,0.06); border-radius:12px; color:var(--ink); font-size:14px; font-family:inherit; resize:none; outline:none; line-height:1.6; }
-      .survey-input { width:100%; padding:12px; background:rgba(0,0,0,0.02); border:1px solid rgba(0,0,0,0.06); border-radius:12px; color:var(--ink); font-size:14px; font-family:inherit; outline:none; }
-      .survey-footer { position:fixed; left:0; right:0; bottom:0; padding:12px 20px calc(12px + env(safe-area-inset-bottom,0px)); background:linear-gradient(180deg,rgba(255,255,255,0),#fff 38%); z-index:30; }
-      .survey-footer .btn-primary { max-width:560px; margin:0 auto; }
-
-      /* Journal */
-      .stack-bg { height:100%; background:#fbfaf7; }
-      .stack-wrap { height:100%; display:flex; flex-direction:column; padding:16px 24px calc(16px + env(safe-area-inset-bottom,0px)); }
-      .stack-scene { position:relative; flex:1; min-height:200px; touch-action:none; overflow:hidden; display:flex; justify-content:center; }
-      .stack-layer { position:absolute; left:50%; top:30px; width:100%; max-width:400px; transform:translateX(-50%); transition:transform 240ms cubic-bezier(0.2,0.82,0.2,1),opacity 240ms ease; }
-      .note-card { position:relative; width:100%; min-height:340px; max-height:420px; border-radius:22px; background:var(--violet); color:#fff; box-shadow:0 18px 36px rgba(91,74,240,0.22); padding:18px 18px 20px; display:flex; flex-direction:column; }
-      .note-card.jolted { background:linear-gradient(145deg,var(--jolt) 0%,var(--jolt-deep) 100%); color:var(--jolt-ink); box-shadow:0 18px 36px rgba(255,179,0,0.24); }
-      .note-head { display:flex; justify-content:space-between; align-items:flex-start; gap:10px; }
-      .note-body { flex:1; min-height:0; margin-top:14px; overflow:hidden; }
-      .note-card p { margin:0; font-size:17px; line-height:1.4; font-weight:520; white-space:pre-wrap; }
-      .note-card textarea { width:100%; height:100%; min-height:200px; resize:none; padding:0; color:inherit; font-size:17px; line-height:1.4; caret-color:var(--jolt); background:transparent; border:none; outline:none; }
-      .note-card textarea::placeholder { color:currentColor; opacity:0.5; }
-      .jolt-note-btn { display:flex; align-items:center; gap:5px; min-height:30px; padding:0 10px; border-radius:999px; background:rgba(255,255,255,0.16); color:var(--jolt); font-size:11px; font-weight:800; letter-spacing:0.08em; border:none; cursor:pointer; animation:joltButtonPulse 2200ms ease-in-out infinite; }
-      .jolt-note-btn.is-jolted { animation:none; background:rgba(255,255,255,0.36); }
-      .jolted .jolt-note-btn { color:var(--jolt-ink); }
-      .plus-wrap { display:grid; justify-items:center; gap:6px; padding:8px 0; }
-      .plus-button { width:64px; height:64px; border-radius:50%; display:grid; place-items:center; background:var(--ink); color:#fff; font-size:42px; font-weight:250; box-shadow:0 14px 28px rgba(26,24,21,0.18); border:none; cursor:pointer; }
-      .plus-label { color:var(--muted); font-size:12px; font-weight:650; }
-      .swipe-hint { position:absolute; z-index:20; left:50%; bottom:12px; transform:translateX(-50%); display:flex; align-items:center; gap:6px; min-height:32px; padding:0 12px; border-radius:999px; background:rgba(255,255,255,0.88); color:rgba(26,24,21,0.58); font-size:12px; font-weight:650; box-shadow:0 8px 20px rgba(0,0,0,0.1); }
-
-      .done-wrap { min-height:100%; display:flex; flex-direction:column; align-items:center; justify-content:center; text-align:center; padding:40px 24px; }
-      .done-actions { width:100%; display:grid; gap:10px; margin-top:8px; }
-      .fade-enter { opacity:0; transform:translateY(14px); transition:opacity 0.5s,transform 0.5s; }
-      .fade-visible { opacity:1; transform:none; }
-
-      input[type="range"] { -webkit-appearance:none; width:100%; height:4px; background:rgba(0,0,0,0.1); border-radius:2px; outline:none; }
-      input[type="range"]::-webkit-slider-thumb { -webkit-appearance:none; width:22px; height:22px; border-radius:50%; background:var(--ink); cursor:pointer; }
-
+      *{box-sizing:border-box;margin:0;padding:0}
+      html,body,#root{height:100%;width:100%;overflow:hidden}
+      body{background:#fff;font-family:"Outfit",sans-serif;-webkit-font-smoothing:antialiased;-webkit-tap-highlight-color:transparent;user-select:none}
+      textarea::placeholder,input::placeholder{color:rgba(0,0,0,0.25)}
+      canvas{display:block}
+      input[type="range"]{-webkit-appearance:none;appearance:none;width:100%;height:4px;background:rgba(0,0,0,0.1);border-radius:2px;outline:none}
+      input[type="range"]::-webkit-slider-thumb{-webkit-appearance:none;appearance:none;width:22px;height:22px;border-radius:50%;background:#1D1D1F;cursor:pointer}
+      input[type="range"]::-moz-range-thumb{width:22px;height:22px;border-radius:50%;background:#1D1D1F;cursor:pointer;border:none}
       @keyframes barPulse{0%,100%{transform:scaleY(.52);opacity:.62}50%{transform:scaleY(1);opacity:1}}
-      @keyframes orbBreathe{0%,100%{transform:scale(.92);opacity:.78}50%{transform:scale(1.06);opacity:1}}
-      @keyframes joltButtonPulse{0%,100%{box-shadow:0 0 0 0 rgba(255,216,107,.22);transform:scale(1)}50%{box-shadow:0 0 0 7px rgba(255,216,107,.14),0 0 24px rgba(255,216,107,.22);transform:scale(1.035)}}
-      @keyframes particleDrift{0%,100%{transform:translate3d(0,0,0) scale(.85);opacity:.28}45%{transform:translate3d(var(--mx),var(--my),0) scale(1.14);opacity:1}}
     </style>
   </head>
   <body>
@@ -169,144 +28,289 @@
     <script type="text/babel">
       const {useState,useEffect,useRef,useCallback}=React;
       const API_BASE=window.location.hostname==="localhost"?"http://localhost:8000":"";
-      const QUESTIONS=[
-        {id:"wound",title:'What does the voice in your head say when you\u2019re at your <span class="accent">lowest</span>?',placeholder:"Write what it says..."},
-        {id:"lastChills",title:'When was the last time you got <span class="accent">chills or goosebumps</span>?',placeholder:"Type the moment...",instruction:"Tell us the context, what it means for you, and why you got goosebumps."},
-        {id:"hiddenTruth",title:'What\u2019s something true about you that <span class="accent">nobody sees</span>?',placeholder:"The version of you no one sees...",instruction:"The version of you that exists when no one\u2019s watching."},
-      ];
-      const ONBOARDING=[{id:"daily",title:"Your daily Jolt.",body:"A 3-minute booster made to give you chills and lift you up."},{id:"capture",title:"Catch the insight.",body:"Each Jolt brings up something new. Save it on a sticky and your next Jolt gets deeper."},{id:"noteJolt",title:"Go deep.",body:"Tap any note to turn it into a new Jolt. Discover new parts of yourself and leave the rest behind."}];
-      const STAGE_LABELS={queued:"Starting\u2026",writing:"Writing your experience\u2026",synthesizing:"Creating the voice\u2026",refining:"Fine-tuning\u2026",mixing:"Mixing with music\u2026",saving:"Almost there\u2026"};
-      const PD=[["17%","28%","5px","18px","-14px","2800ms","-200ms"],["28%","72%","3px","-20px","12px","3400ms","-900ms"],["48%","36%","7px","12px","18px","3000ms","-1400ms"],["65%","62%","4px","-18px","-12px","3600ms","-500ms"],["76%","24%","3px","14px","20px","3300ms","-1100ms"],["82%","78%","6px","-16px","10px","3900ms","-1700ms"]];
-      function ParticleField(){return(<div className="particle-field"><div className="star-dust"/>{PD.map(([x,y,s,mx,my,d,dl],i)=><span key={i} className="particle" style={{"--x":x,"--y":y,"--s":s,"--mx":mx,"--my":my,"--d":d,"--delay":dl}}/>)}</div>);}
-      function Bars(){return<div className="bars"><span/><span/><span/><span/><span/><span/></div>;}
-      function FadeIn({children,delay=0,style={}}){const[v,setV]=useState(false);useEffect(()=>{const t=setTimeout(()=>setV(true),delay);return()=>clearTimeout(t);},[delay]);return<div className={v?"fade-visible":"fade-enter"} style={style}>{children}</div>;}
+      const D={bg:"#FFFFFF",text:"#1D1D1F",sub:"#868688",hint:"#AEAEB2",accent:"#1D1D1F",accentSoft:"rgba(0,0,0,0.04)",accentGlow:"rgba(0,0,0,0.08)",warm:"#B68B68"};
 
-      function Splash({onStart}){return(<div className="splash-bg"><FadeIn delay={200}><div style={{fontSize:12,fontWeight:600,letterSpacing:".15em",textTransform:"uppercase",color:"rgba(0,0,0,0.35)",marginBottom:40}}>REWIRE</div></FadeIn><FadeIn delay={500}><img className="splash-logo" src="/assets/jolter-logo.jpeg" alt="Jolter"/></FadeIn><FadeIn delay={800}><p className="copy" style={{maxWidth:340,textAlign:"center",marginBottom:40,fontSize:16.5}}>A 3-minute experience made to give you chills and connect you back to yourself.</p></FadeIn><FadeIn delay={1200}><div className="splash-actions"><button className="btn-primary" onClick={onStart}>Start your first Jolt</button></div></FadeIn></div>);}
+      /* ——— Fullscreen helper ——— */
+      function tryFullscreen(){try{const el=document.documentElement;const rfs=el.requestFullscreen||el.webkitRequestFullscreen||el.msRequestFullscreen;if(rfs)rfs.call(el);}catch(e){}}
+
+      /* ——— Shared components ——— */
+      function FadeIn({children,delay=0,style={}}){const[v,setV]=useState(false);useEffect(()=>{const t=setTimeout(()=>setV(true),delay);return()=>clearTimeout(t)},[delay]);return(<div style={{opacity:v?1:0,transform:v?"none":"translateY(14px)",transition:"opacity .5s, transform .5s",...style}}>{children}</div>)}
+
+      function Btn({children,onClick,disabled,green,style={}}){return(<button onClick={onClick} disabled={disabled} style={{width:"100%",padding:"18px 28px",minHeight:54,background:disabled?"rgba(0,0,0,0.04)":green?D.accent:"rgba(0,0,0,0.06)",color:disabled?"rgba(0,0,0,0.3)":green?"#fff":D.text,border:"none",borderRadius:980,fontSize:16,fontWeight:500,fontFamily:"inherit",cursor:"pointer",transition:"all .2s",letterSpacing:".01em",...style}}>{children}</button>)}
+
+      function ProgressDots({steps,current}){return(<div style={{display:"flex",gap:6,justifyContent:"center",padding:"20px 0"}}>{Array.from({length:steps}).map((_,i)=>(<div key={i} style={{width:i===current?24:6,height:6,borderRadius:3,background:i===current?D.accent:"rgba(0,0,0,0.08)",transition:"all .3s"}}/>))}</div>)}
+
+      function useKeyboardInset(){const[inset,setInset]=useState(0);const baseRef=useRef(0);useEffect(()=>{const vv=window.visualViewport;const update=()=>{const visibleBottom=vv?vv.height+vv.offsetTop:window.innerHeight;baseRef.current=Math.max(baseRef.current,window.innerHeight,visibleBottom);const overlap=Math.max(0,baseRef.current-visibleBottom);setInset(overlap>80?overlap:0)};const reset=()=>{baseRef.current=0;setTimeout(update,60)};update();window.addEventListener("resize",update);window.addEventListener("orientationchange",reset);if(vv){vv.addEventListener("resize",update);vv.addEventListener("scroll",update)}return()=>{window.removeEventListener("resize",update);window.removeEventListener("orientationchange",reset);if(vv){vv.removeEventListener("resize",update);vv.removeEventListener("scroll",update)}}},[]);return inset}
+
+      function BottomDock({children,inset=0,style={}}){const lift=inset>0?inset+12:0;return(<div style={{position:"fixed",left:0,right:0,bottom:lift,padding:"0 18px calc(12px + env(safe-area-inset-bottom, 0px))",zIndex:40,pointerEvents:"none",...style}}><div style={{pointerEvents:"auto",paddingTop:18,...style}}>{children}</div></div>)}
+
+      /* ——— Stage labels ——— */
+      const STAGE_LABELS={queued:"Starting\u2026",writing:"Writing your experience\u2026",synthesizing:"Creating the voice\u2026",refining:"Fine-tuning\u2026",mixing:"Mixing with music\u2026",saving:"Almost there\u2026"};
+
+      /* ——— Questions ——— */
+      const CQ=[
+        {id:"wound",q:"What does the voice in your head say when you\u2019re at your lowest?",ph:'e.g. "you\'re faking it" or "nobody would notice if you disappeared"'},
+        {id:"lastChills",q:"When was the last time you got chills or goosebumps?",ph:'e.g. "a stranger being kind to someone for no reason" or "a line in a song that finally landed"'},
+        {id:"hiddenTruth",q:"What\u2019s something true about you that nobody sees?",ph:'e.g. "I haven\'t enjoyed anything in months but I keep pretending"'},
+        {id:"firstTell",q:"If something amazing happened to you today, who would be the first person you\u2019d tell?",ph:'e.g. "my mom" or "my best friend" or "honestly... no one"'},
+      ];
+
+      /* ——— Splash ——— */
+      function Splash({onStart}){return(<div style={{minHeight:"100%",display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",padding:"60px 36px 40px",textAlign:"center",background:"linear-gradient(180deg,rgba(255,255,255,0) 42%,rgba(255,255,255,0.88) 100%),conic-gradient(from 90deg at 50% 48%,#b6c4ee,#8aa1d6,#e8d8ce,#c8b4d4,#b6c4ee)"}}><FadeIn delay={200}><div style={{fontSize:12,fontWeight:500,letterSpacing:".15em",textTransform:"uppercase",color:"rgba(0,0,0,0.35)",marginBottom:40}}>REWIRE</div></FadeIn><FadeIn delay={500}><img src="/assets/jolter-logo.jpeg" alt="ReWire" style={{width:200,height:200,objectFit:"contain",marginBottom:24,mixBlendMode:"multiply"}}/></FadeIn><FadeIn delay={800}><p style={{fontSize:16,fontWeight:400,lineHeight:1.7,color:D.sub,maxWidth:320,margin:"0 auto 40px"}}>A 3-minute experience made to give you chills and connect you back to yourself.</p></FadeIn><FadeIn delay={1200}><Btn green onClick={()=>{tryFullscreen();onStart()}} style={{maxWidth:300}}>Start</Btn></FadeIn></div>)}
+
+      /* ——— Onboarding ——— */
+      const ONBOARDING=[{id:"daily",title:"Your daily Jolt.",body:"A 3-minute booster made to give you chills and lift you up."},{id:"capture",title:"Catch the insight.",body:"Each Jolt brings up something new. Save it on a sticky and your next Jolt gets deeper."},{id:"noteJolt",title:"Go deep.",body:"Tap any note to turn it into a new Jolt. Discover new parts of yourself and leave the rest behind."}];
+
+      function Bars(){return(<div style={{height:80,display:"flex",justifyContent:"center",alignItems:"center",gap:5,margin:"28px 0 20px"}}>{[22,48,70,40,60,28].map((h,i)=>(<span key={i} style={{width:5,height:h,borderRadius:999,background:"linear-gradient(180deg,#ffd86b,#8fb8ff)",transformOrigin:"center",animation:"barPulse 1100ms ease-in-out infinite",animationDelay:i*80+"ms"}}/>))}</div>)}
 
       function OnboardingScreen({step,onNext,onSkip}){
         const item=ONBOARDING[step];
-        const preview=item.id==="daily"?(<div className="dark-jolt-card"><div style={{display:"flex",alignItems:"center",justifyContent:"space-between"}}><div className="mono" style={{fontSize:10,color:"rgba(255,255,255,.58)",letterSpacing:".08em"}}>DAILY JOLT</div><span className="jolt-chip">JOLT</span></div><Bars/></div>):(<div className="mini-stack"><div className={`mini-note ${item.id==="noteJolt"?"jolted":""}`}><div className="note-meta mono">APR 25 - 2:16 PM</div><p>{item.id==="noteJolt"?"What stood out most was when he said he wanted to live instead of just surviving.":"The song brought back a feeling I wanted to keep."}</p></div><div className="mini-note"><div className="note-meta mono"/><p/></div><div className="mini-note"><div className="note-meta mono"/><p/></div>{item.id!=="noteJolt"&&<div className="mini-plus">+</div>}</div>);
-        return(<div className="onboard-wrap"><div className="topbar"><button className="back-btn" onClick={()=>step>0?onSkip("back"):onSkip("splash")}>{step>0?"\u2039":""}</button><button className="pill-btn" onClick={()=>onSkip("skip")}>Skip</button></div><div className="onboard-preview">{preview}</div><div className="onboard-copy"><h1>{item.title}</h1><p className="copy">{item.body}</p></div><button className="btn-primary" onClick={onNext}>{step===ONBOARDING.length-1?"Continue":"Next"}</button></div>);
+        const preview=item.id==="daily"?(
+          <div style={{position:"relative",width:220,minHeight:220,borderRadius:30,padding:20,overflow:"hidden",color:"#fff",background:"radial-gradient(circle at 50% 43%,rgba(150,133,255,0.54),transparent 26%),radial-gradient(circle at 25% 70%,rgba(10,132,255,0.26),transparent 38%),linear-gradient(160deg,#211c46 0%,#0b081b 54%,#05030d 100%)",boxShadow:"0 24px 50px rgba(20,17,42,0.28)",display:"flex",flexDirection:"column"}}><div style={{display:"flex",alignItems:"center",justifyContent:"space-between"}}><div style={{fontFamily:"monospace",fontSize:10,color:"rgba(255,255,255,.58)",letterSpacing:".08em"}}>DAILY JOLT</div><span style={{display:"inline-flex",alignItems:"center",minHeight:26,padding:"0 9px",borderRadius:999,background:"#ffd86b",color:"#241700",fontSize:10,fontWeight:800}}>JOLT</span></div><Bars/></div>
+        ):(
+          <div style={{position:"relative",width:220,height:260}}>
+            <div style={{position:"absolute",left:18,right:18,top:24,aspectRatio:"1/1",borderRadius:20,padding:16,background:item.id==="noteJolt"?"linear-gradient(145deg,#ffd86b 0%,#ffb300 100%)":"#5b4af0",color:item.id==="noteJolt"?"#241700":"#fff",boxShadow:item.id==="noteJolt"?"0 14px 30px rgba(255,179,0,0.22)":"0 14px 30px rgba(91,74,240,0.22)",zIndex:3}}><div style={{fontFamily:"monospace",fontSize:10,letterSpacing:".08em",opacity:0.72,marginBottom:10,textTransform:"uppercase"}}>APR 25 - 2:16 PM</div><p style={{margin:0,fontSize:13,lineHeight:1.36,fontWeight:520}}>{item.id==="noteJolt"?"What stood out most was when he said he wanted to live instead of just surviving.":"The song brought back a feeling I wanted to keep."}</p></div>
+            <div style={{position:"absolute",left:18,right:18,top:48,aspectRatio:"1/1",borderRadius:20,padding:16,background:item.id==="noteJolt"?"#4a3cd9":"#4a3cd9",zIndex:2,transform:"scale(0.94) rotate(2deg)"}}/>
+            <div style={{position:"absolute",left:18,right:18,top:72,aspectRatio:"1/1",borderRadius:20,padding:16,background:"#3d32bd",zIndex:1,transform:"scale(0.88) rotate(-1.5deg)"}}/>
+            {item.id!=="noteJolt"&&<div style={{position:"absolute",zIndex:4,left:"50%",bottom:4,width:48,height:48,transform:"translateX(-50%)",borderRadius:"50%",background:D.accent,color:"#fff",display:"grid",placeItems:"center",fontSize:32,fontWeight:250}}>+</div>}
+          </div>
+        );
+        return(
+          <div style={{height:"100%",display:"flex",flexDirection:"column",padding:"16px 24px calc(16px + env(safe-area-inset-bottom,0px))"}}>
+            <div style={{minHeight:34,display:"flex",alignItems:"center",justifyContent:"space-between"}}>
+              <button onClick={()=>step>0?onSkip("back"):onSkip("splash")} style={{width:32,height:44,display:"grid",placeItems:"center",color:D.text,fontSize:22,background:"none",border:"none",cursor:"pointer"}}>{step>0?"\u2039":""}</button>
+              <button onClick={()=>onSkip("skip")} style={{minHeight:44,padding:"0 16px",borderRadius:999,background:"rgba(0,0,0,0.04)",color:D.text,fontSize:13,fontWeight:600,border:"none",cursor:"pointer"}}>Skip</button>
+            </div>
+            <div style={{flex:1,display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",gap:0,overflow:"hidden"}}>
+              <div style={{display:"grid",placeItems:"center",padding:"10px 0",flexShrink:0}}>{preview}</div>
+              <div style={{textAlign:"center",display:"grid",gap:13,padding:"20px 0 24px"}}>
+                <h1 style={{margin:0,fontSize:32,lineHeight:1.1,fontWeight:700}}>{item.title}</h1>
+                <p style={{maxWidth:320,margin:"0 auto",fontSize:15,lineHeight:1.5,color:D.sub,fontWeight:400}}>{item.body}</p>
+              </div>
+            </div>
+            <Btn green onClick={onNext} style={{flexShrink:0}}>{step===ONBOARDING.length-1?"Continue":"Next"}</Btn>
+          </div>
+        );
       }
 
+      /* ——— Questions ——— */
       function ChillsQuestions({onNext}){
-        const[qi,setQi]=useState(0);const[ans,setAns]=useState({});const[draft,setDraft]=useState("");const c=QUESTIONS[qi];const hasVal=draft.trim().length>0;
-        const advance=()=>{if(!draft.trim())return;const u={...ans,[c.id]:draft.trim()};setAns(u);if(qi<QUESTIONS.length-1){setQi(qi+1);setDraft(u[QUESTIONS[qi+1]?.id]||"");}else onNext(u);};
-        return(<div className="q-wrap"><div className="topbar"><button className="back-btn" onClick={()=>{if(qi>0){setQi(qi-1);setDraft(ans[QUESTIONS[qi-1].id]||"");}}}>{qi>0?"\u2039":""}</button><span style={{fontSize:13,color:"var(--muted)",fontWeight:600}}>{qi+1} / {QUESTIONS.length}</span></div><FadeIn key={qi} delay={50}><h2 className="q-title" dangerouslySetInnerHTML={{__html:c.title}}/>{c.instruction&&<div className="q-sub">{c.instruction}</div>}</FadeIn><div style={{flex:1}}/><div className="composer"><div className="composer-box"><div className="composer-pill"><input value={draft} onChange={e=>setDraft(e.target.value)} placeholder={c.placeholder} onKeyDown={e=>{if(e.key==="Enter"){e.preventDefault();advance();}}}/><button className={`send-btn ${hasVal?"ready":""}`} onClick={advance}>&uarr;</button></div></div></div></div>);
+        const kbInset=useKeyboardInset();
+        const[qi,setQi]=useState(0);
+        const[ans,setAns]=useState({});
+        const c=CQ[qi];
+        const v=ans[c.id]||"";
+        return(
+          <div style={{minHeight:"100%",display:"flex",flexDirection:"column",padding:"60px 28px 188px"}}>
+            <ProgressDots steps={CQ.length} current={qi}/>
+            <FadeIn key={qi} delay={100} style={{flex:1,display:"flex",flexDirection:"column"}}>
+              <h2 style={{fontSize:22,fontWeight:300,lineHeight:1.5,color:D.text,marginBottom:24}}>{c.q}</h2>
+              <textarea value={v} onChange={e=>setAns({...ans,[c.id]:e.target.value})} placeholder={c.ph} rows={5} style={{width:"100%",padding:18,background:"rgba(0,0,0,0.02)",border:"1px solid rgba(0,0,0,0.06)",borderRadius:16,color:D.text,fontSize:15,fontFamily:"inherit",resize:"none",outline:"none",lineHeight:1.6}}/>
+              <BottomDock inset={kbInset}>
+                <Btn green onClick={()=>{if(qi<CQ.length-1)setQi(qi+1);else onNext(ans)}} disabled={!v.trim()}>{qi<CQ.length-1?"Next":"I\u2019m ready"}</Btn>
+                {qi>0&&<button onClick={()=>setQi(qi-1)} style={{background:"none",border:"none",color:D.sub,fontSize:13,fontFamily:"inherit",cursor:"pointer",padding:12,width:"100%",marginTop:8,minHeight:44}}>&larr; Previous</button>}
+              </BottomDock>
+            </FadeIn>
+          </div>
+        );
       }
 
+      /* ——— Breathing + Generation ——— */
       function BreathingAndGenerating({answers,onReady}){
         const PM=4000,TC=15,phases=["Breathe In","Hold","Breathe Out","Hold"];
         const[pi,setPi]=useState(0);const[cd,setCd]=useState(4);const[cy,setCy]=useState(1);const[done,setDone]=useState(false);const[skip,setSkip]=useState(false);const[prog,setProg]=useState(0);
         const[sid,setSid]=useState(null);const[aUrl,setAUrl]=useState(null);const[aReady,setAReady]=useState(false);const[err,setErr]=useState(null);const[gStage,setGStage]=useState("queued");const[gProg,setGProg]=useState(0);
         const[age,setAge]=useState("");const[gender,setGender]=useState("");const[eth,setEth]=useState("");
 
-        useEffect(()=>{let pI=null,c=false;fetch(API_BASE+"/api/demo/generate",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({q1_wound:answers.wound||"",q2_chills_trigger:answers.lastChills||"",q3_hidden_truth:answers.hiddenTruth||""})}).then(r=>{if(!r.ok)throw new Error("Generation failed");return r.json();}).then(d=>{if(c)return;const j=d.job_id;pI=setInterval(()=>{fetch(API_BASE+"/api/demo/generate/status/"+j).then(r=>r.json()).then(s=>{if(c)return;setGStage(s.stage);setGProg(s.progress);if(s.stage==="done"){setSid(s.session_id);setAUrl(s.audio_url);setAReady(true);clearInterval(pI);}else if(s.stage==="error"){setErr(s.error||"Generation failed");clearInterval(pI);}}).catch(()=>{});},2500);}).catch(e=>{if(!c)setErr(e.message);});return()=>{c=true;if(pI)clearInterval(pI);};},[]);
+        useEffect(()=>{let pI=null,c=false;fetch(API_BASE+"/api/demo/generate",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({q1_wound:answers.wound||"",q2_chills_trigger:answers.lastChills||"",q3_hidden_truth:answers.hiddenTruth||"",q4_first_tell:answers.firstTell||""})}).then(r=>{if(!r.ok)throw new Error("Generation failed");return r.json()}).then(d=>{if(c)return;const j=d.job_id;pI=setInterval(()=>{fetch(API_BASE+"/api/demo/generate/status/"+j).then(r=>r.json()).then(s=>{if(c)return;setGStage(s.stage);setGProg(s.progress);if(s.stage==="done"){setSid(s.session_id);setAUrl(s.audio_url);setAReady(true);clearInterval(pI)}else if(s.stage==="error"){setErr(s.error||"Generation failed");clearInterval(pI)}}).catch(()=>{})},2500)}).catch(e=>{if(!c)setErr(e.message)});return()=>{c=true;if(pI)clearInterval(pI)}},[]);
 
-        useEffect(()=>{const st=Date.now(),tot=TC*4*PM;const iv=setInterval(()=>{const el=Date.now()-st,tp=Math.floor(el/PM),cc=Math.floor(tp/4)+1,cp=tp%4,rm=Math.ceil((PM-(el%PM))/1000);if(cc>TC){setDone(true);clearInterval(iv);return;}setPi(cp);setCd(Math.max(1,rm));setCy(cc);setProg(el/tot);if(cc>=3)setSkip(true);},100);return()=>clearInterval(iv);},[]);
+        useEffect(()=>{const st=Date.now(),tot=TC*4*PM;const iv=setInterval(()=>{const el=Date.now()-st,tp=Math.floor(el/PM),cc=Math.floor(tp/4)+1,cp=tp%4,rm=Math.ceil((PM-(el%PM))/1000);if(cc>TC){setDone(true);clearInterval(iv);return}setPi(cp);setCd(Math.max(1,rm));setCy(cc);setProg(el/tot);if(cc>=3)setSkip(true)},100);return()=>clearInterval(iv)},[]);
 
-        const saveDem=()=>{if(!sid)return;fetch(API_BASE+"/api/demo/demographics",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({session_id:sid,age,gender,ethnicity:eth})}).catch(()=>{});};
-        const go=()=>{saveDem();onReady({sessionId:sid,audioUrl:aUrl});};
+        const saveDem=()=>{if(!sid)return;fetch(API_BASE+"/api/demo/demographics",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({session_id:sid,age,gender,ethnicity:eth})}).catch(()=>{})};
+        const go=()=>{saveDem();onReady({sessionId:sid,audioUrl:aUrl})};
 
-        const demoForm=(<div className="demo-form"><div><label>Age range</label><select value={age} onChange={e=>setAge(e.target.value)}><option value="">Select</option><option value="18-24">18-24</option><option value="25-34">25-34</option><option value="35-44">35-44</option><option value="45-54">45-54</option><option value="55-64">55-64</option><option value="65+">65+</option></select></div><div><label>Gender</label><select value={gender} onChange={e=>setGender(e.target.value)}><option value="">Select</option><option value="male">Male</option><option value="female">Female</option><option value="non-binary">Non-binary</option><option value="prefer-not">Prefer not to say</option></select></div><div><label>Ethnicity</label><select value={eth} onChange={e=>setEth(e.target.value)}><option value="">Select</option><option value="white">White</option><option value="black">Black / African American</option><option value="hispanic">Hispanic / Latino</option><option value="asian">Asian</option><option value="mixed">Mixed / Multiple</option><option value="other">Other</option><option value="prefer-not">Prefer not to say</option></select></div></div>);
+        const ss={width:"100%",padding:"14px 16px",background:"rgba(0,0,0,0.03)",border:"1px solid rgba(0,0,0,0.1)",borderRadius:12,fontSize:15,fontFamily:"inherit",color:D.text,outline:"none",appearance:"none",cursor:"pointer"};
+
+        const demoForm=(<div style={{display:"flex",flexDirection:"column",gap:16,textAlign:"left",width:"100%",maxWidth:320}}><div><div style={{fontSize:12,color:D.sub,marginBottom:6,letterSpacing:".05em",textTransform:"uppercase"}}>Age range</div><select value={age} onChange={e=>setAge(e.target.value)} style={ss}><option value="">Select</option><option value="18-24">18-24</option><option value="25-34">25-34</option><option value="35-44">35-44</option><option value="45-54">45-54</option><option value="55-64">55-64</option><option value="65+">65+</option></select></div><div><div style={{fontSize:12,color:D.sub,marginBottom:6,letterSpacing:".05em",textTransform:"uppercase"}}>Gender</div><select value={gender} onChange={e=>setGender(e.target.value)} style={ss}><option value="">Select</option><option value="male">Male</option><option value="female">Female</option><option value="non-binary">Non-binary</option><option value="prefer-not">Prefer not to say</option></select></div><div><div style={{fontSize:12,color:D.sub,marginBottom:6,letterSpacing:".05em",textTransform:"uppercase"}}>Ethnicity</div><select value={eth} onChange={e=>setEth(e.target.value)} style={ss}><option value="">Select</option><option value="white">White</option><option value="black">Black / African American</option><option value="hispanic">Hispanic / Latino</option><option value="asian">Asian</option><option value="mixed">Mixed / Multiple</option><option value="other">Other</option><option value="prefer-not">Prefer not to say</option></select></div></div>);
+
+        const progressBar=(<div style={{width:"100%",maxWidth:320,marginBottom:28}}><div style={{width:"100%",height:4,background:"rgba(0,0,0,0.06)",borderRadius:2,overflow:"hidden",marginBottom:12}}><div style={{width:gProg+"%",height:"100%",background:D.accent,borderRadius:2,transition:"width 0.8s ease"}}/></div><p style={{fontSize:14,fontWeight:300,color:D.sub,textAlign:"center"}}>{STAGE_LABELS[gStage]||"Preparing\u2026"}</p></div>);
 
         if(done){
-          if(err)return<div className="wait-screen"><FadeIn delay={0}><p style={{fontSize:16,color:"#c00",marginBottom:20}}>Something went wrong: {err}</p></FadeIn><FadeIn delay={200}><button className="btn-primary" onClick={()=>window.location.reload()}>Try again</button></FadeIn></div>;
-          if(!aReady)return(<div className="wait-screen"><FadeIn delay={200}><div className="wait-progress"><div className="wait-bar"><div className="wait-fill" style={{width:gProg+"%"}}/></div><p className="copy" style={{textAlign:"center",fontSize:14}}>{STAGE_LABELS[gStage]||"Preparing\u2026"}</p></div></FadeIn><FadeIn delay={500}>{demoForm}</FadeIn></div>);
-          return(<div className="wait-screen"><FadeIn delay={0}><div className="ready-icon">&#10003;</div></FadeIn><FadeIn delay={300}><h2 style={{fontSize:22,fontWeight:300,marginBottom:12}}>Your experience is ready</h2><p className="copy" style={{maxWidth:340,margin:"0 auto 12px",fontSize:14}}>Put on headphones. When you feel a chill, <strong>tap Mark a chill</strong>.</p></FadeIn><FadeIn delay={600}>{demoForm}</FadeIn><FadeIn delay={900}><button className="btn-primary" style={{marginTop:24}} onClick={go}>Start listening</button></FadeIn></div>);
+          if(err)return(<div style={{minHeight:"100%",display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",padding:"60px 36px",textAlign:"center"}}><FadeIn delay={0}><p style={{fontSize:16,color:"#c00",marginBottom:20}}>Something went wrong: {err}</p></FadeIn><FadeIn delay={200}><Btn onClick={()=>window.location.reload()}>Try again</Btn></FadeIn></div>);
+          if(!aReady)return(<div style={{minHeight:"100%",display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",padding:"60px 36px",textAlign:"center"}}><FadeIn delay={200}>{progressBar}</FadeIn><FadeIn delay={600}>{demoForm}</FadeIn></div>);
+          return(<div style={{minHeight:"100%",display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",padding:"60px 36px 40px",textAlign:"center"}}><FadeIn delay={0}><div style={{width:64,height:64,borderRadius:"50%",background:"linear-gradient(145deg,"+D.accent+"30,"+D.warm+"20)",border:"1px solid "+D.accentGlow,display:"flex",alignItems:"center",justifyContent:"center",margin:"0 auto 24px",fontSize:28}}>&#10003;</div></FadeIn><FadeIn delay={300}><h2 style={{fontSize:22,fontWeight:300,color:D.text,marginBottom:12}}>Your experience is ready</h2><p style={{fontSize:14,fontWeight:400,lineHeight:1.7,color:D.sub,maxWidth:300,margin:"0 auto 12px"}}>Put on headphones. When you feel a chill &ndash; a shiver, goosebumps, a tingle &ndash; <span style={{color:D.text,fontWeight:500}}>tap the screen</span>.</p></FadeIn><FadeIn delay={600} style={{width:"100%",maxWidth:320,marginTop:20}}>{demoForm}</FadeIn><FadeIn delay={900}><Btn green onClick={go} style={{maxWidth:300,marginTop:24}}>Start listening</Btn></FadeIn></div>);
         }
 
-        const bx=200,pp=1-(cd-1)/3;
+        const bx=180,pp=1-(cd-1)/3;
         const dx=pi===0?pp*bx:pi===1?bx:pi===2?bx-pp*bx:0;
         const dy=pi===0?0:pi===1?pp*bx:pi===2?bx:bx-pp*bx;
         return(
-          <div className="breathing-screen">
-            <FadeIn delay={200}>
-              <div className="breath-box-wrap">
-                <div className="breath-box"><div className="breath-countdown">{cd}</div></div>
-                <div className="breath-dot" style={{left:dx-6,top:dy-6}}/>
-                <div className={`breath-phase-label top ${pi===0?"active":""}`}>Breathe In</div>
-                <div className={`breath-phase-label right ${pi===1?"active":""}`}>Hold</div>
-                <div className={`breath-phase-label bottom ${pi===2?"active":""}`}>Breathe Out</div>
-                <div className={`breath-phase-label left ${pi===3?"active":""}`}>Hold</div>
-              </div>
-            </FadeIn>
-            <div className="breath-cycle">{cy} of {TC}</div>
-            <div className="breath-progress"><div className="breath-progress-fill" style={{width:(prog*100)+"%"}}/></div>
-            <div className="gen-progress"><div className="gen-bar"><div className="gen-fill" style={{width:gProg+"%"}}/></div><div className="gen-label">{STAGE_LABELS[gStage]||""}</div></div>
-            {skip&&<button className="skip-btn" onClick={()=>setDone(true)}>Skip</button>}
+          <div style={{minHeight:"100%",display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",padding:"60px 36px 40px",textAlign:"center"}}>
+            <FadeIn delay={200}><div style={{fontSize:11,fontWeight:500,letterSpacing:".15em",textTransform:"uppercase",color:D.hint,marginBottom:50}}>Settle in</div></FadeIn>
+            <div style={{position:"relative",width:bx+80,height:bx+80,marginBottom:40}}>
+              <div style={{position:"absolute",top:"50%",left:"50%",transform:"translate(-50%,-50%)",fontSize:48,fontWeight:200,color:D.text}}>{cd}</div>
+              <div style={{position:"absolute",top:"50%",left:"50%",transform:"translate(-50%,-50%)",width:bx,height:bx,border:"1px solid rgba(0,0,0,0.12)",borderRadius:4}}/>
+              <div style={{position:"absolute",top:40+dy-6,left:40+dx-6,width:12,height:12,borderRadius:"50%",background:D.accent,boxShadow:"0 0 16px rgba(0,0,0,0.15)",transition:"top 0.1s linear, left 0.1s linear"}}/>
+              <div style={{position:"absolute",top:15,left:"50%",transform:"translateX(-50%)",fontSize:12,fontWeight:400,letterSpacing:".08em",color:pi===0?D.text:D.hint,transition:"color 0.3s"}}>Breathe In</div>
+              <div style={{position:"absolute",right:0,top:"50%",transform:"translateY(-50%)",fontSize:12,fontWeight:400,letterSpacing:".08em",color:pi===1?D.text:D.hint,transition:"color 0.3s"}}>Hold</div>
+              <div style={{position:"absolute",bottom:15,left:"50%",transform:"translateX(-50%)",fontSize:12,fontWeight:400,letterSpacing:".08em",color:pi===2?D.text:D.hint,transition:"color 0.3s"}}>Breathe Out</div>
+              <div style={{position:"absolute",left:0,top:"50%",transform:"translateY(-50%)",fontSize:12,fontWeight:400,letterSpacing:".08em",color:pi===3?D.text:D.hint,transition:"color 0.3s"}}>Hold</div>
+            </div>
+            <div style={{fontSize:13,fontWeight:300,color:D.hint,marginBottom:30}}>{cy} of {TC}</div>
+            <div style={{width:200,height:2,background:"rgba(0,0,0,0.06)",borderRadius:1,overflow:"hidden",marginBottom:16}}><div style={{width:(prog*100)+"%",height:"100%",background:"rgba(0,0,0,0.2)",transition:"width 0.1s linear"}}/></div>
+            <div style={{width:200,marginBottom:24}}><div style={{width:"100%",height:2,background:"rgba(0,0,0,0.04)",borderRadius:1,overflow:"hidden",marginBottom:6}}><div style={{width:gProg+"%",height:"100%",background:D.warm,borderRadius:1,transition:"width 0.8s ease"}}/></div><div style={{fontSize:10,fontWeight:300,color:D.hint,letterSpacing:".03em"}}>{STAGE_LABELS[gStage]||""}</div></div>
+            {skip&&<button onClick={()=>setDone(true)} style={{background:"none",border:"none",color:D.hint,fontSize:13,fontFamily:"inherit",cursor:"pointer",padding:12,minHeight:44}}>Skip</button>}
           </div>
         );
       }
 
+      /* ——— Canvas Stimulus Player ——— */
       function ChillsExperience({audioUrl,onDone}){
-        const[spots,setSpots]=useState(0);const[playing,setPlaying]=useState(true);const[pct,setPct]=useState(0);const[el,setEl]=useState("0:00");const[tot,setTot]=useState("0:00");
-        const cTs=useRef([]);const auRef=useRef(null);const auStart=useRef(0);const spRef=useRef(0);
-        const fmt=s=>{const m=Math.floor(s/60);return m+":"+String(Math.floor(s%60)).padStart(2,"0");};
-        useEffect(()=>{const au=new Audio();au.crossOrigin="anonymous";au.src=audioUrl;auRef.current=au;au.addEventListener("canplaythrough",()=>{au.play();auStart.current=Date.now();setTot(fmt(au.duration||0));},{once:true});au.addEventListener("ended",()=>{setTimeout(()=>onDone({spots:spRef.current,timestamps:cTs.current}),1500);});const iv=setInterval(()=>{if(au.duration){setPct((au.currentTime/au.duration)*100);setEl(fmt(au.currentTime));}},300);return()=>{clearInterval(iv);au.pause();};},[]);
-        const mark=()=>{if(auStart.current>0)cTs.current.push(parseFloat(((Date.now()-auStart.current)/1000).toFixed(2)));spRef.current+=1;setSpots(spRef.current);};
-        const toggle=()=>{const au=auRef.current;if(!au)return;if(au.paused){au.play();setPlaying(true);}else{au.pause();setPlaying(false);}};
-        return(<div className="jolt-screen"><div className="jolt-inner"><div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}><span className="jolt-chip">JOLT</span><span style={{fontSize:11,fontWeight:300,letterSpacing:".1em",color:"rgba(255,255,255,.7)"}}>{spots>0?"chills: "+spots:""}</span></div><div className="jolt-hero" onClick={toggle}><ParticleField/><div className="jolt-glow"/></div><div style={{margin:"0 auto 18px",color:"rgba(255,255,255,0.28)",fontSize:16,fontWeight:600}}>Tap orb to {playing?"pause":"resume"}</div><div><button className="mark-chill-btn" onClick={mark}>&#x2736; Mark a chill</button><div className="player-line"><span className="player-line-fill" style={{width:pct+"%"}}/></div><div className="jolt-time-row"><span>{el}</span><span>{tot}</span></div></div></div></div>);
+        const cvR=useRef();
+        const S=useRef({cP:[],touched:false,spots:0});
+        const[spots,setSpots]=useState(0);
+        const[hint,setHint]=useState(false);
+        const[hGone,setHGone]=useState(false);
+        const cTs=useRef([]);
+        const auStart=useRef(0);
+
+        function rsz(){const dp=window.devicePixelRatio||1,W=window.innerWidth,H=window.innerHeight;if(!cvR.current)return;const c=cvR.current;c.width=W*dp;c.height=H*dp;c.style.width=W+"px";c.style.height=H+"px";c.getContext("2d").setTransform(dp,0,0,dp,0,0)}
+
+        useEffect(()=>{let on=true;window.addEventListener("resize",rsz);setTimeout(rsz,200);function loop(){if(!on)return;requestAnimationFrame(loop);const s=S.current,W=window.innerWidth,H=window.innerHeight;const ctx=cvR.current?.getContext("2d");if(!ctx)return;ctx.globalAlpha=1;ctx.fillStyle="#000";ctx.fillRect(0,0,W,H);for(let i=s.cP.length-1;i>=0;i--){const p=s.cP[i];p.t++;p.life-=p.decay;if(p.life<=0){s.cP.splice(i,1);continue}const drift=p.isCore?0.05:0.15+p.life*0.85;p.x+=p.vx*drift;p.y+=p.vy*drift;const pulse=0.65+0.35*Math.sin(p.t*0.008+p.pp);const a=p.life*pulse;const sz=p.size*(1+Math.random()*0.3);ctx.globalAlpha=a*0.95;ctx.fillStyle="hsla("+p.h+",40%,"+p.l+"%,"+a+")";ctx.beginPath();ctx.arc(p.x,p.y,sz,0,Math.PI*2);ctx.fill()}if(s.cP.length>3000)s.cP.splice(0,s.cP.length-3000)}loop();return()=>{on=false;window.removeEventListener("resize",rsz)}},[]);
+
+        useEffect(()=>{const au=new Audio();au.crossOrigin="anonymous";au.src=audioUrl;au.addEventListener("canplaythrough",()=>{au.play();auStart.current=Date.now();setTimeout(()=>{if(!S.current.touched)setHint(true)},2000)},{once:true});au.addEventListener("ended",()=>{setTimeout(()=>onDone({spots:S.current.spots,timestamps:cTs.current}),1500)});au.addEventListener("error",()=>{console.error("[ReWire] Audio playback error")})},[]);
+
+        const tap=useCallback(e=>{e.preventDefault();const s=S.current;const x=e.clientX||(e.touches&&e.touches[0].clientX)||0,y=e.clientY||(e.touches&&e.touches[0].clientY)||0;if(auStart.current>0)cTs.current.push(parseFloat(((Date.now()-auStart.current)/1000).toFixed(2)));const n=40+Math.floor(Math.random()*20);for(let i=0;i<n;i++){const a=Math.random()*Math.PI*2;const isCore=i<15;const sp=isCore?0.005+Math.random()*0.015:0.08+Math.random()*0.3;s.cP.push({x:x+(Math.random()-0.5)*(isCore?8:0.45),y:y+(Math.random()-0.5)*(isCore?8:0.45),life:1,decay:isCore?0.00002+Math.random()*0.00004:0.00004+Math.random()*0.0001,size:isCore?3.5+Math.random()*2.5:2.5+Math.random()*3.5,vx:Math.cos(a)*sp,vy:Math.sin(a)*sp-(isCore?0.001:0.008),l:isCore?65+Math.random()*15:55+Math.random()*15,h:200+Math.random()*20,pp:Math.random()*Math.PI*2,t:0,isCore})}s.spots++;setSpots(s.spots);if(!s.touched){s.touched=true;setHint(false);setTimeout(()=>setHGone(true),1600)}},[]);
+
+        return(<div style={{position:"fixed",top:0,left:0,width:"100vw",height:"100vh",background:"#000",zIndex:50}}><canvas ref={cvR} style={{position:"absolute",inset:0,zIndex:1}}/><div style={{position:"absolute",inset:0,zIndex:5,cursor:"crosshair"}} onPointerDown={tap}/><div style={{position:"absolute",top:22,left:24,right:24,zIndex:60,display:"flex",justifyContent:"space-between",alignItems:"center",pointerEvents:"none"}}><span style={{fontSize:11,fontWeight:300,letterSpacing:".1em",color:"rgba(255,255,255,.7)"}}>{spots>0?"chills: "+spots:""}</span></div>{!hGone&&<div style={{position:"absolute",bottom:88,left:"50%",transform:"translateX(-50%)",zIndex:10,fontSize:13,fontWeight:300,color:"rgba(255,255,255,.3)",letterSpacing:".02em",whiteSpace:"nowrap",transition:"opacity 1.5s",opacity:hint?1:0}}>tap when you feel something</div>}</div>);
       }
 
-      function ChoiceGrid({options,value,onChange}){return<div className="choice-grid">{options.map(o=><button key={String(o.value)} className={`choice-btn ${value===o.value?"sel":""}`} onClick={()=>onChange(o.value)}>{o.label}</button>)}</div>;}
-      function PillSelect({options,value,onChange,multi}){const tog=v=>{if(multi){const a=value||[];onChange(a.includes(v)?a.filter(x=>x!==v):[...a,v]);}else onChange(v);};const is=v=>multi?(value||[]).includes(v):value===v;return<div style={{display:"flex",gap:8,flexWrap:"wrap"}}>{options.map(o=>{const v=typeof o==="string"?o:o.value;const l=typeof o==="string"?o:o.label;return<button key={v} className={`pill-choice ${is(v)?"sel":""}`} onClick={()=>tog(v)}>{l}</button>;})}</div>;}
-      function LikertRow({label,value,onChange}){return(<div style={{marginBottom:18}}><div style={{fontSize:13,fontWeight:500,lineHeight:1.5,marginBottom:8}}>{label}</div><div className="likert-row"><span style={{fontSize:10,color:"#b0aaa0",width:52,textAlign:"left",flexShrink:0}}>Strongly disagree</span>{[1,2,3,4,5,6,7].map(n=><button key={n} className={`likert-btn ${value===n?"sel":""}`} onClick={()=>onChange(n)}>{n}</button>)}<span style={{fontSize:10,color:"#b0aaa0",width:52,textAlign:"right",flexShrink:0}}>Strongly agree</span></div></div>);}
+      /* ——— Survey components ——— */
+      function SurveyCard({children,style={}}){return(<div style={{padding:"18px 20px",borderRadius:16,background:"rgba(0,0,0,0.02)",border:"1px solid rgba(0,0,0,0.06)",marginBottom:20,textAlign:"left",...style}}>{children}</div>)}
+      function SurveyLabel({children}){return(<div style={{fontSize:13,fontWeight:400,color:D.text,lineHeight:1.5,marginBottom:10}}>{children}</div>)}
 
+      function PillSelect({options,value,onChange,multi=false}){const toggle=val=>{if(multi){const arr=value||[];onChange(arr.includes(val)?arr.filter(v=>v!==val):[...arr,val])}else onChange(val)};const isSel=val=>multi?(value||[]).includes(val):value===val;return(<div style={{display:"flex",gap:8,flexWrap:"wrap"}}>{options.map(opt=>{const val=typeof opt==="string"?opt:opt.value;const label=typeof opt==="string"?opt:opt.label;const sel=isSel(val);return(<button key={val} onClick={()=>toggle(val)} style={{padding:"10px 16px",minHeight:44,background:sel?"rgba(0,0,0,0.08)":"rgba(0,0,0,0.02)",border:sel?"1px solid "+D.accent:"1px solid rgba(0,0,0,0.06)",borderRadius:20,fontSize:13,cursor:"pointer",fontFamily:"inherit",color:D.text,transition:"all .15s"}}>{label}</button>)})}</div>)}
+
+      function LikertRow({label,value,onChange}){return(<div style={{marginBottom:20}}><div style={{fontSize:13,fontWeight:400,color:D.text,lineHeight:1.5,marginBottom:8}}>{label}</div><div style={{display:"flex",justifyContent:"space-between",alignItems:"center",gap:4}}><span style={{fontSize:10,color:D.hint,width:52,textAlign:"left"}}>Strongly disagree</span>{[1,2,3,4,5,6,7].map(n=>(<button key={n} onClick={()=>onChange(n)} style={{width:32,height:32,borderRadius:"50%",background:value===n?D.accent:"rgba(0,0,0,0.03)",color:value===n?"#fff":D.text,border:value===n?"none":"1px solid rgba(0,0,0,0.1)",fontSize:12,fontFamily:"inherit",cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",transition:"all .15s",padding:0}}>{n}</button>))}<span style={{fontSize:10,color:D.hint,width:52,textAlign:"right"}}>Strongly agree</span></div></div>)}
+
+      /* ——— Feedback (no EBI) ——— */
       function Feedback({spots,timestamps,sessionId,onDone}){
+        const kbInset=useKeyboardInset();
         const[step,setStep]=useState(0);const[submitted,setSubmitted]=useState(false);
         const[feltChills,setFeltChills]=useState(null);const[crying,setCrying]=useState("");const[eyes,setEyes]=useState("");
         const[chillsIntensity,setChillsIntensity]=useState(5);const[chillsTriggers,setChillsTriggers]=useState([]);const[triggerOther,setTriggerOther]=useState("");const[bodyLocations,setBodyLocations]=useState([]);const[peakTiming,setPeakTiming]=useState("");const[chillsReflection,setChillsReflection]=useState("");
         const[barriers,setBarriers]=useState([]);const[closeness,setCloseness]=useState("");const[emotionalShift,setEmotionalShift]=useState(null);const[emotionalDescribe,setEmotionalDescribe]=useState("");
-        const[ebi,setEbi]=useState({});const sE=(k,v)=>setEbi(p=>({...p,[k]:v}));
         const[relevance,setRelevance]=useState(null);const[inauthentic,setInauthentic]=useState(null);const[inauthenticDetail,setInauthenticDetail]=useState("");const[musicMatch,setMusicMatch]=useState("");const[pacing,setPacing]=useState("");
         const[inspired,setInspired]=useState("");const[improve,setImprove]=useState("");const[finalThoughts,setFinalThoughts]=useState("");
         const[prolificId,setProlificId]=useState("");const[email,setEmail]=useState("");
 
-        const doSubmit=()=>{fetch(API_BASE+"/api/demo/feedback",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({session_id:sessionId,felt_chills:feltChills,chills_count:spots||0,chills_timestamps_json:JSON.stringify(timestamps||[]),experience_driver:feltChills?(chillsTriggers.join(",")||null):null,feedback_note:finalThoughts||null,crying_response:crying||null,eyes_open_closed:eyes||null,inspired_to_do:inspired||null,chills_intensity:feltChills?chillsIntensity:null,chills_trigger_json:feltChills?JSON.stringify(chillsTriggers):null,chills_trigger_other:feltChills?(triggerOther||null):null,chills_body_location_json:feltChills?JSON.stringify(bodyLocations):null,chills_peak_timing:feltChills?(peakTiming||null):null,chills_reflection:feltChills?(chillsReflection||null):null,no_chills_barriers_json:!feltChills?JSON.stringify(barriers):null,no_chills_closeness:!feltChills?(closeness||null):null,no_chills_emotional_shift:!feltChills?emotionalShift:null,no_chills_emotional_describe:!feltChills?(emotionalDescribe||null):null,ebi_faced_difficult:ebi.faced||null,ebi_resolution:ebi.resolution||null,ebi_explore:ebi.explore||null,ebi_breakthrough:ebi.breakthrough||null,ebi_closure:ebi.closure||null,ebi_release:ebi.release||null,ebi_stuck_resisting:ebi.stuck_resisting||null,ebi_stuck_throughout:ebi.stuck_throughout||null,content_relevance:relevance,content_inauthentic:inauthentic,content_inauthentic_detail:inauthenticDetail||null,content_music_match:musicMatch||null,content_pacing:pacing||null,open_improve:improve||null,open_final_thoughts:finalThoughts||null,prolific_id:prolificId||null,email:email||null})}).then(()=>setSubmitted(true)).catch(()=>setSubmitted(true));};
-        if(submitted){onDone();return null;}
+        const inputStyle={width:"100%",padding:"14px 16px",background:"rgba(0,0,0,0.02)",border:"1px solid rgba(0,0,0,0.06)",borderRadius:12,color:D.text,fontSize:14,fontFamily:"inherit",resize:"none",outline:"none",lineHeight:1.6};
 
-        if(step===0)return(<div className="survey-wrap"><div className="survey-inner"><div style={{textAlign:"center",marginBottom:16}}><div className="eyebrow">QUICK CHECK-IN</div><h1 style={{fontSize:32,fontWeight:700,marginTop:6}}>How was your Jolt?</h1>{spots>0&&<p className="copy" style={{marginTop:6}}>You felt {spots} moment{spots===1?"":"s"}</p>}</div><div className="survey-card"><h3>Did you experience chills?</h3><ChoiceGrid options={[{value:true,label:"\u2726 Yes"},{value:false,label:"Not really"}]} value={feltChills} onChange={setFeltChills}/></div><div className="survey-card"><h3>Did you cry or tear up?</h3><PillSelect options={[{value:"full_tears",label:"Yes, full tears"},{value:"eyes_watered",label:"Eyes watered"},{value:"lump_in_throat",label:"Lump in throat"},{value:"no",label:"No"}]} value={crying} onChange={setCrying}/></div><div className="survey-card"><h3>Eyes open or closed?</h3><PillSelect options={[{value:"open",label:"Open"},{value:"closed",label:"Closed"},{value:"both",label:"Both"}]} value={eyes} onChange={setEyes}/></div></div><div className="survey-footer"><button className="btn-primary" onClick={()=>setStep(1)} disabled={feltChills===null}>Continue</button></div></div>);
+        const doSubmit=()=>{fetch(API_BASE+"/api/demo/feedback",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({session_id:sessionId,felt_chills:feltChills,chills_count:spots||0,chills_timestamps_json:JSON.stringify(timestamps||[]),experience_driver:feltChills?(chillsTriggers.join(",")||null):null,feedback_note:finalThoughts||null,crying_response:crying||null,eyes_open_closed:eyes||null,inspired_to_do:inspired||null,chills_intensity:feltChills?chillsIntensity:null,chills_trigger_json:feltChills?JSON.stringify(chillsTriggers):null,chills_trigger_other:feltChills?(triggerOther||null):null,chills_body_location_json:feltChills?JSON.stringify(bodyLocations):null,chills_peak_timing:feltChills?(peakTiming||null):null,chills_reflection:feltChills?(chillsReflection||null):null,no_chills_barriers_json:!feltChills?JSON.stringify(barriers):null,no_chills_closeness:!feltChills?(closeness||null):null,no_chills_emotional_shift:!feltChills?emotionalShift:null,no_chills_emotional_describe:!feltChills?(emotionalDescribe||null):null,ebi_faced_difficult:null,ebi_resolution:null,ebi_explore:null,ebi_breakthrough:null,ebi_closure:null,ebi_release:null,ebi_stuck_resisting:null,ebi_stuck_throughout:null,content_relevance:relevance,content_inauthentic:inauthentic,content_inauthentic_detail:inauthenticDetail||null,content_music_match:musicMatch||null,content_pacing:pacing||null,open_improve:improve||null,open_final_thoughts:finalThoughts||null,prolific_id:prolificId||null,email:email||null})}).then(()=>setSubmitted(true)).catch(()=>setSubmitted(true))};
+        if(submitted){onDone();return null}
 
-        if(step===1){if(feltChills)return(<div className="survey-wrap"><div className="survey-inner"><div className="survey-card"><h3>Chills intensity</h3><input type="range" min="0" max="10" value={chillsIntensity} onChange={e=>setChillsIntensity(parseInt(e.target.value))}/><div className="range-labels"><span>0 - Mild tingle</span><span style={{fontWeight:600,color:"var(--ink)"}}>{chillsIntensity}</span><span>10 - Full-body</span></div></div><div className="survey-card"><h3>What triggered the chills? (select all)</h3><PillSelect multi options={["Music","Voice","Speech text","A specific phrase","The build-up/crescendo","Other"]} value={chillsTriggers} onChange={setChillsTriggers}/>{chillsTriggers.includes("Other")&&<textarea className="survey-textarea" value={triggerOther} onChange={e=>setTriggerOther(e.target.value)} placeholder="What else?" rows={2} style={{marginTop:10}}/>}</div><div className="survey-card"><h3>Where did you feel it? (select all)</h3><PillSelect multi options={["Scalp","Back of neck","Spine","Arms","Chest","Full body"]} value={bodyLocations} onChange={setBodyLocations}/></div><div className="survey-card"><h3>When did chills peak?</h3><PillSelect options={[{value:"beginning",label:"Beginning"},{value:"middle",label:"Middle"},{value:"end",label:"End"},{value:"specific_phrase",label:"Specific phrase"}]} value={peakTiming} onChange={setPeakTiming}/></div><div className="survey-card"><h3>What gave you chills?</h3><textarea className="survey-textarea" value={chillsReflection} onChange={e=>setChillsReflection(e.target.value)} placeholder="Share what came up..." rows={3}/></div></div><div className="survey-footer"><button className="btn-primary" onClick={()=>setStep(2)}>Continue</button></div></div>);
-        return(<div className="survey-wrap"><div className="survey-inner"><div className="survey-card"><h3>What got in the way? (select all)</h3><PillSelect multi options={["Didn\u2019t feel relevant","Voice felt unnatural","Music was distracting","Too short","I was distracted","I don\u2019t typically get chills","Speech felt generic","It felt forced"]} value={barriers} onChange={setBarriers}/></div><div className="survey-card"><h3>How close did you get?</h3><PillSelect options={[{value:"not_at_all",label:"Not at all"},{value:"flicker_faded",label:"A flicker"},{value:"almost_there",label:"Almost there"},{value:"felt_something",label:"Felt something"}]} value={closeness} onChange={setCloseness}/></div><div className="survey-card"><h3>Even without chills, emotional shift?</h3><ChoiceGrid options={[{value:true,label:"Yes"},{value:false,label:"No"}]} value={emotionalShift} onChange={setEmotionalShift}/>{emotionalShift===true&&<textarea className="survey-textarea" value={emotionalDescribe} onChange={e=>setEmotionalDescribe(e.target.value)} placeholder="Describe..." rows={3} style={{marginTop:10}}/>}</div></div><div className="survey-footer"><button className="btn-primary" onClick={()=>setStep(2)}>Continue</button></div></div>);}
+        /* Step 0: Universal */
+        if(step===0)return(<div style={{height:"100%",overflowY:"auto",WebkitOverflowScrolling:"touch",padding:"50px 24px 160px"}}><FadeIn delay={200}><h2 style={{fontSize:22,fontWeight:200,color:D.text,marginBottom:6,textAlign:"center"}}>{spots>0?"You felt "+spots+" moment"+(spots===1?"":"s"):""}</h2><p style={{fontSize:14,color:D.sub,textAlign:"center",marginBottom:28}}>Session complete</p></FadeIn><FadeIn delay={400}><SurveyCard><SurveyLabel>Did you experience chills?</SurveyLabel><PillSelect options={[{value:true,label:"Yes"},{value:false,label:"No"}]} value={feltChills} onChange={setFeltChills}/></SurveyCard></FadeIn><FadeIn delay={600}><SurveyCard><SurveyLabel>Did you cry or tear up?</SurveyLabel><PillSelect options={[{value:"full_tears",label:"Yes, full tears"},{value:"eyes_watered",label:"Eyes watered"},{value:"lump_in_throat",label:"Lump in throat"},{value:"no",label:"No"}]} value={crying} onChange={setCrying}/></SurveyCard></FadeIn><FadeIn delay={800}><SurveyCard><SurveyLabel>Did you keep your eyes open or closed?</SurveyLabel><PillSelect options={[{value:"open",label:"Open"},{value:"closed",label:"Closed"},{value:"both",label:"Both"}]} value={eyes} onChange={setEyes}/></SurveyCard></FadeIn><FadeIn delay={1000}><BottomDock inset={kbInset}><Btn green onClick={()=>setStep(1)} disabled={feltChills===null}>Continue</Btn></BottomDock></FadeIn></div>);
 
-        if(step===2)return(<div className="survey-wrap"><div className="survey-inner"><h2 style={{fontSize:18,fontWeight:300,textAlign:"center",marginBottom:20}}>How did this experience feel?</h2><div className="survey-card" style={{padding:"20px 14px"}}><LikertRow label="I faced emotionally difficult feelings that I usually push aside." value={ebi.faced} onChange={v=>sE("faced",v)}/><LikertRow label="I experienced a resolution of a personal conflict or trauma." value={ebi.resolution} onChange={v=>sE("resolution",v)}/><LikertRow label="I felt able to explore challenging emotions and memories." value={ebi.explore} onChange={v=>sE("explore",v)}/><LikertRow label="I had an emotional breakthrough." value={ebi.breakthrough} onChange={v=>sE("breakthrough",v)}/><LikertRow label="I was able to get a sense of closure on an emotional problem." value={ebi.closure} onChange={v=>sE("closure",v)}/><LikertRow label="I achieved an emotional release followed by a sense of relief." value={ebi.release} onChange={v=>sE("release",v)}/><div style={{height:1,background:"rgba(0,0,0,0.06)",margin:"12px 0"}}/><LikertRow label="I was resisting and avoiding challenging feelings throughout." value={ebi.stuck_resisting} onChange={v=>sE("stuck_resisting",v)}/><LikertRow label="I felt emotionally stuck throughout." value={ebi.stuck_throughout} onChange={v=>sE("stuck_throughout",v)}/></div></div><div className="survey-footer"><button className="btn-primary" onClick={()=>setStep(3)}>Continue</button></div></div>);
+        /* Step 1: Chills YES or NO branch */
+        if(step===1){
+          if(feltChills)return(<div style={{height:"100%",overflowY:"auto",WebkitOverflowScrolling:"touch",padding:"50px 24px 160px"}}><FadeIn delay={200}><SurveyCard><SurveyLabel>Chills intensity</SurveyLabel><div style={{padding:"0 4px"}}><input type="range" min="0" max="10" value={chillsIntensity} onChange={e=>setChillsIntensity(parseInt(e.target.value))}/><div style={{display:"flex",justifyContent:"space-between",fontSize:11,color:D.hint,marginTop:6}}><span>0 &ndash; Mild tingle</span><span style={{fontWeight:500,color:D.text}}>{chillsIntensity}</span><span>10 &ndash; Full-body shivers</span></div></div></SurveyCard></FadeIn><FadeIn delay={400}><SurveyCard><SurveyLabel>What triggered the chills? (select all)</SurveyLabel><PillSelect multi options={["Music","Voice","Speech text","A specific phrase","The build-up/crescendo","Other"]} value={chillsTriggers} onChange={setChillsTriggers}/>{chillsTriggers.includes("Other")&&<textarea value={triggerOther} onChange={e=>setTriggerOther(e.target.value)} placeholder="What else triggered chills?" rows={2} style={{...inputStyle,marginTop:10}}/>}</SurveyCard></FadeIn><FadeIn delay={600}><SurveyCard><SurveyLabel>Where did you feel it? (select all)</SurveyLabel><PillSelect multi options={["Scalp","Back of neck","Spine","Arms","Chest","Full body"]} value={bodyLocations} onChange={setBodyLocations}/></SurveyCard></FadeIn><FadeIn delay={800}><SurveyCard><SurveyLabel>When did chills peak?</SurveyLabel><PillSelect options={[{value:"beginning",label:"Beginning"},{value:"middle",label:"Middle"},{value:"end",label:"End"},{value:"specific_phrase",label:"During a specific phrase"}]} value={peakTiming} onChange={setPeakTiming}/></SurveyCard></FadeIn><FadeIn delay={1000}><SurveyCard><SurveyLabel>What gave you chills? Did this make you think of anything?</SurveyLabel><textarea value={chillsReflection} onChange={e=>setChillsReflection(e.target.value)} placeholder="Share what came up for you..." rows={3} style={inputStyle}/></SurveyCard></FadeIn><FadeIn delay={1200}><BottomDock inset={kbInset}><Btn green onClick={()=>setStep(2)}>Continue</Btn></BottomDock></FadeIn></div>);
 
-        return(<div className="survey-wrap"><div className="survey-inner"><div className="survey-card"><h3>How personally relevant did the speech feel?</h3><div className="intensity-row">{[1,2,3,4,5].map(n=><button key={n} className={`intensity-btn ${relevance===n?"sel":""}`} onClick={()=>setRelevance(n)}>{n}</button>)}</div><div className="range-labels"><span>Generic</span><span>Deeply personal</span></div></div><div className="survey-card"><h3>Did any line feel &ldquo;off&rdquo; or inauthentic?</h3><ChoiceGrid options={[{value:true,label:"Yes"},{value:false,label:"No"}]} value={inauthentic} onChange={setInauthentic}/>{inauthentic===true&&<textarea className="survey-textarea" value={inauthenticDetail} onChange={e=>setInauthenticDetail(e.target.value)} placeholder="What felt off?" rows={2} style={{marginTop:10}}/>}</div><div className="survey-card"><h3>How was the music match?</h3><PillSelect options={[{value:"perfect",label:"Perfect"},{value:"good_not_ideal",label:"Good not ideal"},{value:"distracting",label:"Distracting"},{value:"wrong_mood",label:"Wrong mood"}]} value={musicMatch} onChange={setMusicMatch}/></div><div className="survey-card"><h3>How was the pacing?</h3><PillSelect options={[{value:"too_fast",label:"Too fast"},{value:"just_right",label:"Just right"},{value:"too_slow",label:"Too slow"}]} value={pacing} onChange={setPacing}/></div><div className="survey-card"><h3>What do you feel inspired to do now?</h3><textarea className="survey-textarea" value={inspired} onChange={e=>setInspired(e.target.value)} placeholder="Nothing particular, or share..." rows={2}/></div><div className="survey-card"><h3>What would make this hit harder?</h3><textarea className="survey-textarea" value={improve} onChange={e=>setImprove(e.target.value)} placeholder="Any suggestions..." rows={2}/></div><div className="survey-card"><h3>Any thoughts or feelings after that?</h3><textarea className="survey-textarea" value={finalThoughts} onChange={e=>setFinalThoughts(e.target.value)} placeholder="What came up..." rows={3}/></div><div className="survey-card"><h3>Prolific ID (optional)</h3><input className="survey-input" value={prolificId} onChange={e=>setProlificId(e.target.value)} placeholder="Enter your Prolific ID"/></div><div className="survey-card"><h3>Email (optional)</h3><input className="survey-input" type="email" value={email} onChange={e=>setEmail(e.target.value)} placeholder="Get notified when we launch"/></div></div><div className="survey-footer"><button className="btn-primary" onClick={doSubmit}>Submit</button></div></div>);
-      }
+          return(<div style={{height:"100%",overflowY:"auto",WebkitOverflowScrolling:"touch",padding:"50px 24px 160px"}}><FadeIn delay={200}><SurveyCard><SurveyLabel>What got in the way? (select all)</SurveyLabel><PillSelect multi options={["Didn\u2019t feel personally relevant","Voice felt unnatural","Music was distracting","Too short to build up","I was distracted","I don\u2019t typically get chills","Speech felt generic","It felt forced or manipulative"]} value={barriers} onChange={setBarriers}/></SurveyCard></FadeIn><FadeIn delay={400}><SurveyCard><SurveyLabel>How close did you get?</SurveyLabel><PillSelect options={[{value:"not_at_all",label:"Not at all"},{value:"flicker_faded",label:"A flicker but it faded"},{value:"almost_there",label:"Almost there"},{value:"felt_something",label:"I felt something but wouldn\u2019t call it chills"}]} value={closeness} onChange={setCloseness}/></SurveyCard></FadeIn><FadeIn delay={600}><SurveyCard><SurveyLabel>Even without chills, did you experience any emotional shift?</SurveyLabel><PillSelect options={[{value:true,label:"Yes"},{value:false,label:"No"}]} value={emotionalShift} onChange={setEmotionalShift}/>{emotionalShift===true&&<textarea value={emotionalDescribe} onChange={e=>setEmotionalDescribe(e.target.value)} placeholder="Describe what you felt..." rows={3} style={{...inputStyle,marginTop:10}}/>}</SurveyCard></FadeIn><FadeIn delay={800}><BottomDock inset={kbInset}><Btn green onClick={()=>setStep(2)}>Continue</Btn></BottomDock></FadeIn></div>);
+        }
 
-      function NoteStack({onRestart}){
-        const[notes,setNotes]=useState([{id:"post-jolt",when:new Date().toLocaleString("en-US",{month:"short",day:"numeric",hour:"numeric",minute:"2-digit"}).toUpperCase(),text:"",prompt:"Save what came up from your Jolt. What did you notice, feel, or remember?",jolted:true}]);
-        const[idx,setIdx]=useState(0);const[hintSeen,setHintSeen]=useState(false);const[dragY,setDragY]=useState(0);const dragRef=useRef({active:false,startY:0});
+        /* Step 2: Content quality + open-ended + optional + submit */
+        if(step===2)return(<div style={{height:"100%",overflowY:"auto",WebkitOverflowScrolling:"touch",padding:"50px 24px 160px"}}><FadeIn delay={200}><SurveyCard><SurveyLabel>How personally relevant did the speech feel?</SurveyLabel><div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}><span style={{fontSize:11,color:D.hint}}>Generic</span>{[1,2,3,4,5].map(n=>(<button key={n} onClick={()=>setRelevance(n)} style={{width:40,height:40,borderRadius:"50%",background:relevance===n?D.accent:"rgba(0,0,0,0.03)",color:relevance===n?"#fff":D.text,border:relevance===n?"none":"1px solid rgba(0,0,0,0.1)",fontSize:14,fontFamily:"inherit",cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",transition:"all .15s",padding:0}}>{n}</button>))}<span style={{fontSize:11,color:D.hint}}>Deeply personal</span></div></SurveyCard></FadeIn><FadeIn delay={350}><SurveyCard><SurveyLabel>Did any line feel "off" or inauthentic?</SurveyLabel><PillSelect options={[{value:true,label:"Yes"},{value:false,label:"No"}]} value={inauthentic} onChange={setInauthentic}/>{inauthentic===true&&<textarea value={inauthenticDetail} onChange={e=>setInauthenticDetail(e.target.value)} placeholder="What felt off?" rows={2} style={{...inputStyle,marginTop:10}}/>}</SurveyCard></FadeIn><FadeIn delay={500}><SurveyCard><SurveyLabel>How was the music match?</SurveyLabel><PillSelect options={[{value:"perfect",label:"Perfect"},{value:"good_not_ideal",label:"Good but not ideal"},{value:"distracting",label:"Distracting"},{value:"wrong_mood",label:"Wrong mood entirely"}]} value={musicMatch} onChange={setMusicMatch}/></SurveyCard></FadeIn><FadeIn delay={650}><SurveyCard><SurveyLabel>How was the pacing?</SurveyLabel><PillSelect options={[{value:"too_fast",label:"Too fast"},{value:"just_right",label:"Just right"},{value:"too_slow",label:"Too slow"}]} value={pacing} onChange={setPacing}/></SurveyCard></FadeIn><FadeIn delay={800}><SurveyCard><SurveyLabel>What do you feel inspired to do now?</SurveyLabel><textarea value={inspired} onChange={e=>setInspired(e.target.value)} placeholder="Nothing particular, or share what comes to mind..." rows={2} style={inputStyle}/></SurveyCard></FadeIn><FadeIn delay={950}><SurveyCard><SurveyLabel>What's one thing that would make this hit harder next time?</SurveyLabel><textarea value={improve} onChange={e=>setImprove(e.target.value)} placeholder="Any suggestions..." rows={2} style={inputStyle}/></SurveyCard></FadeIn><FadeIn delay={1100}><SurveyCard><SurveyLabel>Any thoughts or feelings after that?</SurveyLabel><textarea value={finalThoughts} onChange={e=>setFinalThoughts(e.target.value)} placeholder="What came up for you..." rows={3} style={inputStyle}/></SurveyCard></FadeIn><FadeIn delay={1250}><SurveyCard><SurveyLabel>Prolific ID (optional)</SurveyLabel><input type="text" value={prolificId} onChange={e=>setProlificId(e.target.value)} placeholder="Enter your Prolific ID" style={inputStyle}/></SurveyCard></FadeIn><FadeIn delay={1400}><SurveyCard><SurveyLabel>Email (optional)</SurveyLabel><input type="email" value={email} onChange={e=>setEmail(e.target.value)} placeholder="Get notified when we launch" style={inputStyle}/></SurveyCard></FadeIn><FadeIn delay={1550}><BottomDock inset={kbInset}><Btn green onClick={doSubmit}>Submit</Btn></BottomDock></FadeIn></div>);
 
-        const addNote=()=>{const n={id:"note-"+Date.now(),when:new Date().toLocaleString("en-US",{month:"short",day:"numeric",hour:"numeric",minute:"2-digit"}).toUpperCase(),text:"",jolted:false};setNotes(p=>[n,...p]);setIdx(0);setHintSeen(true);};
-        const joltNote=id=>setNotes(p=>p.map(n=>n.id===id?{...n,jolted:true}:n));
-        const updateText=(id,text)=>setNotes(p=>p.map(n=>n.id===id?{...n,text}:n));
-        const onPD=e=>{if(e.target.tagName==="TEXTAREA"||e.target.tagName==="BUTTON")return;dragRef.current={active:true,startY:e.clientY};setDragY(0);};
-        const onPM=e=>{if(!dragRef.current.active)return;setDragY(Math.max(-150,Math.min(150,e.clientY-dragRef.current.startY)));};
-        const onPU=e=>{if(!dragRef.current.active)return;const dy=e.clientY-dragRef.current.startY;dragRef.current.active=false;setDragY(0);if(dy<-60&&idx<notes.length-1){setIdx(idx+1);setHintSeen(true);}else if(dy>60&&idx>0){setIdx(idx-1);setHintSeen(true);}};
-
-        const cur=notes[idx],next=notes[idx+1],next2=notes[idx+2];
-        const card=(note,editable,zI,style)=>(<div className="stack-layer" style={{zIndex:zI,...style}} key={note.id}><div className={`note-card ${note.jolted?"jolted":""}`}><div className="note-head"><div><div className="note-meta mono">{note.when}</div></div><button className={`jolt-note-btn ${note.jolted?"is-jolted":""}`} onClick={()=>joltNote(note.id)}>{note.jolted?"JOLTED":"JOLT"}</button></div><div className="note-body">{editable?<textarea value={note.text} onChange={e=>updateText(note.id,e.target.value)} placeholder={note.prompt||"Write what just lit up..."}/>:<p>{note.text}</p>}</div></div></div>);
-
-        return(<div className="stack-bg"><div className="stack-wrap"><div className="topbar"><span style={{fontSize:13,color:"var(--muted)",fontWeight:600}}>{notes.length} note{notes.length!==1?"s":""} &middot; {idx+1} of {notes.length}</span><button className="pill-btn" onClick={onRestart}>Start over</button></div><div className="stack-scene" onPointerDown={onPD} onPointerMove={onPM} onPointerUp={onPU} onPointerCancel={()=>{dragRef.current.active=false;setDragY(0);}}>{cur&&card(cur,true,4,{transform:`translateX(-50%) translateY(${dragY}px)`})}{next&&card(next,false,2,{transform:"translateX(-50%) translateY(28px) scale(0.94) rotate(2deg)",opacity:0.7})}{next2&&card(next2,false,1,{transform:"translateX(-50%) translateY(56px) scale(0.88) rotate(-1.5deg)",opacity:0.4})}{!hintSeen&&notes.length>1&&<div className="swipe-hint">&#x2195; Swipe up and down</div>}</div><div className="plus-wrap"><button className="plus-button" onClick={addNote}>+</button><div className="plus-label">New note</div></div></div></div>);
-      }
-
-      function Done({onRestart,onJournal}){return(<div className="done-wrap"><FadeIn delay={300}><div className="ready-icon">&#10003;</div></FadeIn><FadeIn delay={700}><h2 style={{fontSize:28,fontWeight:200,marginBottom:12}}>Thank you</h2></FadeIn><FadeIn delay={1100}><p className="copy" style={{maxWidth:280,margin:"0 auto 30px",lineHeight:1.7}}>Your response helps us understand what moves people. That matters more than you know.</p></FadeIn><FadeIn delay={1400}><div className="done-actions"><button className="btn-primary" onClick={onJournal}>Open your journal</button><button className="btn-secondary" onClick={onRestart}>Start over</button></div></FadeIn></div>);}
-
-      function App(){
-        const[phase,setPhase]=useState("splash");const[obStep,setObStep]=useState(0);const[answers,setAnswers]=useState({});const[sessionData,setSessionData]=useState({sessionId:null,audioUrl:null});const[chillsData,setChillsData]=useState({spots:0,timestamps:[]});
-        if(phase==="splash")return<Splash onStart={()=>setPhase("onboarding")}/>;
-        if(phase==="onboarding")return<OnboardingScreen step={obStep} onNext={()=>{if(obStep<ONBOARDING.length-1)setObStep(obStep+1);else setPhase("questions");}} onSkip={a=>{if(a==="back"&&obStep>0)setObStep(obStep-1);else if(a==="splash")setPhase("splash");else setPhase("questions");}}/>;
-        if(phase==="questions")return<ChillsQuestions onNext={ans=>{setAnswers(ans);setPhase("breathing");}}/>;
-        if(phase==="breathing")return<BreathingAndGenerating answers={answers} onReady={d=>{setSessionData(d);setPhase("player");}}/>;
-        if(phase==="player")return<ChillsExperience audioUrl={sessionData.audioUrl} onDone={d=>{setChillsData(d);setPhase("feedback");}}/>;
-        if(phase==="feedback")return<Feedback spots={chillsData.spots} timestamps={chillsData.timestamps} sessionId={sessionData.sessionId} onDone={()=>setPhase("done")}/>;
-        if(phase==="done")return<Done onRestart={()=>window.location.reload()} onJournal={()=>setPhase("notes")}/>;
-        if(phase==="notes")return<NoteStack onRestart={()=>window.location.reload()}/>;
         return null;
       }
+
+      /* ——— Done (auto-advance to journal after 1s) ——— */
+      function Done({onAutoAdvance}){
+        useEffect(()=>{const t=setTimeout(()=>onAutoAdvance(),1000);return()=>clearTimeout(t)},[]);
+        return(<div style={{minHeight:"100%",display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",textAlign:"center",padding:40}}><FadeIn delay={200}><div style={{width:64,height:64,borderRadius:"50%",background:"linear-gradient(145deg,"+D.accent+"30,"+D.warm+"20)",border:"1px solid "+D.accentGlow,display:"flex",alignItems:"center",justifyContent:"center",margin:"0 auto 24px",fontSize:28}}>&#10003;</div></FadeIn><FadeIn delay={400}><h2 style={{fontSize:28,fontWeight:200,color:D.text,marginBottom:12}}>Thank you</h2></FadeIn><FadeIn delay={600}><p style={{fontSize:15,fontWeight:300,color:D.sub,lineHeight:1.7,maxWidth:280,margin:"0 auto"}}>Your response helps us understand what moves people. That matters more than you know.</p></FadeIn></div>);
+      }
+
+      /* ——— NoteStack (auto-save, fixed nav, no start-over) ——— */
+      function NoteStack({sessionId}){
+        const[notes,setNotes]=useState([{id:"post-jolt",when:new Date().toLocaleString("en-US",{month:"short",day:"numeric",hour:"numeric",minute:"2-digit"}).toUpperCase(),text:"",prompt:"Save what came up from your Jolt. What did you notice, feel, or remember?",jolted:true}]);
+        const[idx,setIdx]=useState(0);
+        const saveTimer=useRef(null);
+        const notesRef=useRef(notes);
+        notesRef.current=notes;
+
+        /* Load existing notes on mount */
+        useEffect(()=>{if(!sessionId)return;fetch(API_BASE+"/api/demo/notes/"+sessionId).then(r=>r.json()).then(d=>{if(d.notes_json){try{const loaded=JSON.parse(d.notes_json);if(Array.isArray(loaded)&&loaded.length>0)setNotes(loaded)}catch(e){}}}).catch(()=>{})},[sessionId]);
+
+        /* Auto-save function */
+        const doSave=useCallback(()=>{if(!sessionId)return;fetch(API_BASE+"/api/demo/notes",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({session_id:sessionId,notes_json:JSON.stringify(notesRef.current)})}).catch(()=>{})},[sessionId]);
+
+        /* Trigger auto-save 5s after last edit */
+        const scheduleSave=useCallback(()=>{if(saveTimer.current)clearTimeout(saveTimer.current);saveTimer.current=setTimeout(()=>doSave(),5000)},[doSave]);
+
+        /* Save on unmount */
+        useEffect(()=>{return()=>{if(saveTimer.current)clearTimeout(saveTimer.current);doSave()}},[doSave]);
+
+        const addNote=()=>{const n={id:"note-"+Date.now(),when:new Date().toLocaleString("en-US",{month:"short",day:"numeric",hour:"numeric",minute:"2-digit"}).toUpperCase(),text:"",jolted:false};setNotes(p=>[n,...p]);setIdx(0);scheduleSave()};
+        const joltNote=id=>{setNotes(p=>p.map(n=>n.id===id?{...n,jolted:true}:n));scheduleSave()};
+        const updateText=(id,text)=>{setNotes(p=>p.map(n=>n.id===id?{...n,text}:n));scheduleSave()};
+
+        const cur=notes[idx];
+        const canPrev=idx>0;
+        const canNext=idx<notes.length-1;
+
+        return(
+          <div style={{height:"100%",background:"#fbfaf7",display:"flex",flexDirection:"column",padding:"16px 24px calc(16px + env(safe-area-inset-bottom,0px))"}}>
+            {/* Top bar: count + nav */}
+            <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",minHeight:44,marginBottom:12}}>
+              <button onClick={()=>canPrev&&setIdx(idx-1)} style={{width:44,height:44,borderRadius:"50%",background:canPrev?"rgba(0,0,0,0.06)":"transparent",border:"none",cursor:canPrev?"pointer":"default",fontSize:20,color:canPrev?D.text:"transparent",display:"grid",placeItems:"center",fontFamily:"inherit"}}>&lsaquo;</button>
+              <span style={{fontSize:13,color:D.sub,fontWeight:600}}>{notes.length} note{notes.length!==1?"s":""} &middot; {idx+1} of {notes.length}</span>
+              <button onClick={()=>canNext&&setIdx(idx+1)} style={{width:44,height:44,borderRadius:"50%",background:canNext?"rgba(0,0,0,0.06)":"transparent",border:"none",cursor:canNext?"pointer":"default",fontSize:20,color:canNext?D.text:"transparent",display:"grid",placeItems:"center",fontFamily:"inherit"}}>&rsaquo;</button>
+            </div>
+
+            {/* Card */}
+            {cur&&(
+              <div style={{flex:1,minHeight:0,display:"flex",flexDirection:"column"}}>
+                <div style={{flex:1,minHeight:0,borderRadius:22,background:cur.jolted?"linear-gradient(145deg,#ffd86b 0%,#ffb300 100%)":"#5b4af0",color:cur.jolted?"#241700":"#fff",boxShadow:cur.jolted?"0 18px 36px rgba(255,179,0,0.24)":"0 18px 36px rgba(91,74,240,0.22)",padding:"18px 18px 20px",display:"flex",flexDirection:"column"}}>
+                  <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",gap:10}}>
+                    <div style={{fontFamily:"monospace",fontSize:10,letterSpacing:".08em",opacity:0.72,textTransform:"uppercase"}}>{cur.when}</div>
+                    <button onClick={()=>joltNote(cur.id)} style={{display:"flex",alignItems:"center",gap:5,minHeight:30,padding:"0 10px",borderRadius:999,background:"rgba(255,255,255,0.16)",color:cur.jolted?"#241700":"#ffd86b",fontSize:11,fontWeight:800,letterSpacing:".08em",border:"none",cursor:"pointer"}}>{cur.jolted?"JOLTED":"JOLT"}</button>
+                  </div>
+                  <div style={{flex:1,minHeight:0,marginTop:14,overflow:"hidden"}}>
+                    <textarea value={cur.text} onChange={e=>updateText(cur.id,e.target.value)} placeholder={cur.prompt||"Write what just lit up..."} style={{width:"100%",height:"100%",minHeight:200,resize:"none",padding:0,color:"inherit",fontSize:17,lineHeight:1.4,caretColor:cur.jolted?"#241700":"#ffd86b",background:"transparent",border:"none",outline:"none",fontFamily:"inherit"}}/>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Add note button */}
+            <div style={{display:"grid",justifyItems:"center",gap:6,padding:"12px 0 4px"}}>
+              <button onClick={addNote} style={{width:56,height:56,borderRadius:"50%",display:"grid",placeItems:"center",background:D.accent,color:"#fff",fontSize:36,fontWeight:250,boxShadow:"0 14px 28px rgba(26,24,21,0.18)",border:"none",cursor:"pointer"}}>+</button>
+              <div style={{color:D.sub,fontSize:12,fontWeight:650}}>New note</div>
+            </div>
+          </div>
+        );
+      }
+
+      /* ——— App ——— */
+      function App(){
+        const[phase,setPhase]=useState("splash");
+        const[obStep,setObStep]=useState(0);
+        const[answers,setAnswers]=useState({});
+        const[sessionData,setSessionData]=useState({sessionId:null,audioUrl:null});
+        const[chillsData,setChillsData]=useState({spots:0,timestamps:[]});
+
+        if(phase==="splash")return<Splash onStart={()=>setPhase("onboarding")}/>;
+        if(phase==="onboarding")return<OnboardingScreen step={obStep} onNext={()=>{if(obStep<ONBOARDING.length-1)setObStep(obStep+1);else setPhase("questions")}} onSkip={a=>{if(a==="back"&&obStep>0)setObStep(obStep-1);else if(a==="splash")setPhase("splash");else setPhase("questions")}}/>;
+        if(phase==="questions")return<ChillsQuestions onNext={ans=>{setAnswers(ans);setPhase("breathing")}}/>;
+        if(phase==="breathing")return<BreathingAndGenerating answers={answers} onReady={d=>{setSessionData(d);setPhase("player")}}/>;
+        if(phase==="player")return<ChillsExperience audioUrl={sessionData.audioUrl} onDone={d=>{setChillsData(d);setPhase("feedback")}}/>;
+        if(phase==="feedback")return<Feedback spots={chillsData.spots} timestamps={chillsData.timestamps} sessionId={sessionData.sessionId} onDone={()=>setPhase("done")}/>;
+        if(phase==="done")return<Done onAutoAdvance={()=>setPhase("notes")}/>;
+        if(phase==="notes")return<NoteStack sessionId={sessionData.sessionId}/>;
+        return null;
+      }
+
       ReactDOM.render(<App/>,document.getElementById("root"));
     </script>
   </body>
