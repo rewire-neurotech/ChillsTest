@@ -31,16 +31,18 @@ class Config:
         return p
 
     # --- Track Registry ---
-    # Each track: file path, ElevenLabs voice ID, and a short description
+    # Each track: music file, voice ID, meditation mix, and description
     TRACKS = {
         "heroes_wwii": {
             "file": "heroes_wwii.mp3",
             "voice_id": "0yXkuUWXDHdmdQJugJLb",
+            "meditation": "meditation_heroes_wwii.mp3",
             "description": "Cinematic WW2 orchestral - intense, triumphant, heavy",
         },
         "a_thousand_hearts": {
             "file": "a_thousand_hearts.mpeg",
             "voice_id": "lMILJ9d29MrRXy9BIgcz",
+            "meditation": "meditation_a_thousand_hearts.mp3",
             "description": "Gentle, emotional, intimate - warmth and tenderness",
         },
     }
@@ -48,7 +50,7 @@ class Config:
     DEFAULT_TRACK: str = "heroes_wwii"
 
     def get_track(self, track_name: str = None) -> dict:
-        """Return track info dict with resolved file path."""
+        """Return track info dict with resolved file paths."""
         name = track_name or self.DEFAULT_TRACK
         track = self.TRACKS.get(name)
         if not track:
@@ -58,12 +60,11 @@ class Config:
             "name": name,
             "file": self.ASSETS_DIR / track["file"],
             "voice_id": track["voice_id"],
+            "meditation": self.ASSETS_DIR / track["meditation"],
             "description": track["description"],
         }
 
     # --- Backward compatibility ---
-    # These resolve to the default track so nothing breaks
-    # before demo.py is updated
     @property
     def MUSIC_FILE(self) -> Path:
         return self.ASSETS_DIR / self.TRACKS[self.DEFAULT_TRACK]["file"]
