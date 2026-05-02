@@ -152,6 +152,47 @@ def _within(ms: int, target: int, tol: float = 0.04) -> bool:
     return abs(ms - target) <= int(target * tol)
 
 
+def _trim_at_boundary(text: str, words_to_cut: int) -> str:
+    """Trim words from the end, cutting at a clean boundary.
+    Prefers --- section breaks > paragraph ends > sentence ends."""
+    words = text.strip().split()
+    if words_to_cut >= len(words):
+        return text
+    rough_cut = " ".join(words[:-words_to_cut])
+
+    # 1. Try to find a --- section break in the last 40% of the rough cut
+    search_zone_start = int(len(rough_cut) * 0.6)
+    last_section = rough_cut.rfind("\n---", search_zone_start)
+    if last_section == -1:
+        last_section = rough_cut.rfind("---", search_zone_start)
+    if last_section > search_zone_start:
+        return rough_cut[:last_section].rstrip()
+
+    # 2. Try to find a double newline (paragraph break)
+    last_para = rough_cut.rfind("\n\n", search_zone_start)
+    if last_para > search_zone_start:
+        return rough_cut[:last_para].rstrip()
+
+    # 3. Fall back to last sentence boundary
+    last_end = max(
+        rough_cut.rfind(". ", search_zone_start),
+        rough_cut.rfind("! ", search_zone_start),
+        rough_cut.rfind("? ", search_zone_start),
+        rough_cut.rfind(".\n", search_zone_start),
+        rough_cut.rfind("!\n", search_zone_start),
+        rough_cut.rfind("?\n", search_zone_start),
+    )
+    if last_end > search_zone_start:
+        return rough_cut[:last_end + 1].rstrip()
+
+    # 4. Try sentence boundary anywhere in the back half
+    last_end = max(rough_cut.rfind("."), rough_cut.rfind("!"), rough_cut.rfind("?"))
+    if last_end > len(rough_cut) * 0.5:
+        return rough_cut[:last_end + 1].rstrip()
+
+    return rough_cut
+
+
 # --- Background generation pipeline ---
 
 def _run_generate(job_id: str, q1: str, q2: str, q3: str, q4: str):
@@ -215,7 +256,7 @@ def _run_generate(job_id: str, q1: str, q2: str, q3: str, q4: str):
 
         _update_job(job_id, stage="refining", progress=60)
 
-        # 5. Check duration and correct if needed (up to 3 attempts)
+        # 5. Check duration and correct if needed (up to 5 attempts)
         tts_ms = duration_ms(load_audio(voice_wav_path))
         ema_wps = 2.0
         best_script = speech_text
@@ -223,7 +264,7 @@ def _run_generate(job_id: str, q1: str, q2: str, q3: str, q4: str):
 
         print(f"[Demo] TTS duration: {tts_ms}ms (target: {spoken_target_ms}ms)")
 
-        for attempt in range(3):
+        for attempt in range(5):
             wc = _word_count(best_script)
             observed_wps = wc / max(1.0, tts_ms / 1000.0)
             ema_wps = 0.7 * ema_wps + 0.3 * observed_wps
@@ -233,12 +274,14 @@ def _run_generate(job_id: str, q1: str, q2: str, q3: str, q4: str):
                 break
 
             delta_ms = spoken_target_ms - tts_ms
-            delta_words = int(abs(delta_ms) / 1000.0 * ema_wps)
-            delta_words = max(30, min(delta_words, 200))
+            # Dampen corrections: each attempt is gentler to avoid oscillation
+            damping = 0.7 ** attempt
+            delta_words = int(abs(delta_ms) / 1000.0 * ema_wps * damping)
+            delta_words = max(10, min(delta_words, 200))
 
             if delta_ms > 0:
                 # Too short -- generate more
-                print(f"[Demo] Speech too short by {delta_ms}ms, extending by ~{delta_words} words")
+                print(f"[Demo] Speech too short by {delta_ms}ms, extending by ~{delta_words} words (damping={damping:.2f})")
                 tail = " ".join(best_script.strip().split()[-40:])
                 extend_prompt = f"""Continue this speech naturally. Write approximately {delta_words} more words. Maintain the same tone, style and emotional arc. Do not repeat what was already said. Pick up exactly where this left off:
 
@@ -249,15 +292,9 @@ Continue now. Only the continuation text. No preamble."""
                 if more and more not in best_script:
                     best_script = (best_script + " " + more).strip()
             else:
-                # Too long -- trim from the end at a sentence boundary
-                print(f"[Demo] Speech too long by {abs(delta_ms)}ms, trimming ~{delta_words} words")
-                words = best_script.strip().split()
-                trimmed = " ".join(words[:-delta_words])
-                # Find last sentence boundary to avoid cutting mid-sentence
-                last_end = max(trimmed.rfind("."), trimmed.rfind("!"), trimmed.rfind("?"))
-                if last_end > len(trimmed) * 0.5:
-                    trimmed = trimmed[: last_end + 1]
-                best_script = trimmed
+                # Too long -- trim at a clean boundary
+                print(f"[Demo] Speech too long by {abs(delta_ms)}ms, trimming ~{delta_words} words (damping={damping:.2f})")
+                best_script = _trim_at_boundary(best_script, delta_words)
 
             # Re-synthesize
             best_wav = synth(
@@ -268,7 +305,7 @@ Continue now. Only the continuation text. No preamble."""
             tts_ms = duration_ms(load_audio(best_wav))
             print(f"[Demo] Correction attempt {attempt + 1}: {tts_ms}ms (target: {spoken_target_ms}ms)")
 
-            _update_job(job_id, progress=60 + (attempt + 1) * 5)
+            _update_job(job_id, progress=60 + (attempt + 1) * 4)
 
         speech_text = best_script
         voice_wav_path = best_wav
