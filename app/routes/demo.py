@@ -727,3 +727,91 @@ def export_csv(db: Session = Depends(get_db)):
         media_type="text/csv",
         headers={"Content-Disposition": "attachment; filename=rewire_demo_sessions.csv"},
     )
+
+
+# --- TEMPORARY: One-time meditation premix endpoint ---
+# Hit POST /api/demo/premix-meditation once in /docs, then download the files.
+# DELETE THIS ENDPOINT after uploading the output files to app/assets/ on GitHub.
+
+@r.post("/premix-meditation")
+def premix_meditation():
+    """
+    One-time endpoint: mix meditation audio with each music track.
+    Loops the music to match meditation duration, then runs Joaquin's
+    full DSP pipeline (mix.py) exactly as the main generate does.
+
+    After running, download the files at:
+      /api/demo/audio/meditation_heroes_wwii.mp3
+      /api/demo/audio/meditation_a_thousand_hearts.mp3
+
+    Then upload both to app/assets/ on GitHub and DELETE this endpoint.
+    """
+    meditation_path = cfg.ASSETS_DIR / "christian_meditation.mpeg"
+    if not meditation_path.exists():
+        raise HTTPException(
+            status_code=404,
+            detail="christian_meditation.mpeg not found in app/assets/",
+        )
+
+    # Load meditation audio
+    meditation_audio = load_audio(str(meditation_path))
+    med_ms = duration_ms(meditation_audio)
+
+    # Export meditation as temp wav (mix() expects file paths)
+    med_wav = tempfile.NamedTemporaryFile(delete=False, suffix=".wav")
+    meditation_audio.export(med_wav.name, format="wav")
+
+    results = []
+
+    for track_name, track_info in cfg.TRACKS.items():
+        music_path = cfg.ASSETS_DIR / track_info["file"]
+        if not music_path.exists():
+            results.append({"track": track_name, "status": "skipped", "reason": "music file not found"})
+            continue
+
+        # Load music, get content duration, trim trailing silence
+        music_audio = load_audio(str(music_path))
+        content_ms = content_duration_ms(music_audio)
+        music_trimmed = music_audio[:content_ms]
+
+        # Loop music to match meditation duration
+        loops_needed = (med_ms // content_ms) + 1
+        music_looped = music_trimmed * loops_needed
+        music_looped = music_looped[:med_ms]
+
+        # Export looped music as temp file
+        looped_tmp = tempfile.NamedTemporaryFile(delete=False, suffix=".mp3")
+        music_looped.export(looped_tmp.name, format="mp3", bitrate="256k")
+
+        # Output to the shared output dir (so /audio/ endpoint can serve it)
+        out_filename = f"meditation_{track_name}.mp3"
+        out_path = cfg.out_dir_path / out_filename
+
+        # Call mix() exactly as demo.py does
+        result_ms = mix_audio(
+            voice_path=med_wav.name,
+            music_path=looped_tmp.name,
+            out_path=str(out_path),
+            sync_mode="retime_music_to_voice",
+            music_fadein_ms=MUSIC_FADEIN_MS,
+            music_premix_gain_db=-1.5,
+            ffmpeg_bin=cfg.FFMPEG_BIN,
+        )
+
+        # Verify
+        out_audio = load_audio(str(out_path))
+        out_ms = duration_ms(out_audio)
+
+        results.append({
+            "track": track_name,
+            "status": "done",
+            "output_file": out_filename,
+            "duration_ms": out_ms,
+            "download_url": f"/api/demo/audio/{out_filename}",
+        })
+
+    return {
+        "status": "complete",
+        "meditation_duration_ms": med_ms,
+        "results": results,
+    }
