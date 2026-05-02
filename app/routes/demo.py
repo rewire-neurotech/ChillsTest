@@ -374,7 +374,7 @@ Continue now. Only the continuation text. No preamble."""
             out_path=str(out_path),
             sync_mode="retime_music_to_voice",
             music_fadein_ms=MUSIC_FADEIN_MS,
-            music_premix_gain_db=-1.5,
+            music_premix_gain_db=-2.0,
             ffmpeg_bin=cfg.FFMPEG_BIN,
         )
         print(f"[Demo] Mix done: {out_path}")
@@ -810,7 +810,7 @@ def premix_meditation():
             out_path=str(out_path),
             sync_mode="retime_music_to_voice",
             music_fadein_ms=MUSIC_FADEIN_MS,
-            music_premix_gain_db=-1.5,
+            music_premix_gain_db=-2.0,
             ffmpeg_bin=cfg.FFMPEG_BIN,
         )
 
