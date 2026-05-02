@@ -23,6 +23,7 @@ from app.services.prompt import build_user_prompt
 from app.services.llm import generate_speech
 from app.services.tts import synth
 from app.services.mix import mix as mix_audio
+from app.services.music_selector import select_track
 from app.utils.audio import load_audio, duration_ms, content_duration_ms
 
 r = APIRouter(prefix="/api/demo", tags=["demo"])
@@ -161,8 +162,13 @@ def _run_generate(job_id: str, q1: str, q2: str, q3: str, q4: str):
 
         _update_job(job_id, stage="writing", progress=5)
 
+        # 0. Select music track based on user answers
+        track_name = select_track(q1_wound=q1, q2_chills_trigger=q2, q3_hidden_truth=q3, q4_first_tell=q4)
+        track = cfg.get_track(track_name)
+        print(f"[Demo] Selected track: {track['name']} ({track['description']})")
+
         # 1. Get music duration info
-        music_path = cfg.MUSIC_FILE
+        music_path = track["file"]
         if not music_path.exists():
             _update_job(job_id, stage="error", error="Music file not found in assets")
             return
@@ -199,7 +205,7 @@ def _run_generate(job_id: str, q1: str, q2: str, q3: str, q4: str):
 
         # 4. TTS via ElevenLabs
         print(f"[Demo] Synthesizing TTS...")
-        voice_id = cfg.ELEVENLABS_VOICE_ID
+        voice_id = track["voice_id"]
         voice_wav_path = synth(
             text=speech_text,
             voice_id=voice_id,
@@ -351,7 +357,7 @@ Continue now. Only the continuation text. No preamble."""
                 speech_format=speech_format,
                 speech_text=speech_text,
                 voice_id=voice_id,
-                music_track="heroes_wwii.mp3",
+                music_track=track["name"],
                 audio_filename=audio_filename,
                 generation_time_seconds=elapsed,
             )
