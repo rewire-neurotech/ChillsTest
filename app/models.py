@@ -11,10 +11,11 @@ class DemoSession(Base):
     id = Column(Integer, primary_key=True, autoincrement=True)
     session_id = Column(String(64), unique=True, nullable=False, index=True)
 
-    # --- 3 Questions ---
+    # --- 4 Questions ---
     q1_wound = Column(Text)
     q2_chills_trigger = Column(Text)
     q3_hidden_truth = Column(Text)
+    q4_first_tell = Column(Text)
 
     # --- Demographics (filled during wait) ---
     age = Column(String(20))
@@ -78,6 +79,9 @@ class DemoSession(Base):
     # --- Optional ---
     prolific_id = Column(String(100))
     email = Column(String(200))
+
+    # --- Journal Notes (auto-saved, JSON array of note objects) ---
+    notes_json = Column(Text)
 
     # --- Timing ---
     generation_time_seconds = Column(Float)
