@@ -1,8 +1,20 @@
 from sqlalchemy import (
-    Column, Integer, String, Text, Boolean, Float, DateTime
+    Column, Integer, String, Text, Float, DateTime, ForeignKey
 )
 from datetime import datetime, timezone
 from app.db import Base
+
+
+class User(Base):
+    __tablename__ = "users"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    email = Column(String(200), unique=True, nullable=False, index=True)
+    password_hash = Column(String(300), nullable=True)  # null for Google-auth users
+    name = Column(String(200), nullable=True)
+    auth_provider = Column(String(20), nullable=False, default="local")  # "local" or "google"
+    google_id = Column(String(200), nullable=True, unique=True)
+    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
 
 
 class DemoSession(Base):
@@ -11,16 +23,14 @@ class DemoSession(Base):
     id = Column(Integer, primary_key=True, autoincrement=True)
     session_id = Column(String(64), unique=True, nullable=False, index=True)
 
-    # --- 4 Questions ---
-    q1_wound = Column(Text)
-    q2_chills_trigger = Column(Text)
-    q3_hidden_truth = Column(Text)
-    q4_first_tell = Column(Text)
+    # --- Link to user (nullable for backward compat during transition) ---
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=True, index=True)
 
-    # --- Demographics (filled during wait) ---
-    age = Column(String(20))
-    gender = Column(String(40))
-    ethnicity = Column(String(80))
+    # --- 4 Questions (new order matching Felix's UI) ---
+    q1_low_voice = Column(Text)       # "What does the voice in your head say at your lowest?"
+    q2_chills = Column(Text)          # "When was the last time you got chills or goosebumps?"
+    q3_first_call = Column(Text)      # "If something beautiful happened, who's the first person you'd call?"
+    q4_unseen = Column(Text)          # "What's something true about you that nobody sees?"
 
     # --- AI Generation ---
     speech_format = Column(String(40))
@@ -29,59 +39,15 @@ class DemoSession(Base):
     music_track = Column(String(120))
     audio_filename = Column(String(200))
 
-    # --- Chills Feedback (original - kept for backward compat) ---
-    felt_chills = Column(Boolean)
+    # --- Chills Data (from stimulus tap-to-log) ---
     chills_count = Column(Integer, default=0)
-    chills_timestamps_json = Column(Text)
-    experience_driver = Column(String(40))
-    feedback_note = Column(Text)
+    chills_timestamps_json = Column(Text)     # JSON array of timestamps in seconds
 
-    # --- Universal Questions (everyone answers) ---
-    crying_response = Column(String(40))          # "full_tears" / "eyes_watered" / "lump_in_throat" / "no"
-    eyes_open_closed = Column(String(20))         # "open" / "closed" / "both"
-    inspired_to_do = Column(Text)                 # free text
+    # --- Post-Stimulus Feedback (single text field) ---
+    feedback_text = Column(Text)
 
-    # --- Chills YES branch ---
-    chills_intensity = Column(Integer)             # 0-10 slider
-    chills_trigger_json = Column(Text)             # JSON array: ["music","voice","speech_text","specific_phrase","crescendo","other"]
-    chills_trigger_other = Column(Text)            # free text if "other" selected
-    chills_body_location_json = Column(Text)       # JSON array: ["scalp","back_of_neck","spine","arms","chest","full_body"]
-    chills_peak_timing = Column(String(40))        # "beginning" / "middle" / "end" / "specific_phrase"
-    chills_reflection = Column(Text)               # "What gave you chills? Did this make you think of anything?"
-
-    # --- Chills NO branch ---
-    no_chills_barriers_json = Column(Text)         # JSON array of barriers
-    no_chills_closeness = Column(String(60))       # "not_at_all" / "flicker_faded" / "almost_there" / "felt_something"
-    no_chills_emotional_shift = Column(Boolean)    # did they experience emotional shift anyway?
-    no_chills_emotional_describe = Column(Text)    # free text if yes
-
-    # --- Emotional Breakthrough Inventory (1-7 Likert) ---
-    ebi_faced_difficult = Column(Integer)          # "I faced emotionally difficult feelings..."
-    ebi_resolution = Column(Integer)               # "I experienced a resolution..."
-    ebi_explore = Column(Integer)                  # "I felt able to explore challenging emotions..."
-    ebi_breakthrough = Column(Integer)             # "I had an emotional breakthrough"
-    ebi_closure = Column(Integer)                  # "I was able to get a sense of closure..."
-    ebi_release = Column(Integer)                  # "I achieved an emotional release..."
-    ebi_stuck_resisting = Column(Integer)          # "I was resisting and avoiding..." (reverse-scored)
-    ebi_stuck_throughout = Column(Integer)         # "I felt emotionally stuck..." (reverse-scored)
-
-    # --- Content Quality (everyone) ---
-    content_relevance = Column(Integer)            # 1-5 (Generic -> Deeply personal)
-    content_inauthentic = Column(Boolean)          # did any line feel off?
-    content_inauthentic_detail = Column(Text)      # free text if yes
-    content_music_match = Column(String(40))       # "perfect" / "good_not_ideal" / "distracting" / "wrong_mood"
-    content_pacing = Column(String(20))            # "too_fast" / "just_right" / "too_slow"
-
-    # --- Open-ended (everyone) ---
-    open_improve = Column(Text)                    # "What's one thing that would make this hit harder?"
-    open_final_thoughts = Column(Text)             # "Any thoughts or feelings after that?"
-
-    # --- Optional ---
-    prolific_id = Column(String(100))
+    # --- Email (from done screen beta signup) ---
     email = Column(String(200))
-
-    # --- Journal Notes (auto-saved, JSON array of note objects) ---
-    notes_json = Column(Text)
 
     # --- Timing ---
     generation_time_seconds = Column(Float)
