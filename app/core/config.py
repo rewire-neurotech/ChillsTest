@@ -3,7 +3,7 @@ from pathlib import Path
 
 
 class Config:
-    """Minimal config for ReWire Demo backend."""
+    """Minimal config for Jolter backend."""
 
     # --- API Keys ---
     ANTHROPIC_API_KEY: str = os.getenv("ANTHROPIC_API_KEY", "")
@@ -31,23 +31,16 @@ class Config:
         return p
 
     # --- Track Registry ---
-    # Each track: music file, voice ID, meditation mix, and description
+    # Single track: a_thousand_hearts only
     TRACKS = {
-        "heroes_wwii": {
-            "file": "heroes_wwii.mp3",
-            "voice_id": "0yXkuUWXDHdmdQJugJLb",
-            "meditation": "meditation_heroes_wwii.mp3",
-            "description": "Cinematic WW2 orchestral - intense, triumphant, heavy",
-        },
         "a_thousand_hearts": {
             "file": "a_thousand_hearts.mpeg",
             "voice_id": "lMILJ9d29MrRXy9BIgcz",
-            "meditation": "meditation_a_thousand_hearts.mp3",
             "description": "Gentle, emotional, intimate - warmth and tenderness",
         },
     }
 
-    DEFAULT_TRACK: str = "heroes_wwii"
+    DEFAULT_TRACK: str = "a_thousand_hearts"
 
     def get_track(self, track_name: str = None) -> dict:
         """Return track info dict with resolved file paths."""
@@ -60,9 +53,16 @@ class Config:
             "name": name,
             "file": self.ASSETS_DIR / track["file"],
             "voice_id": track["voice_id"],
-            "meditation": self.ASSETS_DIR / track["meditation"],
             "description": track["description"],
         }
+
+    # --- Meditation ---
+    # Raw unmixed meditation audio served directly from assets
+    MEDITATION_FILE: str = "christian_meditation.mpeg"
+
+    @property
+    def meditation_path(self) -> Path:
+        return self.ASSETS_DIR / self.MEDITATION_FILE
 
     # --- Backward compatibility ---
     @property
@@ -75,6 +75,13 @@ class Config:
 
     # --- DB ---
     DB_URL: str = os.getenv("DB_URL", "sqlite:///./demo.db")
+
+    # --- Auth ---
+    JWT_SECRET: str = os.getenv("JWT_SECRET", "change-me-in-production")
+    JWT_ALGORITHM: str = "HS256"
+    JWT_EXPIRATION_HOURS: int = int(os.getenv("JWT_EXPIRATION_HOURS", "72"))
+    GOOGLE_CLIENT_ID: str = os.getenv("GOOGLE_CLIENT_ID", "")
+    GOOGLE_CLIENT_SECRET: str = os.getenv("GOOGLE_CLIENT_SECRET", "")
 
     # --- CORS ---
     ALLOWED_ORIGINS: list = os.getenv(
