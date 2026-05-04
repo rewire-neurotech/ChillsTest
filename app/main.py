@@ -16,8 +16,8 @@ except Exception:
     Base = None
 
 app = FastAPI(
-    title="ReWire Demo Backend",
-    version="0.1.0",
+    title="Jolter Backend",
+    version="0.2.0",
     docs_url="/docs",
     redoc_url="/redoc",
     openapi_url="/openapi.json",
@@ -51,12 +51,15 @@ if Base is not None and engine is not None:
 # --- Health check ---
 @app.get("/api/health")
 def health():
-    return {"status": "ok", "service": "rewire-demo"}
+    return {"status": "ok", "service": "jolter"}
 
 
 # --- Routes ---
 from app.routes.demo import r as demo_r
 app.include_router(demo_r)
+
+from app.routes.auth import r as auth_r
+app.include_router(auth_r)
 
 
 # --- Serve frontend ---
