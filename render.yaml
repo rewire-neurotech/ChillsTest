@@ -1,6 +1,6 @@
 services:
   - type: web
-    name: rewire-demo
+    name: jolter
     runtime: python
     buildCommand: pip install -r requirements.txt
     startCommand: uvicorn app.main:app --host 0.0.0.0 --port $PORT
@@ -18,4 +18,10 @@ services:
       - key: OUT_DIR
         value: /tmp/rewire-demo-output
       - key: PUBLIC_BASE_URL
+        sync: false
+      - key: JWT_SECRET
+        sync: false
+      - key: GOOGLE_CLIENT_ID
+        sync: false
+      - key: GOOGLE_CLIENT_SECRET
         sync: false
