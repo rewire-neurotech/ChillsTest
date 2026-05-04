@@ -253,3 +253,12 @@ def get_me(user: User = Depends(get_current_user_required)):
         name=user.name,
         auth_provider=user.auth_provider,
     )
+
+
+@r.get("/config")
+def get_auth_config():
+    """
+    Public endpoint. Returns the Google Client ID so the frontend
+    can initialize Google Identity Services.
+    """
+    return {"google_client_id": cfg.GOOGLE_CLIENT_ID or ""}
