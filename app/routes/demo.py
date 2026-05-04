@@ -47,15 +47,14 @@ def _update_job(job_id: str, **kwargs):
 # --- Request / Response schemas ---
 
 class GenerateRequest(BaseModel):
-    q1_wound: str
-    q2_chills_trigger: str
-    q3_hidden_truth: str
-    q4_first_tell: str = ""
+    q1_low_voice: str
+    q2_chills: str
+    q3_first_call: str
+    q4_unseen: str = ""
 
 
 class GenerateJobResponse(BaseModel):
     job_id: str
-    track_name: str
     meditation_url: str
 
 
@@ -68,80 +67,20 @@ class GenerateStatusResponse(BaseModel):
     error: Optional[str] = None
 
 
-class DemographicsRequest(BaseModel):
-    session_id: str
-    age: Optional[str] = None
-    gender: Optional[str] = None
-    ethnicity: Optional[str] = None
-
-
 class FeedbackRequest(BaseModel):
     session_id: str
-
-    # --- Original fields (kept for backward compat) ---
-    felt_chills: Optional[bool] = None
     chills_count: Optional[int] = 0
     chills_timestamps_json: Optional[str] = None
-    experience_driver: Optional[str] = None
-    feedback_note: Optional[str] = None
-
-    # --- Universal questions ---
-    crying_response: Optional[str] = None
-    eyes_open_closed: Optional[str] = None
-    inspired_to_do: Optional[str] = None
-
-    # --- Chills YES branch ---
-    chills_intensity: Optional[int] = None
-    chills_trigger_json: Optional[str] = None
-    chills_trigger_other: Optional[str] = None
-    chills_body_location_json: Optional[str] = None
-    chills_peak_timing: Optional[str] = None
-    chills_reflection: Optional[str] = None
-
-    # --- Chills NO branch ---
-    no_chills_barriers_json: Optional[str] = None
-    no_chills_closeness: Optional[str] = None
-    no_chills_emotional_shift: Optional[bool] = None
-    no_chills_emotional_describe: Optional[str] = None
-
-    # --- EBI (1-7 Likert) ---
-    ebi_faced_difficult: Optional[int] = None
-    ebi_resolution: Optional[int] = None
-    ebi_explore: Optional[int] = None
-    ebi_breakthrough: Optional[int] = None
-    ebi_closure: Optional[int] = None
-    ebi_release: Optional[int] = None
-    ebi_stuck_resisting: Optional[int] = None
-    ebi_stuck_throughout: Optional[int] = None
-
-    # --- Content quality ---
-    content_relevance: Optional[int] = None
-    content_inauthentic: Optional[bool] = None
-    content_inauthentic_detail: Optional[str] = None
-    content_music_match: Optional[str] = None
-    content_pacing: Optional[str] = None
-
-    # --- Open-ended ---
-    open_improve: Optional[str] = None
-    open_final_thoughts: Optional[str] = None
-
-    # --- Optional ---
-    prolific_id: Optional[str] = None
-    email: Optional[str] = None
+    feedback_text: Optional[str] = None
 
 
-class FeedbackResponse(BaseModel):
-    status: str
-
-
-class NotesRequest(BaseModel):
+class EmailRequest(BaseModel):
     session_id: str
-    notes_json: str  # JSON array of note objects
+    email: str
 
 
-class NotesResponse(BaseModel):
+class StatusResponse(BaseModel):
     status: str
-    notes_json: Optional[str] = None
 
 
 # --- Helper functions ---
@@ -228,10 +167,10 @@ def _run_generate(job_id: str, q1: str, q2: str, q3: str, q4: str, track_name: s
 
         # 2. Build prompt with target word count (AI selects format)
         user_prompt = build_user_prompt(
-            q1_wound=q1,
-            q2_chills_trigger=q2,
-            q3_hidden_truth=q3,
-            q4_first_tell=q4,
+            q1_low_voice=q1,
+            q2_chills=q2,
+            q3_first_call=q3,
+            q4_unseen=q4,
             target_words=target_words,
         )
         speech_format = "AI_SELECTED"
@@ -355,6 +294,7 @@ Continue now. Only the continuation text. No preamble."""
         print(f"[Demo] Music trimmed from {full_music_ms}ms to {content_ms}ms for mix")
 
         # Save raw inputs for DSP analysis (original untrimmed)
+        # The voice-only file is also accessible to Felix via /api/demo/audio/
         raw_voice_name = f"{session_id}_voice_raw.wav"
         raw_music_name = f"{session_id}_music_raw.mp3"
         shutil.copy2(voice_wav_path, str(cfg.out_dir_path / raw_voice_name))
@@ -388,10 +328,10 @@ Continue now. Only the continuation text. No preamble."""
         try:
             session = DemoSession(
                 session_id=session_id,
-                q1_wound=q1,
-                q2_chills_trigger=q2,
-                q3_hidden_truth=q3,
-                q4_first_tell=q4,
+                q1_low_voice=q1,
+                q2_chills=q2,
+                q3_first_call=q3,
+                q4_unseen=q4,
                 speech_format=speech_format,
                 speech_text=speech_text,
                 voice_id=voice_id,
@@ -429,24 +369,23 @@ Continue now. Only the continuation text. No preamble."""
 def generate(req: GenerateRequest):
     """
     Start generation in background. Returns a job_id immediately,
-    along with the selected track name and meditation audio URL
-    so the frontend can start playing meditation while generation runs.
+    along with the meditation audio URL so the frontend can start
+    playing meditation while generation runs.
     Poll /generate/status/{job_id} for progress.
     """
     job_id = uuid.uuid4().hex[:16]
 
-    # Select track synchronously so the frontend gets it immediately
+    # Select track (single-track mode, always returns a_thousand_hearts)
     track_name = select_track(
-        q1_wound=req.q1_wound,
-        q2_chills_trigger=req.q2_chills_trigger,
-        q3_hidden_truth=req.q3_hidden_truth,
-        q4_first_tell=req.q4_first_tell,
+        q1_low_voice=req.q1_low_voice,
+        q2_chills=req.q2_chills,
+        q3_first_call=req.q3_first_call,
+        q4_unseen=req.q4_unseen,
     )
-    track = cfg.get_track(track_name)
 
-    # Build meditation URL (served from /assets/ static mount)
+    # Meditation URL: raw unmixed audio served from /assets/ static mount
     base = cfg.PUBLIC_BASE_URL.rstrip("/") if cfg.PUBLIC_BASE_URL else ""
-    meditation_url = f"{base}/assets/{cfg.TRACKS[track_name]['meditation']}"
+    meditation_url = f"{base}/assets/{cfg.MEDITATION_FILE}"
 
     with _jobs_lock:
         _jobs[job_id] = {
@@ -460,12 +399,12 @@ def generate(req: GenerateRequest):
 
     t = threading.Thread(
         target=_run_generate,
-        args=(job_id, req.q1_wound, req.q2_chills_trigger, req.q3_hidden_truth, req.q4_first_tell, track_name),
+        args=(job_id, req.q1_low_voice, req.q2_chills, req.q3_first_call, req.q4_unseen, track_name),
         daemon=True,
     )
     t.start()
 
-    return GenerateJobResponse(job_id=job_id, track_name=track_name, meditation_url=meditation_url)
+    return GenerateJobResponse(job_id=job_id, meditation_url=meditation_url)
 
 
 @r.get("/generate/status/{job_id}", response_model=GenerateStatusResponse)
@@ -480,113 +419,37 @@ def generate_status(job_id: str):
     return GenerateStatusResponse(**job)
 
 
-@r.post("/demographics", response_model=FeedbackResponse)
-def save_demographics(req: DemographicsRequest, db: Session = Depends(get_db)):
-    """Save demographics collected during the wait."""
-    session = db.query(DemoSession).filter(DemoSession.session_id == req.session_id).first()
-    if not session:
-        raise HTTPException(status_code=404, detail="Session not found")
-
-    if req.age is not None:
-        session.age = req.age
-    if req.gender is not None:
-        session.gender = req.gender
-    if req.ethnicity is not None:
-        session.ethnicity = req.ethnicity
-
-    db.commit()
-    return FeedbackResponse(status="ok")
-
-
-@r.post("/feedback", response_model=FeedbackResponse)
+@r.post("/feedback", response_model=StatusResponse)
 def save_feedback(req: FeedbackRequest, db: Session = Depends(get_db)):
-    """Save the full post-experience survey."""
+    """Save chills data and post-experience feedback."""
     session = db.query(DemoSession).filter(DemoSession.session_id == req.session_id).first()
     if not session:
         raise HTTPException(status_code=404, detail="Session not found")
 
-    # Original fields
-    session.felt_chills = req.felt_chills
     session.chills_count = req.chills_count or 0
     session.chills_timestamps_json = req.chills_timestamps_json
-    session.experience_driver = req.experience_driver
-    session.feedback_note = req.feedback_note
-
-    # Universal questions
-    session.crying_response = req.crying_response
-    session.eyes_open_closed = req.eyes_open_closed
-    session.inspired_to_do = req.inspired_to_do
-
-    # Chills YES branch
-    session.chills_intensity = req.chills_intensity
-    session.chills_trigger_json = req.chills_trigger_json
-    session.chills_trigger_other = req.chills_trigger_other
-    session.chills_body_location_json = req.chills_body_location_json
-    session.chills_peak_timing = req.chills_peak_timing
-    session.chills_reflection = req.chills_reflection
-
-    # Chills NO branch
-    session.no_chills_barriers_json = req.no_chills_barriers_json
-    session.no_chills_closeness = req.no_chills_closeness
-    session.no_chills_emotional_shift = req.no_chills_emotional_shift
-    session.no_chills_emotional_describe = req.no_chills_emotional_describe
-
-    # EBI
-    session.ebi_faced_difficult = req.ebi_faced_difficult
-    session.ebi_resolution = req.ebi_resolution
-    session.ebi_explore = req.ebi_explore
-    session.ebi_breakthrough = req.ebi_breakthrough
-    session.ebi_closure = req.ebi_closure
-    session.ebi_release = req.ebi_release
-    session.ebi_stuck_resisting = req.ebi_stuck_resisting
-    session.ebi_stuck_throughout = req.ebi_stuck_throughout
-
-    # Content quality
-    session.content_relevance = req.content_relevance
-    session.content_inauthentic = req.content_inauthentic
-    session.content_inauthentic_detail = req.content_inauthentic_detail
-    session.content_music_match = req.content_music_match
-    session.content_pacing = req.content_pacing
-
-    # Open-ended
-    session.open_improve = req.open_improve
-    session.open_final_thoughts = req.open_final_thoughts
-
-    # Optional
-    session.prolific_id = req.prolific_id
-    session.email = req.email
-
+    session.feedback_text = req.feedback_text
     session.completed_at = datetime.now(timezone.utc)
 
     db.commit()
-    return FeedbackResponse(status="ok")
+    return StatusResponse(status="ok")
 
 
-@r.post("/notes", response_model=NotesResponse)
-def save_notes(req: NotesRequest, db: Session = Depends(get_db)):
-    """Auto-save journal notes for a session."""
+@r.post("/email", response_model=StatusResponse)
+def save_email(req: EmailRequest, db: Session = Depends(get_db)):
+    """Save email from the done screen beta signup."""
     session = db.query(DemoSession).filter(DemoSession.session_id == req.session_id).first()
     if not session:
         raise HTTPException(status_code=404, detail="Session not found")
 
-    session.notes_json = req.notes_json
+    session.email = req.email
     db.commit()
-    return NotesResponse(status="ok", notes_json=session.notes_json)
-
-
-@r.get("/notes/{session_id}", response_model=NotesResponse)
-def get_notes(session_id: str, db: Session = Depends(get_db)):
-    """Retrieve journal notes for a session."""
-    session = db.query(DemoSession).filter(DemoSession.session_id == session_id).first()
-    if not session:
-        raise HTTPException(status_code=404, detail="Session not found")
-
-    return NotesResponse(status="ok", notes_json=session.notes_json)
+    return StatusResponse(status="ok")
 
 
 @r.get("/audio/{filename}")
 def serve_audio(filename: str):
-    """Serve a generated audio file."""
+    """Serve a generated audio file (final mix or voice-only raw)."""
     filepath = cfg.out_dir_path / filename
     if not filepath.exists():
         raise HTTPException(status_code=404, detail="Audio not found")
@@ -600,7 +463,7 @@ def serve_audio(filename: str):
 
 @r.get("/export/csv")
 def export_csv(db: Session = Depends(get_db)):
-    """Export all demo sessions as CSV for Felix."""
+    """Export all sessions as CSV."""
     sessions = db.query(DemoSession).order_by(DemoSession.created_at.desc()).all()
 
     output = io.StringIO()
@@ -608,63 +471,25 @@ def export_csv(db: Session = Depends(get_db)):
 
     writer.writerow([
         "session_id",
-        "q1_wound",
-        "q2_chills_trigger",
-        "q3_hidden_truth",
-        "q4_first_tell",
-        "age",
-        "gender",
-        "ethnicity",
+        "user_id",
+        # Questions
+        "q1_low_voice",
+        "q2_chills",
+        "q3_first_call",
+        "q4_unseen",
+        # AI generation
         "speech_format",
         "speech_text",
         "voice_id",
         "music_track",
         "audio_filename",
-        # Original feedback
-        "felt_chills",
+        # Chills data
         "chills_count",
         "chills_timestamps",
-        "experience_driver",
-        "feedback_note",
-        # Universal
-        "crying_response",
-        "eyes_open_closed",
-        "inspired_to_do",
-        # Chills YES
-        "chills_intensity",
-        "chills_trigger",
-        "chills_trigger_other",
-        "chills_body_location",
-        "chills_peak_timing",
-        "chills_reflection",
-        # Chills NO
-        "no_chills_barriers",
-        "no_chills_closeness",
-        "no_chills_emotional_shift",
-        "no_chills_emotional_describe",
-        # EBI
-        "ebi_faced_difficult",
-        "ebi_resolution",
-        "ebi_explore",
-        "ebi_breakthrough",
-        "ebi_closure",
-        "ebi_release",
-        "ebi_stuck_resisting",
-        "ebi_stuck_throughout",
-        # Content quality
-        "content_relevance",
-        "content_inauthentic",
-        "content_inauthentic_detail",
-        "content_music_match",
-        "content_pacing",
-        # Open-ended
-        "open_improve",
-        "open_final_thoughts",
-        # Optional
-        "prolific_id",
+        # Feedback
+        "feedback_text",
+        # Email
         "email",
-        # Journal
-        "notes_json",
         # Timing
         "generation_time_seconds",
         "created_at",
@@ -674,64 +499,20 @@ def export_csv(db: Session = Depends(get_db)):
     for s in sessions:
         writer.writerow([
             s.session_id,
-            s.q1_wound,
-            s.q2_chills_trigger,
-            s.q3_hidden_truth,
-            s.q4_first_tell,
-            s.age,
-            s.gender,
-            s.ethnicity,
+            s.user_id,
+            s.q1_low_voice,
+            s.q2_chills,
+            s.q3_first_call,
+            s.q4_unseen,
             s.speech_format,
             s.speech_text,
             s.voice_id,
             s.music_track,
             s.audio_filename,
-            # Original feedback
-            s.felt_chills,
             s.chills_count,
             s.chills_timestamps_json,
-            s.experience_driver,
-            s.feedback_note,
-            # Universal
-            s.crying_response,
-            s.eyes_open_closed,
-            s.inspired_to_do,
-            # Chills YES
-            s.chills_intensity,
-            s.chills_trigger_json,
-            s.chills_trigger_other,
-            s.chills_body_location_json,
-            s.chills_peak_timing,
-            s.chills_reflection,
-            # Chills NO
-            s.no_chills_barriers_json,
-            s.no_chills_closeness,
-            s.no_chills_emotional_shift,
-            s.no_chills_emotional_describe,
-            # EBI
-            s.ebi_faced_difficult,
-            s.ebi_resolution,
-            s.ebi_explore,
-            s.ebi_breakthrough,
-            s.ebi_closure,
-            s.ebi_release,
-            s.ebi_stuck_resisting,
-            s.ebi_stuck_throughout,
-            # Content quality
-            s.content_relevance,
-            s.content_inauthentic,
-            s.content_inauthentic_detail,
-            s.content_music_match,
-            s.content_pacing,
-            # Open-ended
-            s.open_improve,
-            s.open_final_thoughts,
-            # Optional
-            s.prolific_id,
+            s.feedback_text,
             s.email,
-            # Journal
-            s.notes_json,
-            # Timing
             s.generation_time_seconds,
             s.created_at,
             s.completed_at,
@@ -741,93 +522,5 @@ def export_csv(db: Session = Depends(get_db)):
     return StreamingResponse(
         iter([output.getvalue()]),
         media_type="text/csv",
-        headers={"Content-Disposition": "attachment; filename=rewire_demo_sessions.csv"},
+        headers={"Content-Disposition": "attachment; filename=jolter_sessions.csv"},
     )
-
-
-# --- Meditation premix endpoint ---
-# Mixes meditation audio with each music track using Joaquin's DSP pipeline.
-# Keep this for re-generating when Felix swaps meditation audio or adds tracks.
-
-@r.post("/premix-meditation")
-def premix_meditation():
-    """
-    Mix meditation audio with each music track.
-    Loops the music to match meditation duration, then runs Joaquin's
-    full DSP pipeline (mix.py) exactly as the main generate does.
-
-    After running, download the files at:
-      /api/demo/audio/meditation_heroes_wwii.mp3
-      /api/demo/audio/meditation_a_thousand_hearts.mp3
-
-    Then upload both to app/assets/ on GitHub.
-    """
-    meditation_path = cfg.ASSETS_DIR / "christian_meditation.mpeg"
-    if not meditation_path.exists():
-        raise HTTPException(
-            status_code=404,
-            detail="christian_meditation.mpeg not found in app/assets/",
-        )
-
-    # Load meditation audio
-    meditation_audio = load_audio(str(meditation_path))
-    med_ms = duration_ms(meditation_audio)
-
-    # Export meditation as temp wav (mix() expects file paths)
-    med_wav = tempfile.NamedTemporaryFile(delete=False, suffix=".wav")
-    meditation_audio.export(med_wav.name, format="wav")
-
-    results = []
-
-    for track_name, track_info in cfg.TRACKS.items():
-        music_path = cfg.ASSETS_DIR / track_info["file"]
-        if not music_path.exists():
-            results.append({"track": track_name, "status": "skipped", "reason": "music file not found"})
-            continue
-
-        # Load music, get content duration, trim trailing silence
-        music_audio = load_audio(str(music_path))
-        content_ms = content_duration_ms(music_audio)
-        music_trimmed = music_audio[:content_ms]
-
-        # Loop music to match meditation duration
-        loops_needed = (med_ms // content_ms) + 1
-        music_looped = music_trimmed * loops_needed
-        music_looped = music_looped[:med_ms]
-
-        # Export looped music as temp file
-        looped_tmp = tempfile.NamedTemporaryFile(delete=False, suffix=".mp3")
-        music_looped.export(looped_tmp.name, format="mp3", bitrate="256k")
-
-        # Output to the shared output dir (so /audio/ endpoint can serve it)
-        out_filename = f"meditation_{track_name}.mp3"
-        out_path = cfg.out_dir_path / out_filename
-
-        # Call mix() exactly as demo.py does
-        result_ms = mix_audio(
-            voice_path=med_wav.name,
-            music_path=looped_tmp.name,
-            out_path=str(out_path),
-            sync_mode="retime_music_to_voice",
-            music_fadein_ms=MUSIC_FADEIN_MS,
-            music_premix_gain_db=-2.0,
-            ffmpeg_bin=cfg.FFMPEG_BIN,
-        )
-
-        # Verify
-        out_audio = load_audio(str(out_path))
-        out_ms = duration_ms(out_audio)
-
-        results.append({
-            "track": track_name,
-            "status": "done",
-            "output_file": out_filename,
-            "duration_ms": out_ms,
-            "download_url": f"/api/demo/audio/{out_filename}",
-        })
-
-    return {
-        "status": "complete",
-        "meditation_duration_ms": med_ms,
-        "results": results,
-    }
