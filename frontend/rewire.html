@@ -2020,7 +2020,8 @@
           if (typeof google === "undefined" || !google.accounts) return;
           google.accounts.id.initialize({
             client_id: googleClientId,
-            callback: handleGoogleCredential
+            callback: handleGoogleCredential,
+            use_fedcm_for_prompt: true
           });
         } catch (e) { /* Google sign-in not available */ }
       }
