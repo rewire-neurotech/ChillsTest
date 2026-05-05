@@ -875,7 +875,7 @@
       }
 
       .done-email {
-        margin-top: 18px;
+        margin-top: 32px;
         padding: 14px;
         border-radius: 22px;
         background: var(--soft);
@@ -1800,7 +1800,7 @@
             <div class="canvas-hud">
               <div class="canvas-hud-top">
                 <span class="chills-counter">${state.chillsCount > 0 ? state.chillsCount + " chills" : ""}</span>
-                <button class="skip" data-action="stim-skip" style="pointer-events:auto;">Skip</button>
+                <span></span>
               </div>
               <div class="canvas-hud-bottom">
                 <span class="canvas-hint">tap when you feel something</span>
@@ -2207,20 +2207,42 @@
 
       function checkTransitionToStimulus() {
         if (state.genDone && state.meditationDone) {
-          // Transition to stimulus
-          stopParticles();
+          // Seamless transition: don't rebuild DOM, just swap audio and update HUD
           state.screen = "stimulus";
           state.chillsCount = 0;
           state.chillsTimestamps = [];
-          render();
+          // Remove wait overlay if present
+          const overlay = app.querySelector(".wait-overlay");
+          if (overlay) overlay.remove();
+          // Update HUD in-place (no canvas rebuild, particles keep running)
+          const hudTop = app.querySelector(".canvas-hud-top");
+          if (hudTop) hudTop.innerHTML = '<span class="chills-counter"></span><span></span>';
+          const hint = app.querySelector(".canvas-hint");
+          if (hint) hint.textContent = "tap when you feel something";
+          // Start stimulus audio (meditation already stopped via onended)
+          if (state.audioUrl) {
+            stimulusAudio = new Audio(state.audioUrl);
+            stimulusAudio.play().catch(() => {});
+            state.audioStartTime = Date.now();
+            stimulusAudio.onended = () => {
+              setTimeout(goToFeedback, 1500);
+            };
+          }
         } else if (state.meditationDone && !state.genDone) {
           // Show wait overlay
           const overlay = app.querySelector(".wait-overlay");
           if (!overlay) {
-            // Re-render to show wait overlay
-            const html = renderMeditation();
-            app.innerHTML = html;
-            setTimeout(() => initParticles("pCanvas"), 50);
+            const pct = Math.min(state.genProgress || 0, 100);
+            const waitHtml = `
+              <div class="wait-overlay">
+                <div class="wait-label">Preparing your experience...</div>
+                <div class="wait-progress-bar">
+                  <div class="wait-progress-fill" style="width:${pct}%"></div>
+                </div>
+              </div>
+            `;
+            const section = app.querySelector(".canvas-screen");
+            if (section) section.insertAdjacentHTML("beforeend", waitHtml);
           }
         }
       }
@@ -2384,11 +2406,6 @@
                 e.clientY - rect.top
               );
             }
-            break;
-          case "stim-skip":
-            stopParticles();
-            stopAllAudio();
-            goToFeedback();
             break;
           // feedback
           case "feedback-send": sendFeedback(); break;
