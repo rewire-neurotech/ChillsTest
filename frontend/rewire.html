@@ -1999,6 +1999,7 @@
       }
 
       let googleClientId = null;
+      let googleReady = false;
 
       async function initGoogleSignIn() {
         try {
@@ -2018,16 +2019,15 @@
           });
           await waitForGoogle();
           if (typeof google === "undefined" || !google.accounts) return;
-          google.accounts.id.initialize({
-            client_id: googleClientId,
-            callback: handleGoogleCredential,
-            use_fedcm_for_prompt: true
-          });
+          googleReady = true;
         } catch (e) { /* Google sign-in not available */ }
       }
 
       async function handleGoogleCredential(response) {
-        if (!response.credential) return;
+        // Remove popup if present
+        const w = document.getElementById("gsi-wrapper");
+        if (w) w.remove();
+        if (!response || !response.credential) return;
         try {
           const res = await api("/api/auth/google", {
             method: "POST",
@@ -2045,49 +2045,39 @@
       }
 
       function doGoogleLogin() {
-        if (typeof google === "undefined" || !google.accounts || !googleClientId) {
-          state.authError = "Google sign-in is not configured yet. Please use email/password.";
+        if (!googleReady || !googleClientId) {
+          state.authError = "Google sign-in is not available. Please use email/password.";
           render();
           return;
         }
-        try {
-          google.accounts.id.prompt((notification) => {
-            try {
-              if (notification && (notification.isNotDisplayed() || notification.isSkippedMoment())) {
-                // Fallback: use the button-based flow
-                const wrapper = document.createElement("div");
-                wrapper.style.cssText = "position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);z-index:9999;background:#fff;padding:24px;border-radius:16px;box-shadow:0 4px 24px rgba(0,0,0,0.15);";
-                wrapper.id = "gsi-wrapper";
-                document.body.appendChild(wrapper);
-                google.accounts.id.renderButton(wrapper, {
-                  type: "standard",
-                  theme: "outline",
-                  size: "large",
-                  text: "signin_with",
-                  shape: "pill",
-                  width: 300
-                });
-                // Cleanup on any click outside after a delay
-                setTimeout(() => {
-                  document.addEventListener("click", function cleanup(e) {
-                    if (e.target.closest("#gsi-wrapper")) return;
-                    const w = document.getElementById("gsi-wrapper");
-                    if (w) w.remove();
-                    document.removeEventListener("click", cleanup);
-                  });
-                }, 500);
-              }
-            } catch (innerErr) {
-              console.warn("Google prompt callback error:", innerErr);
-              state.authError = "Google sign-in popup was blocked. Please try again or use email/password.";
-              render();
-            }
-          });
-        } catch (err) {
-          console.warn("Google prompt error:", err);
-          state.authError = "Google sign-in failed. Please use email/password.";
-          render();
-        }
+        // Initialize fresh each time to avoid stale state
+        google.accounts.id.initialize({
+          client_id: googleClientId,
+          callback: handleGoogleCredential,
+          ux_mode: "popup",
+          use_fedcm_for_prompt: true
+        });
+        // Render Google's own button in a popup overlay
+        const existing = document.getElementById("gsi-wrapper");
+        if (existing) existing.remove();
+        const wrapper = document.createElement("div");
+        wrapper.id = "gsi-wrapper";
+        wrapper.style.cssText = "position:fixed;inset:0;z-index:9999;background:rgba(0,0,0,0.4);display:flex;align-items:center;justify-content:center;";
+        wrapper.innerHTML = '<div style="background:#fff;padding:32px;border-radius:16px;box-shadow:0 4px 24px rgba(0,0,0,0.15);"><div id="gsi-btn"></div><p style="text-align:center;margin:16px 0 0;font-size:13px;color:#888;">Choose your Google account</p></div>';
+        document.body.appendChild(wrapper);
+        // Render the real Google button
+        google.accounts.id.renderButton(document.getElementById("gsi-btn"), {
+          type: "standard",
+          theme: "outline",
+          size: "large",
+          text: "signin_with",
+          shape: "pill",
+          width: 300
+        });
+        // Close on backdrop click
+        wrapper.addEventListener("click", (e) => {
+          if (e.target === wrapper) wrapper.remove();
+        });
       }
 
       // ============ ONBOARDING FLOW ============
