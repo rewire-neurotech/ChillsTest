@@ -2038,7 +2038,7 @@
           state.authError = "";
           startOnboarding();
         } catch (e) {
-          state.authError = e.message || "Google login failed.";
+          state.authError = (e && e.message) ? e.message : "Google login failed.";
           render();
         }
       }
@@ -2049,36 +2049,44 @@
           render();
           return;
         }
-        google.accounts.id.prompt((notification) => {
-          if (notification.isNotDisplayed() || notification.isSkippedMoment()) {
-            // Fallback: use the button-based flow
-            const wrapper = document.createElement("div");
-            wrapper.style.cssText = "position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);z-index:9999;";
-            wrapper.id = "gsi-wrapper";
-            document.body.appendChild(wrapper);
-            google.accounts.id.renderButton(wrapper, {
-              type: "standard",
-              theme: "outline",
-              size: "large",
-              text: "signin_with",
-              shape: "pill",
-              width: 300
-            });
-            // Auto-click after render
-            setTimeout(() => {
-              const gBtn = wrapper.querySelector('[role="button"]');
-              if (gBtn) gBtn.click();
-            }, 300);
-            // Cleanup on any click outside
-            setTimeout(() => {
-              document.addEventListener("click", function cleanup(e) {
-                const w = document.getElementById("gsi-wrapper");
-                if (w) w.remove();
-                document.removeEventListener("click", cleanup);
-              }, { once: true });
-            }, 1000);
-          }
-        });
+        try {
+          google.accounts.id.prompt((notification) => {
+            try {
+              if (notification && (notification.isNotDisplayed() || notification.isSkippedMoment())) {
+                // Fallback: use the button-based flow
+                const wrapper = document.createElement("div");
+                wrapper.style.cssText = "position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);z-index:9999;background:#fff;padding:24px;border-radius:16px;box-shadow:0 4px 24px rgba(0,0,0,0.15);";
+                wrapper.id = "gsi-wrapper";
+                document.body.appendChild(wrapper);
+                google.accounts.id.renderButton(wrapper, {
+                  type: "standard",
+                  theme: "outline",
+                  size: "large",
+                  text: "signin_with",
+                  shape: "pill",
+                  width: 300
+                });
+                // Cleanup on any click outside after a delay
+                setTimeout(() => {
+                  document.addEventListener("click", function cleanup(e) {
+                    if (e.target.closest("#gsi-wrapper")) return;
+                    const w = document.getElementById("gsi-wrapper");
+                    if (w) w.remove();
+                    document.removeEventListener("click", cleanup);
+                  });
+                }, 500);
+              }
+            } catch (innerErr) {
+              console.warn("Google prompt callback error:", innerErr);
+              state.authError = "Google sign-in popup was blocked. Please try again or use email/password.";
+              render();
+            }
+          });
+        } catch (err) {
+          console.warn("Google prompt error:", err);
+          state.authError = "Google sign-in failed. Please use email/password.";
+          render();
+        }
       }
 
       // ============ ONBOARDING FLOW ============
