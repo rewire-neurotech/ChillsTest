@@ -89,6 +89,8 @@
         flex-direction: column;
         padding: max(20px, var(--safe-top)) 24px max(16px, var(--safe-bottom));
         background: #fff;
+        overflow-y: auto;
+        -webkit-overflow-scrolling: touch;
       }
 
       .screen.dark {
@@ -1564,12 +1566,12 @@
         return `
           <section class="screen splash">
             <div class="splash-logo-wrap">
-              <img class="splash-logo" src="${LOGO_SRC}" alt="Jolter" />
+              <video class="splash-logo" src="/assets/rewire_logo.mp4" autoplay playsinline id="splashVideo" style="max-width:min(260px,65vw);border-radius:12px;"></video>
             </div>
             <div class="splash-bottom">
               <div class="splash-text">
-                <h1 class="splash-title">Jolter</h1>
-                <p class="splash-tagline">Your daily 5-minute booster.</p>
+                <h1 class="splash-title">ReWire</h1>
+                <p class="splash-tagline">Discover who you can become.</p>
               </div>
               <div class="splash-actions">
                 <button class="primary" data-action="go-register">Get started</button>
@@ -1935,7 +1937,21 @@
         stopAllAudio();
         if (pollTimer) { clearInterval(pollTimer); pollTimer = null; }
 
-        if (state.screen === "splash") app.innerHTML = renderSplash();
+        if (state.screen === "splash") {
+          app.innerHTML = renderSplash();
+          setTimeout(() => {
+            const vid = document.getElementById("splashVideo");
+            if (vid) {
+              // Try autoplay with sound first
+              vid.muted = false;
+              vid.play().catch(() => {
+                // Browser blocked sound -- fall back to muted autoplay
+                vid.muted = true;
+                vid.play().catch(() => {});
+              });
+            }
+          }, 50);
+        }
         else if (state.screen === "login") app.innerHTML = renderLogin();
         else if (state.screen === "register") app.innerHTML = renderRegister();
         else if (state.screen === "onboarding") app.innerHTML = renderOnboarding();
@@ -1951,11 +1967,14 @@
         else if (state.screen === "feedback") app.innerHTML = renderFeedback();
         else if (state.screen === "done") app.innerHTML = renderDone();
 
-        // Auto-focus inputs
-        const input = app.querySelector("input[data-input]");
-        const isDoneScreen = state.screen === "done" && !state.emailFocused;
-        if (input && !isDoneScreen) {
-          requestAnimationFrame(() => input.focus({ preventScroll: true }));
+        // Auto-focus inputs -- but NOT on question screens (Felix: keyboard should not auto-open)
+        // and NOT on done screen unless email is focused
+        if (state.screen !== "question" && state.screen !== "splash") {
+          const input = app.querySelector("input[data-input]");
+          const isDoneScreen = state.screen === "done" && !state.emailFocused;
+          if (input && !isDoneScreen) {
+            requestAnimationFrame(() => input.focus({ preventScroll: true }));
+          }
         }
       }
 
