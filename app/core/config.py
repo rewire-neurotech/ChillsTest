@@ -91,5 +91,8 @@ class Config:
     # --- Public URL for serving audio ---
     PUBLIC_BASE_URL: str = os.getenv("PUBLIC_BASE_URL", "")
 
+    # --- Encryption (AES-256 via Fernet for sensitive fields) ---
+    ENCRYPTION_KEY: str = os.getenv("ENCRYPTION_KEY", "")
+
 
 cfg = Config()

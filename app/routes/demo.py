@@ -18,13 +18,15 @@ from pydub import AudioSegment
 
 from app.core.config import cfg
 from app.db import get_db, SessionLocal
-from app.models import DemoSession
+from app.models import DemoSession, User
 from app.services.prompt import build_user_prompt
 from app.services.llm import generate_speech
 from app.services.tts import synth
 from app.services.mix import mix as mix_audio
 from app.services.music_selector import select_track
 from app.utils.audio import load_audio, duration_ms, content_duration_ms
+from app.utils.encryption import encrypt_field, decrypt_field
+from app.routes.auth import get_current_user_required
 
 r = APIRouter(prefix="/api/demo", tags=["demo"])
 
@@ -328,12 +330,12 @@ Continue now. Only the continuation text. No preamble."""
         try:
             session = DemoSession(
                 session_id=session_id,
-                q1_low_voice=q1,
-                q2_chills=q2,
-                q3_first_call=q3,
-                q4_unseen=q4,
+                q1_low_voice=encrypt_field(q1),
+                q2_chills=encrypt_field(q2),
+                q3_first_call=encrypt_field(q3),
+                q4_unseen=encrypt_field(q4),
                 speech_format=speech_format,
-                speech_text=speech_text,
+                speech_text=encrypt_field(speech_text),
                 voice_id=voice_id,
                 music_track=track["name"],
                 audio_filename=audio_filename,
@@ -428,7 +430,7 @@ def save_feedback(req: FeedbackRequest, db: Session = Depends(get_db)):
 
     session.chills_count = req.chills_count or 0
     session.chills_timestamps_json = req.chills_timestamps_json
-    session.feedback_text = req.feedback_text
+    session.feedback_text = encrypt_field(req.feedback_text)
     session.completed_at = datetime.now(timezone.utc)
 
     db.commit()
@@ -442,7 +444,7 @@ def save_email(req: EmailRequest, db: Session = Depends(get_db)):
     if not session:
         raise HTTPException(status_code=404, detail="Session not found")
 
-    session.email = req.email
+    session.email = encrypt_field(req.email)
     db.commit()
     return StatusResponse(status="ok")
 
@@ -462,8 +464,8 @@ def serve_audio(filename: str):
 
 
 @r.get("/export/csv")
-def export_csv(db: Session = Depends(get_db)):
-    """Export all sessions as CSV."""
+def export_csv(db: Session = Depends(get_db), user: User = Depends(get_current_user_required)):
+    """Export all sessions as CSV. Requires authentication."""
     sessions = db.query(DemoSession).order_by(DemoSession.created_at.desc()).all()
 
     output = io.StringIO()
@@ -500,19 +502,19 @@ def export_csv(db: Session = Depends(get_db)):
         writer.writerow([
             s.session_id,
             s.user_id,
-            s.q1_low_voice,
-            s.q2_chills,
-            s.q3_first_call,
-            s.q4_unseen,
+            decrypt_field(s.q1_low_voice),
+            decrypt_field(s.q2_chills),
+            decrypt_field(s.q3_first_call),
+            decrypt_field(s.q4_unseen),
             s.speech_format,
-            s.speech_text,
+            decrypt_field(s.speech_text),
             s.voice_id,
             s.music_track,
             s.audio_filename,
             s.chills_count,
             s.chills_timestamps_json,
-            s.feedback_text,
-            s.email,
+            decrypt_field(s.feedback_text),
+            decrypt_field(s.email),
             s.generation_time_seconds,
             s.created_at,
             s.completed_at,
