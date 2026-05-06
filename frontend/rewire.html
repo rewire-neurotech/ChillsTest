@@ -206,9 +206,7 @@
          - Button anchored to the bottom with breathing room
          - Subtle radial gradient adds depth without ornament */
       .splash {
-        background:
-          radial-gradient(1000px 700px at 50% 30%, #fafaff 0%, transparent 70%),
-          #ffffff;
+        background: #ffffff;
         padding-top: max(40px, var(--safe-top));
         padding-bottom: max(24px, var(--safe-bottom));
       }
@@ -227,7 +225,6 @@
         height: auto;
         aspect-ratio: 1;
         object-fit: contain;
-        filter: drop-shadow(0 30px 50px rgba(91, 74, 240, 0.22));
         animation: logoFloat 4s ease-in-out infinite;
       }
 
@@ -1744,7 +1741,7 @@
         return `
           <section class="screen splash">
             <div class="splash-logo-wrap">
-              <video class="splash-logo" src="/assets/rewire_logo.mp4" autoplay playsinline id="splashVideo" style="max-width:min(260px,65vw);border-radius:12px;"></video>
+              <video class="splash-logo" src="/assets/rewire_logo.mp4" autoplay playsinline id="splashVideo" style="max-width:min(260px,65vw);"></video>
             </div>
             <div class="splash-bottom">
               <div class="splash-text">
