@@ -10,7 +10,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Optional, List
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Request
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
@@ -18,15 +18,15 @@ from pydub import AudioSegment
 
 from app.core.config import cfg
 from app.db import get_db, SessionLocal
-from app.models import DemoSession, User
+from app.models import DemoSession, User, AuditLog
 from app.services.prompt import build_user_prompt
 from app.services.llm import generate_speech
 from app.services.tts import synth
 from app.services.mix import mix as mix_audio
 from app.services.music_selector import select_track
 from app.utils.audio import load_audio, duration_ms, content_duration_ms
-from app.utils.encryption import encrypt_field, decrypt_field
-from app.routes.auth import get_current_user_required
+from app.utils.encryption import encrypt_field, decrypt_field, encrypt_file, decrypt_file_to_bytes
+from app.routes.auth import get_current_user_required, get_current_user_optional
 
 r = APIRouter(prefix="/api/demo", tags=["demo"])
 
@@ -303,6 +303,10 @@ Continue now. Only the continuation text. No preamble."""
         shutil.copy2(str(music_path), str(cfg.out_dir_path / raw_music_name))
         print(f"[Demo] Saved raw inputs: {raw_voice_name}, {raw_music_name}")
 
+        # Encrypt raw audio files at rest
+        encrypt_file(str(cfg.out_dir_path / raw_voice_name))
+        encrypt_file(str(cfg.out_dir_path / raw_music_name))
+
         # 8. Mix with music (Joaquin's DSP pipeline, untouched)
         print(f"[Demo] Mixing with music...")
         audio_filename = f"{session_id}.mp3"
@@ -320,6 +324,9 @@ Continue now. Only the continuation text. No preamble."""
             ffmpeg_bin=cfg.FFMPEG_BIN,
         )
         print(f"[Demo] Mix done: {out_path}")
+
+        # Encrypt final mix audio at rest
+        encrypt_file(str(out_path))
 
         elapsed = round(time.time() - start, 2)
 
@@ -450,22 +457,53 @@ def save_email(req: EmailRequest, db: Session = Depends(get_db)):
 
 
 @r.get("/audio/{filename}")
-def serve_audio(filename: str):
-    """Serve a generated audio file (final mix or voice-only raw)."""
+def serve_audio(filename: str, request: Request, db: Session = Depends(get_db)):
+    """Serve a generated audio file (final mix or voice-only raw). Decrypts on-the-fly."""
     filepath = cfg.out_dir_path / filename
     if not filepath.exists():
         raise HTTPException(status_code=404, detail="Audio not found")
 
+    # Audit log audio access
+    try:
+        log = AuditLog(
+            action="audio_access",
+            target=filename,
+            ip_address=request.client.host if request.client else None,
+        )
+        db.add(log)
+        db.commit()
+    except Exception:
+        pass  # Don't block audio serving if logging fails
+
+    # Decrypt file and stream
+    audio_bytes = decrypt_file_to_bytes(str(filepath))
     return StreamingResponse(
-        open(filepath, "rb"),
+        io.BytesIO(audio_bytes),
         media_type="audio/mpeg",
         headers={"Content-Disposition": f"inline; filename={filename}"},
     )
 
 
 @r.get("/export/csv")
-def export_csv(db: Session = Depends(get_db), user: User = Depends(get_current_user_required)):
-    """Export all sessions as CSV. Requires authentication."""
+def export_csv(request: Request, db: Session = Depends(get_db), user: User = Depends(get_current_user_required)):
+    """Export all sessions as CSV. Requires admin authentication."""
+    if not user.is_admin:
+        raise HTTPException(status_code=403, detail="Admin access required")
+
+    # Audit log the export
+    try:
+        log = AuditLog(
+            user_id=user.id,
+            user_email=user.email,
+            action="csv_export",
+            target="all_sessions",
+            ip_address=request.client.host if request.client else None,
+        )
+        db.add(log)
+        db.commit()
+    except Exception:
+        pass  # Don't block export if logging fails
+
     sessions = db.query(DemoSession).order_by(DemoSession.created_at.desc()).all()
 
     output = io.StringIO()

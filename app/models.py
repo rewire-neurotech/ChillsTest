@@ -1,5 +1,5 @@
 from sqlalchemy import (
-    Column, Integer, String, Text, Float, DateTime, ForeignKey
+    Column, Integer, String, Text, Float, DateTime, Boolean, ForeignKey
 )
 from datetime import datetime, timezone
 from app.db import Base
@@ -14,6 +14,7 @@ class User(Base):
     name = Column(String(200), nullable=True)
     auth_provider = Column(String(20), nullable=False, default="local")  # "local" or "google"
     google_id = Column(String(200), nullable=True, unique=True)
+    is_admin = Column(Boolean, default=False, nullable=False, server_default="false")
     created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
 
 
@@ -53,3 +54,15 @@ class DemoSession(Base):
     generation_time_seconds = Column(Float)
     created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
     completed_at = Column(DateTime)
+
+
+class AuditLog(Base):
+    __tablename__ = "audit_logs"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=True, index=True)
+    user_email = Column(String(200), nullable=True)
+    action = Column(String(100), nullable=False)       # e.g. "csv_export", "audio_access"
+    target = Column(String(300), nullable=True)         # e.g. session_id or filename
+    ip_address = Column(String(50), nullable=True)
+    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))

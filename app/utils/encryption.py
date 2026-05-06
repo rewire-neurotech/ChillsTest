@@ -9,13 +9,16 @@ Fernet provides:
 Usage:
   encrypt_field(plaintext) -> ciphertext string (base64-encoded)
   decrypt_field(ciphertext) -> plaintext string
+  encrypt_file(filepath) -> encrypts a file in place
+  decrypt_file_to_bytes(filepath) -> returns decrypted file contents as bytes
 
 Safety:
   - None / empty values pass through unchanged
   - If ENCRYPTION_KEY is not set, data passes through unencrypted (dev mode)
-  - Old unencrypted data decrypts gracefully (returns original string)
+  - Old unencrypted data decrypts gracefully (returns original string/bytes)
 """
 
+from pathlib import Path
 from cryptography.fernet import Fernet, InvalidToken
 from app.core.config import cfg
 
@@ -64,3 +67,43 @@ def decrypt_field(value: str) -> str:
     except Exception as e:
         print(f"[encryption] Decrypt error: {e}")
         return value
+
+
+def encrypt_file(filepath: str) -> bool:
+    """
+    Encrypt a file in place. Returns True if encrypted, False if skipped/failed.
+    If ENCRYPTION_KEY is not set, the file is left unencrypted.
+    """
+    f = _get_fernet()
+    if not f:
+        return False
+    try:
+        p = Path(filepath)
+        raw = p.read_bytes()
+        encrypted = f.encrypt(raw)
+        p.write_bytes(encrypted)
+        print(f"[encryption] File encrypted: {p.name}")
+        return True
+    except Exception as e:
+        print(f"[encryption] File encrypt error: {e}")
+        return False
+
+
+def decrypt_file_to_bytes(filepath: str) -> bytes:
+    """
+    Read a file and return decrypted bytes.
+    If decryption fails (unencrypted legacy file), returns raw bytes as-is.
+    """
+    p = Path(filepath)
+    raw = p.read_bytes()
+    f = _get_fernet()
+    if not f:
+        return raw
+    try:
+        return f.decrypt(raw)
+    except InvalidToken:
+        # Legacy unencrypted file -- return as-is
+        return raw
+    except Exception as e:
+        print(f"[encryption] File decrypt error: {e}")
+        return raw
