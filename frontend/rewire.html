@@ -990,7 +990,7 @@
       }
 
       .done-email {
-        margin-top: 32px;
+        margin-top: 44px;
         padding: 14px;
         border-radius: 22px;
         background: var(--soft);
@@ -1741,7 +1741,7 @@
         return `
           <section class="screen splash">
             <div class="splash-logo-wrap">
-              <video class="splash-logo" src="/assets/rewire_logo.mp4" autoplay playsinline id="splashVideo" style="max-width:min(260px,65vw);"></video>
+              <video class="splash-logo" src="/assets/rewire_logo.mp4" autoplay muted playsinline id="splashVideo" style="max-width:min(260px,65vw);"></video>
             </div>
             <div class="splash-bottom">
               <div class="splash-text">
@@ -2128,13 +2128,19 @@
           setTimeout(() => {
             const vid = document.getElementById("splashVideo");
             if (vid) {
-              // Try autoplay with sound first
-              vid.muted = false;
-              vid.play().catch(() => {
-                // Browser blocked sound -- fall back to muted autoplay
-                vid.muted = true;
-                vid.play().catch(() => {});
-              });
+              // Start muted so autoplay is guaranteed by all browsers
+              vid.muted = true;
+              vid.play().catch(() => {});
+              // Unmute on the very first user interaction (browsers require a gesture for sound)
+              const unmute = () => {
+                if (vid && !vid.ended && !vid.paused) {
+                  vid.muted = false;
+                }
+                document.removeEventListener("pointerdown", unmute);
+                document.removeEventListener("touchstart", unmute);
+              };
+              document.addEventListener("pointerdown", unmute, { once: true });
+              document.addEventListener("touchstart", unmute, { once: true, passive: true });
             }
           }, 50);
         } else if (state.screen === "login") app.innerHTML = renderLogin();
