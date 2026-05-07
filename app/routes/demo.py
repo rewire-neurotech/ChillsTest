@@ -18,7 +18,7 @@ from pydub import AudioSegment
 
 from app.core.config import cfg
 from app.db import get_db, SessionLocal
-from app.models import DemoSession, User, AuditLog
+from app.models import DemoSession, User, AuditLog, StickyNote
 from app.services.prompt import build_user_prompt
 from app.services.llm import generate_speech
 from app.services.tts import synth
@@ -138,7 +138,7 @@ def _trim_at_boundary(text: str, words_to_cut: int) -> str:
 
 # --- Background generation pipeline ---
 
-def _run_generate(job_id: str, q1: str, q2: str, q3: str, q4: str, track_name: str):
+def _run_generate(job_id: str, q1: str, q2: str, q3: str, q4: str, track_name: str, user_id: int = None):
     """Run the full generation pipeline in a background thread."""
     try:
         start = time.time()
@@ -337,6 +337,7 @@ Continue now. Only the continuation text. No preamble."""
         try:
             session = DemoSession(
                 session_id=session_id,
+                user_id=user_id,
                 q1_low_voice=encrypt_field(q1),
                 q2_chills=encrypt_field(q2),
                 q3_first_call=encrypt_field(q3),
@@ -350,6 +351,28 @@ Continue now. Only the continuation text. No preamble."""
             )
             db.add(session)
             db.commit()
+
+            # 10. Auto-create a sticky note from this session's first question
+            #     so the user has something in their stack after their first jolt.
+            if user_id:
+                try:
+                    note = StickyNote(
+                        user_id=user_id,
+                        text=encrypt_field(q1),
+                        state="watched",
+                        session_id=session_id,
+                    )
+                    db.add(note)
+
+                    # Mark first jolt completed on user
+                    user = db.query(User).filter(User.id == user_id).first()
+                    if user and not user.has_completed_first_jolt:
+                        user.has_completed_first_jolt = True
+
+                    db.commit()
+                except Exception as e:
+                    print(f"[Demo] Sticky note creation error: {e}")
+                    # Don't fail the whole session if note creation fails
         finally:
             db.close()
 
@@ -375,7 +398,7 @@ Continue now. Only the continuation text. No preamble."""
 # --- Endpoints ---
 
 @r.post("/generate", response_model=GenerateJobResponse)
-def generate(req: GenerateRequest):
+def generate(req: GenerateRequest, user: User = Depends(get_current_user_optional)):
     """
     Start generation in background. Returns a job_id immediately,
     along with the meditation audio URL so the frontend can start
@@ -396,6 +419,9 @@ def generate(req: GenerateRequest):
     base = cfg.PUBLIC_BASE_URL.rstrip("/") if cfg.PUBLIC_BASE_URL else ""
     meditation_url = f"{base}/assets/{cfg.MEDITATION_FILE}"
 
+    # Extract user_id if logged in (passed to background thread)
+    uid = user.id if user else None
+
     with _jobs_lock:
         _jobs[job_id] = {
             "job_id": job_id,
@@ -409,6 +435,7 @@ def generate(req: GenerateRequest):
     t = threading.Thread(
         target=_run_generate,
         args=(job_id, req.q1_low_voice, req.q2_chills, req.q3_first_call, req.q4_unseen, track_name),
+        kwargs={"user_id": uid},
         daemon=True,
     )
     t.start()
