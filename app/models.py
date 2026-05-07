@@ -1,5 +1,5 @@
 from sqlalchemy import (
-    Column, Integer, String, Text, Float, DateTime, Boolean, ForeignKey
+    Column, Integer, String, Text, Float, DateTime, Boolean, ForeignKey, Date
 )
 from datetime import datetime, timezone
 from app.db import Base
@@ -16,6 +16,11 @@ class User(Base):
     google_id = Column(String(200), nullable=True, unique=True)
     is_admin = Column(Boolean, default=False, nullable=False, server_default="false")
     created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
+
+    # --- Profile fields for jolt tracking ---
+    has_completed_first_jolt = Column(Boolean, default=False, nullable=False, server_default="false")
+    jolt_count_today = Column(Integer, default=0, nullable=False, server_default="0")
+    last_jolt_date = Column(Date, nullable=True)
 
 
 class DemoSession(Base):
@@ -65,4 +70,53 @@ class AuditLog(Base):
     action = Column(String(100), nullable=False)       # e.g. "csv_export", "audio_access"
     target = Column(String(300), nullable=True)         # e.g. session_id or filename
     ip_address = Column(String(50), nullable=True)
+    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
+
+
+# ============================================================
+# STICKY NOTES
+# ============================================================
+
+class StickyNote(Base):
+    __tablename__ = "sticky_notes"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False, index=True)
+    text = Column(Text, nullable=False, default="")
+    state = Column(String(20), nullable=False, default="idle")  # idle, progress, ready, watched
+    place = Column(String(200), nullable=True)                  # e.g. "Los Angeles, CA"
+    jolt_count = Column(Integer, default=0, nullable=False, server_default="0")
+
+    # --- Link to the demo session that generated this note's jolt audio ---
+    session_id = Column(String(64), nullable=True, index=True)
+
+    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
+    updated_at = Column(DateTime, default=lambda: datetime.now(timezone.utc),
+                        onupdate=lambda: datetime.now(timezone.utc))
+
+
+# ============================================================
+# SUBSCRIPTIONS & PROMO CODES
+# ============================================================
+
+class Subscription(Base):
+    __tablename__ = "subscriptions"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False, index=True)
+    plan = Column(String(20), nullable=False)          # "monthly", "yearly", "code"
+    status = Column(String(20), nullable=False, default="active")  # "active", "cancelled", "expired"
+    code_used = Column(String(50), nullable=True)      # promo code if redeemed via code
+    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
+    expires_at = Column(DateTime, nullable=True)
+
+
+class PromoCode(Base):
+    __tablename__ = "promo_codes"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    code = Column(String(50), unique=True, nullable=False, index=True)
+    max_uses = Column(Integer, default=0, nullable=False)       # 0 = unlimited
+    uses_count = Column(Integer, default=0, nullable=False, server_default="0")
+    is_active = Column(Boolean, default=True, nullable=False, server_default="true")
     created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
