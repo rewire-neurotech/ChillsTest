@@ -2140,10 +2140,7 @@
                 document.removeEventListener("touchstart", unmute);
               };
               document.addEventListener("pointerdown", unmute, { once: true });
-              document.addEventListener("touchstart", unmute, {
-                once: true,
-                passive: true,
-              });
+              document.addEventListener("touchstart", unmute, { once: true, passive: true });
             }
           }, 50);
         } else if (state.screen === "login") app.innerHTML = renderLogin();
