@@ -73,6 +73,12 @@ app.include_router(demo_r)
 from app.routes.auth import r as auth_r
 app.include_router(auth_r)
 
+from app.routes.notes import r as notes_r
+app.include_router(notes_r)
+
+from app.routes.subscription import r as sub_r
+app.include_router(sub_r)
+
 
 # --- Serve frontend ---
 FRONTEND_PATH = Path(__file__).resolve().parent.parent / "frontend" / "rewire.html"
