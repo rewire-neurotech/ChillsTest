@@ -20,7 +20,7 @@ from passlib.context import CryptContext
 
 from app.core.config import cfg
 from app.db import get_db
-from app.models import User
+from app.models import User, Subscription
 
 r = APIRouter(prefix="/api/auth", tags=["auth"])
 
@@ -104,6 +104,24 @@ def get_current_user_required(
     return user
 
 
+# --- Helpers ---
+
+def _has_active_subscription(user_id: int, db: Session) -> bool:
+    """Check if user has an active, non-expired subscription."""
+    sub = (
+        db.query(Subscription)
+        .filter(Subscription.user_id == user_id, Subscription.status == "active")
+        .first()
+    )
+    if not sub:
+        return False
+    if sub.expires_at and sub.expires_at < datetime.now(timezone.utc):
+        sub.status = "expired"
+        db.commit()
+        return False
+    return True
+
+
 # --- Request / Response schemas ---
 
 class RegisterRequest(BaseModel):
@@ -126,6 +144,8 @@ class AuthResponse(BaseModel):
     user_id: int
     email: str
     name: Optional[str] = None
+    has_completed_first_jolt: bool = False
+    has_subscription: bool = False
 
 
 class UserResponse(BaseModel):
@@ -133,6 +153,8 @@ class UserResponse(BaseModel):
     email: str
     name: Optional[str] = None
     auth_provider: str
+    has_completed_first_jolt: bool = False
+    has_subscription: bool = False
 
 
 # --- Endpoints ---
@@ -162,7 +184,14 @@ def register(req: RegisterRequest, db: Session = Depends(get_db)):
     db.refresh(user)
 
     token = create_token(user.id, user.email)
-    return AuthResponse(token=token, user_id=user.id, email=user.email, name=user.name)
+    return AuthResponse(
+        token=token,
+        user_id=user.id,
+        email=user.email,
+        name=user.name,
+        has_completed_first_jolt=False,
+        has_subscription=False,
+    )
 
 
 @r.post("/login", response_model=AuthResponse)
@@ -178,7 +207,14 @@ def login(req: LoginRequest, db: Session = Depends(get_db)):
         raise HTTPException(status_code=401, detail="Invalid email or password")
 
     token = create_token(user.id, user.email)
-    return AuthResponse(token=token, user_id=user.id, email=user.email, name=user.name)
+    return AuthResponse(
+        token=token,
+        user_id=user.id,
+        email=user.email,
+        name=user.name,
+        has_completed_first_jolt=user.has_completed_first_jolt,
+        has_subscription=_has_active_subscription(user.id, db),
+    )
 
 
 @r.post("/google", response_model=AuthResponse)
@@ -241,17 +277,26 @@ def google_login(req: GoogleLoginRequest, db: Session = Depends(get_db)):
         db.refresh(user)
 
     token = create_token(user.id, user.email)
-    return AuthResponse(token=token, user_id=user.id, email=user.email, name=user.name)
+    return AuthResponse(
+        token=token,
+        user_id=user.id,
+        email=user.email,
+        name=user.name,
+        has_completed_first_jolt=user.has_completed_first_jolt,
+        has_subscription=_has_active_subscription(user.id, db),
+    )
 
 
 @r.get("/me", response_model=UserResponse)
-def get_me(user: User = Depends(get_current_user_required)):
+def get_me(user: User = Depends(get_current_user_required), db: Session = Depends(get_db)):
     """Get the current logged-in user info."""
     return UserResponse(
         user_id=user.id,
         email=user.email,
         name=user.name,
         auth_provider=user.auth_provider,
+        has_completed_first_jolt=user.has_completed_first_jolt,
+        has_subscription=_has_active_subscription(user.id, db),
     )
 
 
