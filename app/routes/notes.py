@@ -36,6 +36,7 @@ class UpdateNoteRequest(BaseModel):
 
 class UpdateStateRequest(BaseModel):
     state: str  # idle, progress, ready, watched
+    session_id: Optional[str] = None
 
 
 class NoteResponse(BaseModel):
@@ -183,7 +184,8 @@ def update_state(
     user: User = Depends(get_current_user_required),
     db: Session = Depends(get_db),
 ):
-    """Update a sticky note's state (idle, progress, ready, watched)."""
+    """Update a sticky note's state (idle, progress, ready, watched).
+    Optionally links a generation session_id to the note."""
     valid_states = {"idle", "progress", "ready", "watched"}
     if req.state not in valid_states:
         raise HTTPException(status_code=400, detail=f"Invalid state. Must be one of: {valid_states}")
@@ -197,6 +199,8 @@ def update_state(
         raise HTTPException(status_code=404, detail="Note not found")
 
     note.state = req.state
+    if req.session_id is not None:
+        note.session_id = req.session_id
     note.updated_at = datetime.now(timezone.utc)
     db.commit()
     db.refresh(note)
