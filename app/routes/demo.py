@@ -53,6 +53,7 @@ class GenerateRequest(BaseModel):
     q2_chills: str
     q3_first_call: str
     q4_unseen: str = ""
+    note_id: Optional[int] = None
 
 
 class GenerateJobResponse(BaseModel):
@@ -138,7 +139,7 @@ def _trim_at_boundary(text: str, words_to_cut: int) -> str:
 
 # --- Background generation pipeline ---
 
-def _run_generate(job_id: str, q1: str, q2: str, q3: str, q4: str, track_name: str, user_id: int = None):
+def _run_generate(job_id: str, q1: str, q2: str, q3: str, q4: str, track_name: str, user_id: int = None, note_id: int = None):
     """Run the full generation pipeline in a background thread."""
     try:
         start = time.time()
@@ -352,17 +353,32 @@ Continue now. Only the continuation text. No preamble."""
             db.add(session)
             db.commit()
 
-            # 10. Auto-create a sticky note from this session's first question
-            #     so the user has something in their stack after their first jolt.
+            # 10. Handle sticky note creation/update
             if user_id:
                 try:
-                    note = StickyNote(
-                        user_id=user_id,
-                        text=encrypt_field(q1),
-                        state="watched",
-                        session_id=session_id,
-                    )
-                    db.add(note)
+                    if note_id:
+                        # Jolt from sticky notes screen: update the existing note
+                        existing_note = db.query(StickyNote).filter(
+                            StickyNote.id == note_id,
+                            StickyNote.user_id == user_id,
+                        ).first()
+                        if existing_note:
+                            existing_note.session_id = session_id
+                            existing_note.state = "ready"
+                            existing_note.updated_at = datetime.now(timezone.utc)
+                            print(f"[Demo] Updated existing note {note_id} -> ready, session_id={session_id}")
+                        else:
+                            print(f"[Demo] Note {note_id} not found for user {user_id}, skipping note update")
+                    else:
+                        # First jolt from questions flow: create a new note
+                        note = StickyNote(
+                            user_id=user_id,
+                            text=encrypt_field(q1),
+                            state="watched",
+                            session_id=session_id,
+                        )
+                        db.add(note)
+                        print(f"[Demo] Created new sticky note from q1 for user {user_id}")
 
                     # Mark first jolt completed on user
                     user = db.query(User).filter(User.id == user_id).first()
@@ -371,8 +387,8 @@ Continue now. Only the continuation text. No preamble."""
 
                     db.commit()
                 except Exception as e:
-                    print(f"[Demo] Sticky note creation error: {e}")
-                    # Don't fail the whole session if note creation fails
+                    print(f"[Demo] Sticky note creation/update error: {e}")
+                    # Don't fail the whole session if note handling fails
         finally:
             db.close()
 
@@ -435,7 +451,7 @@ def generate(req: GenerateRequest, user: User = Depends(get_current_user_optiona
     t = threading.Thread(
         target=_run_generate,
         args=(job_id, req.q1_low_voice, req.q2_chills, req.q3_first_call, req.q4_unseen, track_name),
-        kwargs={"user_id": uid},
+        kwargs={"user_id": uid, "note_id": req.note_id},
         daemon=True,
     )
     t.start()
