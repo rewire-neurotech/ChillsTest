@@ -31,8 +31,13 @@ class Config:
         return p
 
     # --- Track Registry ---
-    # Single track: a_thousand_hearts only
     TRACKS = {
+        "ad_infinitum": {
+            "file": "ad_infinitum.mpeg",
+            "voice_id": "lMILJ9d29MrRXy9BIgcz",
+            "description": "Dark, atmospheric, cinematic - deep emotional intensity",
+        },
+        # Legacy track kept for backward compatibility with existing sessions
         "a_thousand_hearts": {
             "file": "a_thousand_hearts.mpeg",
             "voice_id": "lMILJ9d29MrRXy9BIgcz",
@@ -40,7 +45,7 @@ class Config:
         },
     }
 
-    DEFAULT_TRACK: str = "a_thousand_hearts"
+    DEFAULT_TRACK: str = "ad_infinitum"
 
     def get_track(self, track_name: str = None) -> dict:
         """Return track info dict with resolved file paths."""
