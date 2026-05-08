@@ -1431,6 +1431,1393 @@
         color: rgba(255, 255, 255, 0.5);
         font-weight: 400;
       }
+
+      /* ============================================================
+         INTRO SCREEN — verbatim from intro.html, classes prefixed with
+         `intro-` to namespace away from the rest of the app.
+         Replaces the 3-slide onboarding.
+         ============================================================ */
+      .intro-screen {
+        position: absolute; inset: 0;
+        background: radial-gradient(ellipse 100% 60% at 50% 0%,
+          #fafaf6 0%, #f5f4ef 60%, #efece6 100%);
+        color: #1a1a1c;
+        font-family:
+          -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'SF Pro Display',
+          system-ui, 'Helvetica Neue', sans-serif;
+        -webkit-font-smoothing: antialiased;
+        -moz-osx-font-smoothing: grayscale;
+        overflow: hidden;
+        overscroll-behavior: none;
+        padding: env(safe-area-inset-top) 0 env(safe-area-inset-bottom);
+        display: flex; flex-direction: column;
+      }
+
+      .intro-content {
+        flex: 1;
+        display: flex; flex-direction: column; align-items: center;
+        justify-content: center;
+        padding: 56px 28px 0;
+        text-align: center;
+        gap: 32px;
+        position: relative;
+      }
+
+      .intro-note-stage {
+        position: relative;
+        width: 264px;
+        min-height: 290px;
+      }
+
+      .intro-note {
+        position: absolute;
+        inset: 0;
+        border-radius: 22px;
+        padding: 18px 18px 14px;
+        display: flex; flex-direction: column;
+        text-align: left;
+        overflow: hidden;
+        transition:
+          background .55s cubic-bezier(.4,.0,.2,1),
+          box-shadow .55s cubic-bezier(.4,.0,.2,1),
+          color .35s ease;
+        background: linear-gradient(168deg, #f8f7f3 0%, #f1efea 100%);
+        color: #1a1a1c;
+        box-shadow:
+          0 1px 0 rgba(255,255,255,0.9) inset,
+          0 0 0 1px rgba(0,0,0,0.06),
+          0 22px 44px -16px rgba(0,0,0,0.22),
+          0 4px 14px -6px rgba(0,0,0,0.10);
+      }
+      .intro-note.progress {
+        box-shadow:
+          0 1px 0 rgba(255,255,255,0.9) inset,
+          0 0 0 1px rgba(255,159,26,0.45),
+          0 22px 44px -16px rgba(255,159,26,0.30),
+          0 4px 14px -6px rgba(255,159,26,0.18);
+      }
+      .intro-note.ready {
+        box-shadow:
+          0 1px 0 rgba(255,255,255,0.9) inset,
+          0 0 0 2px #5b4af0,
+          0 0 0 10px rgba(91, 74, 240, 0.15),
+          0 26px 52px -16px rgba(91, 74, 240, 0.40),
+          0 6px 16px -6px rgba(91, 74, 240, 0.22);
+      }
+      .intro-note.playing {
+        background: linear-gradient(168deg, #15131e 0%, #0a0815 100%);
+        color: #fafaf6;
+        box-shadow:
+          0 1px 0 rgba(255,255,255,0.06) inset,
+          0 0 0 1px rgba(255,255,255,0.10),
+          0 28px 60px -16px rgba(91, 74, 240, 0.55),
+          0 6px 18px -6px rgba(0,0,0,0.40);
+      }
+
+      .intro-meta {
+        font-size: 9.5px; letter-spacing: 0.14em; font-weight: 600;
+        color: rgba(0,0,0,0.45);
+        transition: color .35s ease;
+      }
+      .intro-note.playing .intro-meta { color: rgba(255,255,255,0.55); }
+
+      .intro-note-body {
+        margin-top: 14px; flex: 1;
+        font-family: inherit;
+        font-size: 14px; line-height: 1.4; font-weight: 400;
+        color: inherit;
+        letter-spacing: -0.005em;
+        min-height: 196px;
+        white-space: pre-wrap;
+      }
+
+      .intro-caret {
+        display: inline-block;
+        width: 2px;
+        height: 1em;
+        background: #5b4af0;
+        vertical-align: text-bottom;
+        margin-left: 1px;
+        margin-bottom: 1px;
+        animation: introBlink 1.05s steps(1) infinite;
+      }
+      .intro-note.progress .intro-caret,
+      .intro-note.ready    .intro-caret,
+      .intro-note.playing  .intro-caret { display: none; }
+      @keyframes introBlink {
+        0%, 50%   { opacity: 1; }
+        51%, 100% { opacity: 0; }
+      }
+
+      .intro-aurora {
+        position: absolute; inset: 0;
+        background:
+          radial-gradient(circle at 30% 30%, rgba(138, 118, 255, 0.55), transparent 55%),
+          radial-gradient(circle at 70% 70%, rgba(91, 74, 240, 0.40), transparent 55%);
+        mix-blend-mode: screen;
+        opacity: 0;
+        pointer-events: none;
+        transition: opacity .55s ease, transform 4s ease-in-out;
+        transform: scale(0.95);
+      }
+      .intro-note.playing .intro-aurora {
+        opacity: 1;
+        transform: scale(1.05);
+      }
+
+      .intro-footer-row {
+        display: flex; justify-content: space-between; align-items: center;
+        margin-top: 10px;
+        font-size: 9.5px; letter-spacing: 0.16em; font-weight: 600;
+        position: relative; min-height: 28px;
+      }
+
+      .intro-pill-state {
+        position: absolute;
+        left: 0; top: 50%;
+        transform: translateY(-50%);
+        opacity: 0;
+        transition: opacity .35s ease;
+        display: inline-flex; align-items: center; gap: 6px;
+      }
+      .intro-pill-state.rendering { color: #ff9f1a; }
+      .intro-pill-state.ready     { color: #5b4af0; }
+      .intro-pill-state.playing   { color: rgba(255,255,255,0.78); }
+
+      .intro-note.progress .intro-pill-state.rendering { opacity: 1; }
+      .intro-note.ready    .intro-pill-state.ready     { opacity: 1; }
+      .intro-note.playing  .intro-pill-state.playing   { opacity: 1; }
+
+      .intro-pill-state .intro-dot {
+        display: inline-block;
+        width: 5px; height: 5px; border-radius: 50%;
+        background: currentColor;
+        box-shadow: 0 0 8px currentColor;
+      }
+      .intro-pill-state.rendering .intro-dot {
+        animation: introPulseDot 1.1s ease-in-out infinite;
+      }
+      @keyframes introPulseDot {
+        0%, 100% { opacity: 1; transform: scale(1); }
+        50%      { opacity: 0.45; transform: scale(0.85); }
+      }
+
+      .intro-action {
+        position: absolute;
+        right: 0; top: 50%;
+        transform: translateY(-50%);
+        padding: 6px 11px;
+        border-radius: 999px;
+        font-family: inherit;
+        font-size: 10px; font-weight: 600; letter-spacing: 0.10em;
+        display: inline-flex; align-items: center; gap: 5px;
+        opacity: 0;
+        transition: opacity .35s ease, transform .25s cubic-bezier(.2,.8,.2,1);
+      }
+      .intro-action.idle {
+        background: rgba(0,0,0,0.06);
+        color: rgba(0,0,0,0.7);
+      }
+      .intro-action.progress {
+        background: #ff9f1a;
+        color: #fff;
+        box-shadow: 0 4px 14px -2px rgba(255,159,26,0.5);
+        animation: introJbPulse 1.1s ease-in-out infinite;
+      }
+      @keyframes introJbPulse {
+        0%, 100% { transform: translateY(-50%) scale(1); }
+        50%      { transform: translateY(-50%) scale(1.06); }
+      }
+      .intro-action.ready {
+        background: #5b4af0;
+        color: #fff;
+        box-shadow: 0 4px 14px -2px rgba(91, 74, 240, 0.5);
+      }
+      .intro-action.playing {
+        background: rgba(255,255,255,0.18);
+        color: #fff;
+        backdrop-filter: blur(8px);
+        -webkit-backdrop-filter: blur(8px);
+        box-shadow: inset 0 0 0 1px rgba(255,255,255,0.30);
+      }
+      .intro-note.empty   .intro-action.idle,
+      .intro-note.typing  .intro-action.idle,
+      .intro-note.idle    .intro-action.idle      { opacity: 1; }
+      .intro-note.progress .intro-action.progress { opacity: 1; }
+      .intro-note.ready    .intro-action.ready    { opacity: 1; }
+      .intro-note.playing  .intro-action.playing  { opacity: 1; }
+
+      .intro-caption {
+        position: relative;
+        height: 22px;
+        width: 100%;
+        text-align: center;
+      }
+      .intro-caption span {
+        position: absolute;
+        left: 0; right: 0; top: 0;
+        font-size: 11px; letter-spacing: 0.22em; font-weight: 700;
+        color: #5b4af0;
+        opacity: 0;
+        transition: opacity .35s ease, transform .35s cubic-bezier(.2,.8,.2,1);
+        transform: translateY(4px);
+      }
+      .intro-note-stage[data-phase="empty"]    ~ .intro-caption .intro-c1,
+      .intro-note-stage[data-phase="typing"]   ~ .intro-caption .intro-c1,
+      .intro-note-stage[data-phase="idle"]     ~ .intro-caption .intro-c1,
+      .intro-note-stage[data-phase="progress"] ~ .intro-caption .intro-c1 { opacity: 1; transform: translateY(0); }
+      .intro-note-stage[data-phase="ready"]    ~ .intro-caption .intro-c2 { opacity: 1; transform: translateY(0); }
+      .intro-note-stage[data-phase="playing"]  ~ .intro-caption .intro-c3 { opacity: 1; transform: translateY(0); }
+
+      .intro-heading {
+        font-size: 30px; font-weight: 600; line-height: 1.15;
+        letter-spacing: -0.022em;
+        color: #1a1a1c;
+        max-width: 320px;
+        margin: 0;
+      }
+      .intro-heading em {
+        font-style: normal;
+        color: #5b4af0;
+        background: linear-gradient(180deg, #8a76ff 0%, #5b4af0 100%);
+        -webkit-background-clip: text;
+        background-clip: text;
+        -webkit-text-fill-color: transparent;
+      }
+
+      .intro-footer {
+        padding: 12px 28px calc(28px + env(safe-area-inset-bottom));
+      }
+      .intro-cta {
+        appearance: none; border: none; cursor: pointer;
+        width: 100%;
+        padding: 18px 20px;
+        border-radius: 999px;
+        background: #1a1a1c;
+        color: #fafaf6;
+        font-family: inherit;
+        font-size: 17px; font-weight: 600;
+        letter-spacing: -0.005em;
+        box-shadow:
+          0 1px 0 rgba(255,255,255,0.06) inset,
+          0 12px 28px -10px rgba(0,0,0,0.40),
+          0 2px 8px -2px rgba(0,0,0,0.20);
+        transition: transform .18s cubic-bezier(.2,.8,.2,1);
+      }
+      .intro-cta:active { transform: scale(0.98); }
+
+      .intro-anim {
+        opacity: 0;
+        animation: introRise .6s cubic-bezier(.2,.8,.2,1) forwards;
+      }
+      .intro-anim-1 { animation-delay: 0.10s; }
+      .intro-anim-2 { animation-delay: 0.30s; }
+      .intro-anim-3 { animation-delay: 0.50s; }
+      .intro-anim-4 { animation-delay: 0.70s; }
+      @keyframes introRise {
+        from { opacity: 0; transform: translateY(12px); }
+        to   { opacity: 1; transform: translateY(0); }
+      }
+
+      /* ============================================================
+         HEADPHONES SCREEN — verbatim from onboarding-1-headphones.html,
+         classes prefixed with `hp-`. Sits between the 4 questions and
+         meditation/stimulus playback per Felix's spec.
+         ============================================================ */
+      .hp-screen {
+        position: absolute; inset: 0;
+        font-family:
+          -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'SF Pro Display',
+          system-ui, 'Helvetica Neue', sans-serif;
+        color: #fafaf6;
+        background:
+          radial-gradient(ellipse 90% 60% at 50% 30%,
+            rgba(91, 74, 240, 0.18) 0%, transparent 60%),
+          linear-gradient(180deg, #0c0c0e 0%, #15151a 100%);
+        -webkit-font-smoothing: antialiased;
+        -moz-osx-font-smoothing: grayscale;
+        overflow: hidden;
+        overscroll-behavior: none;
+        padding: env(safe-area-inset-top) 0 env(safe-area-inset-bottom);
+        display: flex; flex-direction: column;
+      }
+
+      .hp-stars {
+        position: absolute; inset: 0;
+        pointer-events: none;
+        overflow: hidden;
+      }
+      .hp-star {
+        position: absolute;
+        width: 2px; height: 2px;
+        border-radius: 50%;
+        background: #fff;
+        opacity: 0;
+        animation: hpTwinkle 4s ease-in-out infinite;
+      }
+      @keyframes hpTwinkle {
+        0%, 100% { opacity: 0; transform: scale(0.8); }
+        50%      { opacity: 0.7; transform: scale(1); }
+      }
+
+      .hp-content {
+        flex: 1;
+        display: flex; flex-direction: column; align-items: center;
+        justify-content: center;
+        padding: 32px 32px 0;
+        text-align: center;
+        gap: 32px;
+        position: relative;
+        z-index: 2;
+      }
+
+      .hp-headphones-wrap {
+        width: 144px; height: 144px;
+        display: flex; align-items: center; justify-content: center;
+        position: relative;
+      }
+      .hp-headphones-glow {
+        position: absolute; inset: -20px;
+        border-radius: 50%;
+        background: radial-gradient(circle, rgba(91, 74, 240, 0.30), transparent 65%);
+        animation: hpGlowPulse 3s ease-in-out infinite;
+      }
+      @keyframes hpGlowPulse {
+        0%, 100% { transform: scale(1); opacity: 0.6; }
+        50%      { transform: scale(1.15); opacity: 1; }
+      }
+      .hp-headphones {
+        position: relative;
+        width: 110px; height: 110px;
+        color: #fafaf6;
+      }
+      .hp-headphones svg {
+        width: 100%; height: 100%;
+        animation: hpFloat 4s ease-in-out infinite;
+      }
+      @keyframes hpFloat {
+        0%, 100% { transform: translateY(0); }
+        50%      { transform: translateY(-6px); }
+      }
+
+      .hp-wave {
+        position: absolute;
+        border: 1.5px solid rgba(91, 74, 240, 0.5);
+        border-radius: 50%;
+        opacity: 0;
+        pointer-events: none;
+      }
+      .hp-wave.left {
+        left: -8px; top: 50%;
+        width: 30px; height: 30px;
+        transform-origin: right center;
+        animation: hpWaveLeft 2.4s ease-out infinite;
+      }
+      .hp-wave.right {
+        right: -8px; top: 50%;
+        width: 30px; height: 30px;
+        transform-origin: left center;
+        animation: hpWaveRight 2.4s ease-out infinite;
+      }
+      @keyframes hpWaveLeft {
+        0%   { opacity: 0;   transform: translate(-50%, -50%) scale(0.4); }
+        50%  { opacity: 0.6; }
+        100% { opacity: 0;   transform: translate(-90%, -50%) scale(1.6); }
+      }
+      @keyframes hpWaveRight {
+        0%   { opacity: 0;   transform: translate(50%, -50%) scale(0.4); }
+        50%  { opacity: 0.6; }
+        100% { opacity: 0;   transform: translate(90%, -50%) scale(1.6); }
+      }
+
+      .hp-heading {
+        font-size: 30px; font-weight: 600; line-height: 1.15;
+        letter-spacing: -0.022em;
+        color: #fafaf6;
+        max-width: 320px;
+        margin: 0;
+      }
+      .hp-heading em {
+        font-style: normal;
+        color: #5b4af0;
+        background: linear-gradient(180deg, #8a76ff 0%, #5b4af0 100%);
+        -webkit-background-clip: text;
+        background-clip: text;
+        -webkit-text-fill-color: transparent;
+      }
+
+      .hp-checks {
+        list-style: none; margin: 0; padding: 0;
+        display: flex; flex-direction: column;
+        gap: 14px;
+        max-width: 320px;
+      }
+      .hp-checks li {
+        display: flex; align-items: flex-start; gap: 12px;
+        text-align: left;
+        font-size: 15.5px; font-weight: 400; line-height: 1.4;
+        color: rgba(255,255,255,0.78);
+      }
+      .hp-checks li svg {
+        flex-shrink: 0;
+        color: #5b4af0;
+        margin-top: 3px;
+      }
+
+      .hp-footer {
+        padding: 12px 28px calc(28px + env(safe-area-inset-bottom));
+        z-index: 2;
+      }
+      .hp-ready-btn {
+        appearance: none; border: none; cursor: pointer;
+        width: 100%;
+        padding: 18px 20px;
+        border-radius: 999px;
+        background: #fafaf6;
+        color: #18181b;
+        font-family: inherit;
+        font-size: 17px; font-weight: 600;
+        letter-spacing: -0.005em;
+        box-shadow:
+          0 1px 0 rgba(255,255,255,0.4) inset,
+          0 12px 28px -10px rgba(255,255,255,0.20),
+          0 2px 8px -2px rgba(0,0,0,0.40);
+        transition: transform .18s cubic-bezier(.2,.8,.2,1),
+                    box-shadow .25s ease;
+      }
+      .hp-ready-btn:hover {
+        box-shadow:
+          0 1px 0 rgba(255,255,255,0.4) inset,
+          0 16px 32px -10px rgba(255,255,255,0.30),
+          0 2px 8px -2px rgba(0,0,0,0.40);
+      }
+      .hp-ready-btn:active { transform: scale(0.98); }
+
+      .hp-anim {
+        opacity: 0;
+        animation: hpFadeIn .6s cubic-bezier(.2,.8,.2,1) forwards;
+      }
+      .hp-anim-1 { animation-delay: 0.05s; }
+      .hp-anim-2 { animation-delay: 0.20s; }
+      .hp-anim-3 { animation-delay: 0.35s; }
+      .hp-anim-4 { animation-delay: 0.55s; }
+      @keyframes hpFadeIn {
+        from { opacity: 0; transform: translateY(10px); }
+        to   { opacity: 1; transform: translateY(0); }
+      }
+
+      /* ============================================================
+         FIRST-STICKY SCREEN — verbatim from onboarding-2-first-sticky.html,
+         classes prefixed with `fs-`. Sits between the stimulus audio end
+         and the sticky-notes home (currently feedback) per Felix's spec.
+         ============================================================ */
+      .fs-screen {
+        position: absolute; inset: 0;
+        font-family:
+          -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'SF Pro Display',
+          system-ui, 'Helvetica Neue', sans-serif;
+        color: #1a1a1c;
+        background: radial-gradient(ellipse 100% 60% at 50% 0%,
+          #fafaf6 0%, #f5f4ef 60%, #efece6 100%);
+        -webkit-font-smoothing: antialiased;
+        -moz-osx-font-smoothing: grayscale;
+        overflow: hidden;
+        overscroll-behavior: none;
+        padding: env(safe-area-inset-top) 0 env(safe-area-inset-bottom);
+        display: flex; flex-direction: column;
+      }
+
+      .fs-sparks {
+        position: absolute; inset: 0;
+        pointer-events: none;
+        overflow: hidden;
+      }
+      .fs-spark {
+        position: absolute;
+        left: 50%; top: 38%;
+        width: 6px; height: 6px;
+        border-radius: 50%;
+        opacity: 0;
+        animation: fsSparkFly 1.6s cubic-bezier(.2,.8,.4,1) forwards;
+      }
+      @keyframes fsSparkFly {
+        0% {
+          opacity: 0;
+          transform: translate(-50%, -50%) scale(0.4);
+        }
+        20% { opacity: 1; }
+        100% {
+          opacity: 0;
+          transform:
+            translate(calc(-50% + var(--dx, 0px)),
+                      calc(-50% + var(--dy, 0px)))
+            scale(0.6);
+        }
+      }
+
+      .fs-content {
+        flex: 1;
+        display: flex; flex-direction: column; align-items: center;
+        justify-content: center;
+        padding: 24px 28px 0;
+        text-align: center;
+        gap: 28px;
+        position: relative;
+        z-index: 2;
+      }
+
+      .fs-note-stage {
+        position: relative;
+        width: 230px; height: 230px;
+      }
+      .fs-note {
+        position: absolute;
+        inset: 0;
+        border-radius: 22px;
+        background: linear-gradient(168deg, #f8f7f3 0%, #f1efea 100%);
+        box-shadow:
+          0 1px 0 rgba(255,255,255,0.9) inset,
+          0 0 0 1px rgba(0,0,0,0.06),
+          0 18px 36px -16px rgba(0,0,0,0.28),
+          0 4px 12px -6px rgba(0,0,0,0.10);
+        padding: 18px 18px 14px;
+        display: flex; flex-direction: column;
+        text-align: left;
+        will-change: transform, opacity;
+      }
+      .fs-note .fs-meta {
+        font-size: 9.5px; letter-spacing: 0.14em; font-weight: 600;
+        color: rgba(0,0,0,0.45);
+        font-variant-numeric: tabular-nums;
+      }
+      .fs-note .fs-body {
+        margin-top: 14px; flex: 1;
+        font-family: inherit;
+        font-size: 16px; line-height: 1.4; font-weight: 400;
+        color: #1a1a1c;
+        letter-spacing: -0.005em;
+      }
+      .fs-note .fs-placeholder { opacity: 0.4; font-style: italic; }
+      .fs-note .fs-footer-row {
+        display: flex; justify-content: space-between; align-items: center;
+        font-size: 9.5px; letter-spacing: 0.16em; font-weight: 600;
+        color: rgba(0,0,0,0.45);
+      }
+      .fs-note .fs-pen {
+        width: 22px; height: 22px;
+        border-radius: 50%;
+        background: #5b4af0;
+        color: #fff;
+        display: flex; align-items: center; justify-content: center;
+        box-shadow: 0 2px 8px -2px rgba(91, 74, 240, 0.5);
+      }
+
+      /* The "old" note sits behind, scaled and rotated. */
+      .fs-note.fs-old {
+        transform: translate3d(0, 18px, 0) scale(0.92) rotate(-2deg);
+        opacity: 0;
+        animation: fsOldEnter .7s cubic-bezier(.2,.8,.2,1) 0.15s forwards;
+        z-index: 1;
+      }
+      @keyframes fsOldEnter {
+        to {
+          opacity: 0.7;
+          transform: translate3d(-22px, 14px, 0) scale(0.92) rotate(-4deg);
+        }
+      }
+
+      /* The "new" blank note enters from below, lifts up + violet pulse. */
+      .fs-note.fs-new {
+        transform: translate3d(0, 80px, 0) scale(0.96);
+        opacity: 0;
+        z-index: 2;
+        animation:
+          fsNewEnter .9s cubic-bezier(.2,.8,.2,1) 0.7s forwards,
+          fsNewGlow 2.6s ease-in-out 1.5s infinite;
+      }
+      @keyframes fsNewEnter {
+        to {
+          opacity: 1;
+          transform: translate3d(8px, -2px, 0) scale(1) rotate(2deg);
+        }
+      }
+      @keyframes fsNewGlow {
+        0%, 100% {
+          box-shadow:
+            0 1px 0 rgba(255,255,255,0.9) inset,
+            0 0 0 2px #5b4af0,
+            0 0 0 6px rgba(91, 74, 240, 0.15),
+            0 22px 46px -16px rgba(91, 74, 240, 0.25),
+            0 4px 12px -6px rgba(91, 74, 240, 0.18);
+        }
+        50% {
+          box-shadow:
+            0 1px 0 rgba(255,255,255,0.9) inset,
+            0 0 0 2px #5b4af0,
+            0 0 0 12px rgba(91, 74, 240, 0.10),
+            0 22px 46px -16px rgba(91, 74, 240, 0.32),
+            0 4px 12px -6px rgba(91, 74, 240, 0.18);
+        }
+      }
+
+      /* Typing cursor on the new note */
+      .fs-note.fs-new .fs-body::after {
+        content: '|';
+        color: #5b4af0;
+        margin-left: 2px;
+        animation: fsBlink 1s steps(1) infinite;
+        opacity: 0;
+        animation-delay: 1.6s;
+      }
+      @keyframes fsBlink {
+        0%, 50% { opacity: 0.9; }
+        51%, 100% { opacity: 0; }
+      }
+
+      .fs-eyebrow {
+        display: inline-flex; align-items: center; gap: 6px;
+        padding: 6px 11px;
+        border-radius: 999px;
+        background: rgba(91, 74, 240, 0.10);
+        color: #5b4af0;
+        font-size: 10.5px; font-weight: 700; letter-spacing: 0.14em;
+        opacity: 0;
+        animation: fsFadeIn .6s cubic-bezier(.2,.8,.2,1) 0.05s forwards;
+      }
+
+      .fs-heading {
+        font-size: 30px; font-weight: 600; line-height: 1.15;
+        letter-spacing: -0.022em;
+        color: #1a1a1c;
+        max-width: 320px;
+        margin: 0;
+        opacity: 0;
+        animation: fsFadeIn .6s cubic-bezier(.2,.8,.2,1) 0.20s forwards;
+      }
+      .fs-heading em {
+        font-style: normal;
+        color: #5b4af0;
+        background: linear-gradient(180deg, #8a76ff 0%, #5b4af0 100%);
+        -webkit-background-clip: text;
+        background-clip: text;
+        -webkit-text-fill-color: transparent;
+      }
+
+      .fs-subhead {
+        font-size: 16px; font-weight: 400; line-height: 1.45;
+        color: rgba(0,0,0,0.62);
+        max-width: 320px;
+        margin: 0;
+        opacity: 0;
+        animation: fsFadeIn .6s cubic-bezier(.2,.8,.2,1) 0.35s forwards;
+      }
+
+      @keyframes fsFadeIn {
+        from { opacity: 0; transform: translateY(8px); }
+        to   { opacity: 1; transform: translateY(0); }
+      }
+
+      .fs-footer {
+        padding: 12px 28px calc(28px + env(safe-area-inset-bottom));
+        z-index: 2;
+        opacity: 0;
+        animation: fsFadeIn .6s cubic-bezier(.2,.8,.2,1) 1.0s forwards;
+      }
+      .fs-cta {
+        appearance: none; border: none; cursor: pointer;
+        width: 100%;
+        padding: 18px 20px;
+        border-radius: 999px;
+        background: #1a1a1c;
+        color: #fafaf6;
+        font-family: inherit;
+        font-size: 17px; font-weight: 600;
+        letter-spacing: -0.005em;
+        box-shadow:
+          0 1px 0 rgba(255,255,255,0.06) inset,
+          0 12px 28px -10px rgba(0,0,0,0.40),
+          0 2px 8px -2px rgba(0,0,0,0.20);
+        transition: transform .18s cubic-bezier(.2,.8,.2,1),
+                    box-shadow .25s ease;
+      }
+      .fs-cta:active { transform: scale(0.98); }
+
+      /* ============================================================
+         STICKY-NOTES HOME — verbatim from sticky-notes.html, classes
+         prefixed with `sn-`. Paywall overlay deferred to substep 4.6.
+         ============================================================ */
+      .sn-screen {
+        position: absolute; inset: 0;
+        font-family:
+          -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'SF Pro Display',
+          system-ui, 'Helvetica Neue', sans-serif;
+        background: radial-gradient(ellipse 100% 60% at 50% 0%,
+          #fafaf6 0%, #f5f4ef 60%, #efece6 100%);
+        color: #1a1a1c;
+        -webkit-font-smoothing: antialiased;
+        -moz-osx-font-smoothing: grayscale;
+        overflow: hidden;
+        overscroll-behavior: none;
+        touch-action: none;
+        display: flex; flex-direction: column;
+        padding-top: env(safe-area-inset-top);
+        padding-bottom: env(safe-area-inset-bottom);
+      }
+
+      .sn-top-spacer {
+        height: 32px;
+        flex-shrink: 0;
+      }
+
+      .sn-bottom-bar {
+        position: relative; z-index: 30;
+        flex-shrink: 0;
+        display: flex; align-items: center; justify-content: center;
+        padding: 14px 0 28px;
+      }
+      .sn-new-btn {
+        appearance: none; border: none; cursor: pointer;
+        width: 56px; height: 56px; border-radius: 50%;
+        background: #1a1a1c; color: #fff;
+        display: flex; align-items: center; justify-content: center;
+        box-shadow:
+          0 1px 0 rgba(255,255,255,0.06) inset,
+          0 8px 24px -6px rgba(0,0,0,0.40),
+          0 2px 8px -2px rgba(0,0,0,0.20);
+        transition: transform .18s cubic-bezier(.2,.8,.2,1),
+                    box-shadow .18s ease;
+        flex-shrink: 0;
+      }
+      .sn-new-btn:hover {
+        box-shadow:
+          0 1px 0 rgba(255,255,255,0.06) inset,
+          0 12px 28px -6px rgba(0,0,0,0.45),
+          0 2px 8px -2px rgba(0,0,0,0.20);
+      }
+      .sn-new-btn:active { transform: scale(0.92); }
+      .sn-new-btn.nudge { animation: snNudge .4s cubic-bezier(.36,.07,.19,.97); }
+      @keyframes snNudge {
+        0%, 100% { transform: translateX(0); }
+        20% { transform: translateX(-4px); }
+        40% { transform: translateX(4px); }
+        60% { transform: translateX(-3px); }
+        80% { transform: translateX(2px); }
+      }
+
+      .sn-stack-area {
+        flex: 1; min-height: 0;
+        display: flex; align-items: center; justify-content: center;
+        padding: 24px;
+        perspective: 1400px;
+        touch-action: none;
+        cursor: grab;
+        user-select: none;
+        -webkit-user-select: none;
+      }
+      .sn-stack-area.dragging { cursor: grabbing; }
+      .sn-stack {
+        position: relative;
+        width: 100%; max-width: 380px;
+        aspect-ratio: 1 / 1.10;
+        transform-style: preserve-3d;
+      }
+
+      .sn-card {
+        position: absolute; inset: 0;
+        border-radius: 26px;
+        padding: 22px 22px 18px;
+        display: flex; flex-direction: column;
+        box-sizing: border-box;
+        overflow: hidden;
+        transform-origin: 50% 0%;
+        will-change: transform, opacity, filter;
+      }
+      .sn-card.idle, .sn-card.progress {
+        background: linear-gradient(168deg, #f8f7f3 0%, #f1efea 100%);
+        color: #1a1a1c;
+        box-shadow:
+          0 1px 0 rgba(255,255,255,0.9) inset,
+          0 0 0 1px rgba(0,0,0,0.06),
+          0 18px 38px -18px rgba(0,0,0,0.30),
+          0 4px 12px -6px rgba(0,0,0,0.10);
+      }
+      .sn-card.ready {
+        background: linear-gradient(168deg, #f8f7f3 0%, #f1efea 100%);
+        color: #1a1a1c;
+        box-shadow:
+          0 1px 0 rgba(255,255,255,0.9) inset,
+          0 0 0 2px #5b4af0,
+          0 0 0 5px rgba(91,74,240,0.16),
+          0 18px 38px -18px rgba(91,74,240,0.32),
+          0 4px 12px -6px rgba(91,74,240,0.18);
+      }
+      .sn-card.watched {
+        background: linear-gradient(168deg, #18181b 0%, #0c0c0e 100%);
+        color: #fafaf6;
+        box-shadow:
+          0 1px 0 rgba(255,255,255,0.07) inset,
+          0 0 0 1px rgba(255,255,255,0.10),
+          0 22px 44px -18px rgba(0,0,0,0.55),
+          0 4px 14px -6px rgba(0,0,0,0.35);
+      }
+
+      .sn-meta { min-width: 0; }
+      .sn-meta .sn-when {
+        font-size: 11px; letter-spacing: 0.12em; font-weight: 600;
+        font-variant-numeric: tabular-nums;
+        white-space: nowrap;
+        color: inherit; opacity: 0.7;
+      }
+      .sn-meta .sn-place {
+        margin-top: 3px;
+        font-size: 11px; letter-spacing: 0.04em; font-weight: 500;
+        white-space: nowrap;
+        opacity: 0.5;
+      }
+
+      .sn-top-row {
+        display: flex; justify-content: space-between; align-items: flex-start;
+        gap: 10px;
+      }
+
+      .sn-jolt-btn {
+        appearance: none; border: none; cursor: pointer;
+        padding: 8px 12px;
+        border-radius: 999px;
+        font-family: inherit;
+        font-size: 11px; font-weight: 600; letter-spacing: 0.10em;
+        display: inline-flex; align-items: center; gap: 6px;
+        white-space: nowrap;
+        transition:
+          background .35s ease,
+          color .35s ease,
+          box-shadow .35s ease,
+          transform .18s cubic-bezier(.2,.8,.2,1);
+      }
+      .sn-card.idle .sn-jolt-btn {
+        background: rgba(0,0,0,0.06);
+        color: rgba(0,0,0,0.7);
+        box-shadow: inset 0 0 0 1px rgba(0,0,0,0.06);
+      }
+      .sn-card.progress .sn-jolt-btn {
+        background: #ff9f1a;
+        color: #2a1c00;
+        box-shadow:
+          inset 0 0 0 1px rgba(255,255,255,0.25),
+          0 4px 14px -2px rgba(255,159,26,0.5);
+        animation: snBtnPulse 1.4s cubic-bezier(.4,0,.2,1) infinite;
+        cursor: default;
+      }
+      .sn-card.ready .sn-jolt-btn {
+        background: #5b4af0;
+        color: #fff;
+        box-shadow:
+          inset 0 0 0 1px rgba(255,255,255,0.18),
+          0 4px 12px -2px rgba(91,74,240,0.4);
+      }
+      .sn-card.watched .sn-jolt-btn {
+        background: #fff;
+        color: #18181b;
+        box-shadow:
+          inset 0 0 0 1px rgba(0,0,0,0.04),
+          0 4px 12px -4px rgba(0,0,0,0.4);
+      }
+      .sn-jolt-btn:not(:disabled):active { transform: scale(0.96); }
+
+      .sn-watched-btn {
+        appearance: none; border: none; cursor: pointer;
+        padding: 8px 13px;
+        border-radius: 999px;
+        font-family: inherit;
+        font-size: 11px; font-weight: 600; letter-spacing: 0.10em;
+        display: inline-flex; align-items: center; gap: 7px;
+        white-space: nowrap;
+        background: #fff;
+        color: #18181b;
+        box-shadow:
+          inset 0 0 0 1px rgba(0,0,0,0.04),
+          0 4px 14px -4px rgba(255,255,255,0.4),
+          0 1px 3px rgba(0,0,0,0.5);
+        transition: transform .18s cubic-bezier(.2,.8,.2,1),
+                    box-shadow .25s ease;
+      }
+      .sn-watched-btn:active { transform: scale(0.96); }
+
+      .sn-body {
+        margin-top: 18px; flex: 1; min-height: 0;
+        overflow: hidden;
+        position: relative;
+      }
+      .sn-body textarea, .sn-body .sn-text {
+        width: 100%; height: 100%;
+        border: none; outline: none;
+        background: transparent;
+        color: inherit;
+        font-family: inherit;
+        font-size: 18px; line-height: 1.4; font-weight: 400;
+        letter-spacing: -0.005em;
+        resize: none; padding: 0;
+        caret-color: #5b4af0;
+      }
+      .sn-body textarea { pointer-events: none; }
+      .sn-body textarea:focus { pointer-events: auto; }
+      .sn-card.watched .sn-body textarea,
+      .sn-card.watched .sn-body .sn-text { caret-color: #fff; }
+      .sn-body .sn-text { white-space: pre-wrap; text-wrap: pretty; }
+      .sn-body .sn-placeholder { opacity: 0.32; font-style: italic; }
+
+      .sn-card-footer {
+        margin-top: 12px;
+        display: flex; align-items: center; justify-content: space-between;
+        min-height: 24px;
+      }
+      .sn-pill {
+        font-size: 10px; letter-spacing: 0.16em; font-weight: 600;
+        display: inline-flex; align-items: center; gap: 6px;
+        color: inherit; opacity: 0.85;
+      }
+      .sn-pill .sn-dot { width: 5px; height: 5px; border-radius: 50%; background: currentColor; }
+      .sn-card.progress .sn-pill { color: #ff9f1a; }
+      .sn-card.progress .sn-pill .sn-dot {
+        background: #ff9f1a;
+        animation: snPulseDot 1.2s ease-in-out infinite;
+      }
+      .sn-card.ready .sn-pill { color: #5b4af0; }
+      .sn-card.ready .sn-pill .sn-dot {
+        background: #5b4af0;
+        box-shadow: 0 0 8px rgba(91,74,240,0.55);
+        animation: snPulseDot 2s ease-in-out infinite;
+      }
+      .sn-card.watched .sn-pill { color: rgba(255,255,255,0.65); }
+
+      .sn-share-btn {
+        appearance: none; border: none; cursor: pointer;
+        width: 32px; height: 32px; border-radius: 50%;
+        background: rgba(0,0,0,0.05);
+        color: inherit;
+        display: flex; align-items: center; justify-content: center;
+        box-shadow: inset 0 0 0 1px rgba(0,0,0,0.05);
+        transition: background .2s ease, transform .18s cubic-bezier(.2,.8,.2,1);
+      }
+      .sn-card.ready .sn-share-btn {
+        background: rgba(91,74,240,0.10);
+        box-shadow: inset 0 0 0 1px rgba(91,74,240,0.16);
+      }
+      .sn-card.watched .sn-share-btn {
+        background: rgba(255,255,255,0.08);
+        box-shadow: inset 0 0 0 1px rgba(255,255,255,0.10);
+      }
+      .sn-share-btn:active { transform: scale(0.92); }
+
+      .sn-card.shake { animation: snCardJolt .6s cubic-bezier(.36,.07,.19,.97); }
+
+      /* Modal — playback gate */
+      .sn-modal {
+        position: fixed; inset: 0;
+        background: #000;
+        z-index: 500;
+        opacity: 0;
+        pointer-events: none;
+        transition: opacity .35s ease;
+        display: flex; align-items: center; justify-content: center;
+      }
+      .sn-modal.show { opacity: 1; pointer-events: auto; }
+      .sn-modal-back {
+        appearance: none; border: none; cursor: pointer;
+        position: absolute;
+        top: calc(20px + env(safe-area-inset-top));
+        left: 22px;
+        height: 38px; padding: 0 16px 0 12px;
+        border-radius: 999px;
+        background: rgba(255,255,255,0.10);
+        color: #fff;
+        font-family: inherit;
+        font-size: 14px; font-weight: 500;
+        display: inline-flex; align-items: center; gap: 6px;
+        backdrop-filter: blur(20px);
+        -webkit-backdrop-filter: blur(20px);
+        transition: background .2s ease, transform .18s cubic-bezier(.2,.8,.2,1);
+      }
+      .sn-modal-back:active { transform: scale(0.96); }
+
+      /* Share sheet */
+      .sn-share-sheet {
+        position: fixed; inset: 0;
+        z-index: 800;
+        pointer-events: none;
+      }
+      .sn-share-sheet.show { pointer-events: auto; }
+      .sn-share-sheet-scrim {
+        position: absolute; inset: 0;
+        background: rgba(10,10,12,0.35);
+        backdrop-filter: blur(2px);
+        -webkit-backdrop-filter: blur(2px);
+        opacity: 0;
+        transition: opacity .25s ease;
+      }
+      .sn-share-sheet.show .sn-share-sheet-scrim { opacity: 1; }
+      .sn-share-sheet-card {
+        position: absolute; left: 0; right: 0;
+        bottom: 0;
+        padding: 8px 12px calc(12px + env(safe-area-inset-bottom));
+        background: rgba(245,244,239,0.92);
+        backdrop-filter: blur(28px) saturate(1.4);
+        -webkit-backdrop-filter: blur(28px) saturate(1.4);
+        border-radius: 16px 16px 0 0;
+        box-shadow: 0 -10px 40px -10px rgba(0,0,0,0.25);
+        transform: translateY(100%);
+        transition: transform .35s cubic-bezier(.2,.8,.2,1);
+      }
+      .sn-share-sheet.show .sn-share-sheet-card { transform: translateY(0); }
+      .sn-share-sheet-grabber {
+        width: 36px; height: 4px;
+        background: rgba(0,0,0,0.18);
+        border-radius: 2px;
+        margin: 6px auto 12px;
+      }
+      .sn-share-sheet-eyebrow {
+        text-align: center;
+        font-size: 11px; letter-spacing: 0.16em; font-weight: 600;
+        color: rgba(0,0,0,0.45);
+        padding: 4px 0 14px;
+      }
+      .sn-share-sheet-options {
+        display: grid;
+        grid-template-columns: repeat(4, 1fr);
+        gap: 6px;
+        padding: 4px 4px 14px;
+      }
+      .sn-share-option {
+        appearance: none; border: none; cursor: pointer; background: transparent;
+        display: flex; flex-direction: column; align-items: center; gap: 8px;
+        padding: 8px 4px;
+        border-radius: 12px;
+        font-family: inherit;
+        transition: background .15s ease, transform .15s cubic-bezier(.2,.8,.2,1);
+      }
+      .sn-share-option:hover { background: rgba(0,0,0,0.04); }
+      .sn-share-option:active { transform: scale(0.94); }
+      .sn-share-icon {
+        width: 56px; height: 56px;
+        border-radius: 14px;
+        display: flex; align-items: center; justify-content: center;
+        box-shadow: 0 6px 16px -6px rgba(0,0,0,0.20),
+                    inset 0 0 0 1px rgba(255,255,255,0.08);
+      }
+      .sn-share-label {
+        font-size: 12px; font-weight: 500;
+        color: #1a1a1c;
+      }
+      .sn-share-sheet-cancel {
+        appearance: none; border: none; cursor: pointer;
+        width: 100%; height: 50px;
+        background: rgba(255,255,255,0.85);
+        border-radius: 12px;
+        font-family: inherit;
+        font-size: 17px; font-weight: 600;
+        color: #1a1a1c;
+        box-shadow: inset 0 0 0 0.5px rgba(0,0,0,0.06);
+        transition: background .15s ease;
+      }
+      .sn-share-sheet-cancel:hover { background: rgba(255,255,255,1); }
+
+      /* Toast */
+      .sn-toast {
+        position: fixed;
+        left: 50%;
+        bottom: calc(28px + env(safe-area-inset-bottom));
+        transform: translateX(-50%) translateY(20px);
+        z-index: 900;
+        padding: 11px 18px;
+        border-radius: 999px;
+        background: rgba(20,20,22,0.92);
+        backdrop-filter: blur(20px);
+        -webkit-backdrop-filter: blur(20px);
+        color: #fafaf6;
+        font-family: inherit;
+        font-size: 14px; font-weight: 500;
+        letter-spacing: -0.005em;
+        opacity: 0;
+        pointer-events: none;
+        transition: opacity .25s ease, transform .35s cubic-bezier(.2,.8,.2,1);
+        white-space: nowrap;
+      }
+      .sn-toast.show {
+        opacity: 1;
+        transform: translateX(-50%) translateY(0);
+      }
+
+      @keyframes snCardJolt {
+        0%   { transform: translate3d(0,0,0) rotate(0); }
+        14%  { transform: translate3d(-3px,1px,0) rotate(-1deg); }
+        30%  { transform: translate3d(4px,-1px,0) rotate(1.2deg); }
+        46%  { transform: translate3d(-3px,2px,0) rotate(-0.9deg); }
+        62%  { transform: translate3d(2px,-1px,0) rotate(0.6deg); }
+        78%  { transform: translate3d(-1px,1px,0) rotate(-0.3deg); }
+        100% { transform: translate3d(0,0,0) rotate(0); }
+      }
+      @keyframes snBtnPulse {
+        0%, 100% { box-shadow:
+          inset 0 0 0 1px rgba(255,255,255,0.25),
+          0 4px 14px -2px rgba(255,159,26,0.5),
+          0 0 0 0 rgba(255,159,26,0.55); }
+        50% { box-shadow:
+          inset 0 0 0 1px rgba(255,255,255,0.25),
+          0 4px 14px -2px rgba(255,159,26,0.5),
+          0 0 0 8px rgba(255,159,26,0); }
+      }
+      @keyframes snPulseDot {
+        0%, 100% { opacity: 1; transform: scale(1); }
+        50%      { opacity: 0.4; transform: scale(0.7); }
+      }
+
+      /* ============================================================
+         PAYWALL OVERLAY — verbatim from sticky-notes.html embedded
+         paywall (which matches paywall.html). Classes prefixed `pw-`.
+         Triggered when the user tries to jolt a watched note (or hits
+         a `subscription_required` block from the backend).
+         Reuses snNudge for the input shake (same generic horizontal jiggle).
+         ============================================================ */
+      .pw-paywall {
+        position: fixed; inset: 0;
+        background: radial-gradient(ellipse 90% 70% at 50% -10%,
+          #ffffff 0%, #fafaf6 55%, #f0ede5 100%);
+        z-index: 600;
+        opacity: 0;
+        pointer-events: none;
+        transition: opacity .32s ease;
+        overflow: hidden;
+        padding-top: env(safe-area-inset-top);
+        padding-bottom: env(safe-area-inset-bottom);
+      }
+      .pw-paywall.show { opacity: 1; pointer-events: auto; }
+
+      .pw-close {
+        appearance: none; border: none; cursor: pointer;
+        position: absolute;
+        top: calc(18px + env(safe-area-inset-top));
+        right: 20px;
+        width: 36px; height: 36px; border-radius: 50%;
+        background: rgba(0,0,0,0.05);
+        color: #1a1a1c;
+        display: flex; align-items: center; justify-content: center;
+        box-shadow: inset 0 0 0 1px rgba(0,0,0,0.05);
+        transition: background .2s ease, transform .18s cubic-bezier(.2,.8,.2,1);
+      }
+      .pw-close:hover { background: rgba(0,0,0,0.08); }
+      .pw-close:active { transform: scale(0.92); }
+
+      .pw-inner {
+        height: 100%;
+        max-width: 420px;
+        margin: 0 auto;
+        padding: 28px 26px;
+        display: flex; flex-direction: column; justify-content: center;
+        gap: 14px;
+        transform: translateY(0);
+        overflow-y: auto;
+      }
+      .pw-paywall.show .pw-inner {
+        animation: pwIn .55s cubic-bezier(.2,.8,.2,1);
+      }
+      @keyframes pwIn {
+        from { transform: translateY(16px); opacity: 0; }
+        to   { transform: translateY(0); opacity: 1; }
+      }
+
+      .pw-eyebrow {
+        display: inline-flex; align-items: center; gap: 6px;
+        align-self: flex-start;
+        padding: 6px 11px;
+        border-radius: 999px;
+        background: rgba(255,159,26,0.12);
+        color: #b56500;
+        font-size: 10.5px; font-weight: 700; letter-spacing: 0.14em;
+      }
+      .pw-title {
+        font-family: inherit;
+        font-size: 28px; font-weight: 600; line-height: 1.12;
+        letter-spacing: -0.022em;
+        color: #1a1a1c;
+        margin: 0;
+      }
+      .pw-tagline {
+        font-size: 15px; line-height: 1.45; font-weight: 400;
+        color: rgba(0,0,0,0.62);
+        margin: 0;
+        max-width: 340px;
+      }
+
+      .pw-features {
+        list-style: none;
+        margin: 0; padding: 0;
+        display: flex; flex-direction: column;
+        gap: 10px;
+      }
+      .pw-features li {
+        display: flex; align-items: center; gap: 10px;
+        font-size: 14.5px; font-weight: 500;
+        color: rgba(0,0,0,0.78);
+        line-height: 1.35;
+      }
+      .pw-features li svg {
+        flex-shrink: 0;
+        color: #5b4af0;
+      }
+
+      .pw-plans {
+        display: flex; flex-direction: column; gap: 10px;
+        margin-top: 4px;
+      }
+      .pw-plan {
+        appearance: none; border: none; cursor: pointer;
+        position: relative;
+        text-align: left;
+        padding: 18px 20px;
+        border-radius: 18px;
+        background: #1a1a1c;
+        color: #fafaf6;
+        display: grid;
+        grid-template-columns: 1fr auto;
+        grid-template-rows: auto auto;
+        grid-template-areas:
+          "name  price"
+          "equiv price";
+        column-gap: 14px;
+        row-gap: 2px;
+        align-items: baseline;
+        box-shadow:
+          0 1px 0 rgba(255,255,255,0.06) inset,
+          0 12px 28px -10px rgba(0,0,0,0.35);
+        transition: transform .18s cubic-bezier(.2,.8,.2,1),
+                    box-shadow .25s ease;
+        font-family: inherit;
+      }
+      .pw-plan:hover {
+        box-shadow:
+          0 1px 0 rgba(255,255,255,0.06) inset,
+          0 16px 32px -10px rgba(0,0,0,0.40);
+      }
+      .pw-plan:active { transform: scale(0.985); }
+
+      .pw-plan.pw-secondary {
+        background: rgba(0,0,0,0.04);
+        color: #1a1a1c;
+        box-shadow: inset 0 0 0 1px rgba(0,0,0,0.10);
+        grid-template-areas:
+          "name  price"
+          "name  price";
+      }
+      .pw-plan.pw-secondary:hover {
+        background: rgba(0,0,0,0.06);
+      }
+
+      .pw-plan-name {
+        grid-area: name;
+        font-size: 17px; font-weight: 600;
+        letter-spacing: -0.01em;
+        display: inline-flex; align-items: center; gap: 8px;
+        flex-wrap: wrap;
+      }
+      .pw-plan-badge {
+        display: inline-block;
+        padding: 3px 8px;
+        border-radius: 6px;
+        background: #5b4af0;
+        color: #fff;
+        font-size: 9.5px; font-weight: 700; letter-spacing: 0.10em;
+        line-height: 1.2;
+        vertical-align: middle;
+      }
+      .pw-plan-price {
+        grid-area: price;
+        font-size: 22px; font-weight: 600;
+        letter-spacing: -0.015em;
+        text-align: right;
+        font-variant-numeric: tabular-nums;
+      }
+      .pw-plan-period {
+        font-size: 13px; font-weight: 500;
+        opacity: 0.65;
+        margin-left: 1px;
+      }
+      .pw-plan-equiv {
+        grid-area: equiv;
+        font-size: 12px; font-weight: 500;
+        opacity: 0.55;
+      }
+
+      .pw-fineprint {
+        text-align: center;
+        font-size: 12px; font-weight: 500;
+        color: rgba(0,0,0,0.42);
+        margin: 4px 0 0;
+      }
+
+      .pw-code-btn {
+        appearance: none; border: none; cursor: pointer; background: transparent;
+        align-self: center;
+        margin-top: 12px;
+        padding: 6px 4px;
+        font-family: inherit;
+        font-size: 14px; font-weight: 500;
+        color: rgba(0,0,0,0.55);
+        text-decoration: underline;
+        text-underline-offset: 3px;
+        text-decoration-color: rgba(0,0,0,0.20);
+        transition: color .2s ease;
+      }
+      .pw-code-btn:hover { color: rgba(0,0,0,0.75); }
+
+      .pw-code-row {
+        position: relative;
+        display: none;
+        align-items: center;
+        margin-top: 4px;
+        border-radius: 14px;
+        background: rgba(0,0,0,0.04);
+        box-shadow: inset 0 0 0 1px rgba(0,0,0,0.08);
+        transition: box-shadow .2s ease;
+      }
+      .pw-code-row.show { display: flex; }
+      .pw-code-row:focus-within {
+        box-shadow: inset 0 0 0 2px #5b4af0;
+      }
+      #pwCodeInput {
+        flex: 1;
+        appearance: none; border: none; outline: none;
+        background: transparent;
+        padding: 14px 4px 14px 16px;
+        font-family: inherit;
+        font-size: 16px; font-weight: 500;
+        color: #1a1a1c;
+        letter-spacing: 0.04em;
+        text-transform: uppercase;
+      }
+      #pwCodeInput::placeholder {
+        color: rgba(0,0,0,0.32);
+        text-transform: none;
+        letter-spacing: 0;
+        font-weight: 400;
+      }
+      #pwCodeInput.shake {
+        animation: snNudge .4s cubic-bezier(.36,.07,.19,.97);
+      }
+      .pw-code-submit {
+        appearance: none; border: none; cursor: pointer;
+        width: 36px; height: 36px; margin-right: 6px;
+        border-radius: 10px;
+        background: #1a1a1c; color: #fff;
+        display: flex; align-items: center; justify-content: center;
+        transition: transform .18s cubic-bezier(.2,.8,.2,1);
+      }
+      .pw-code-submit:active { transform: scale(0.92); }
+      .pw-code-error {
+        position: absolute;
+        bottom: -22px; left: 4px;
+        font-size: 12px;
+        color: #c2410c;
+      }
     </style>
     <script src="https://accounts.google.com/gsi/client" async defer></script>
   </head>
@@ -1835,6 +3222,1602 @@
           </section>
         `;
       }
+
+      // ============ INTRO SCREEN ============
+      // Verbatim from intro.html: a sticky note that types itself in,
+      // then cycles empty → typing → idle → progress → ready → playing.
+      // The CTA "Let's begin" hands off to the questions flow.
+      const INTRO_TEXT =
+        "The music and the way he spoke stood out. " +
+        "It made me want to stop being afraid and look up at the horizon. " +
+        "I felt empowered, incredible, and strong.";
+
+      let introAnimEpoch = 0;
+
+      function renderIntro() {
+        return `
+          <div class="intro-screen">
+            <div class="intro-content">
+              <div class="intro-note-stage intro-anim intro-anim-1" id="introNoteStage" data-phase="empty">
+                <div class="intro-note empty" id="introNote">
+                  <div class="intro-aurora"></div>
+                  <div class="intro-meta">TODAY · 9:14 PM</div>
+                  <div class="intro-note-body" id="introNoteBody"><span class="intro-caret"></span></div>
+                  <div class="intro-footer-row">
+                    <span class="intro-pill-state rendering"><span class="intro-dot"></span>RENDERING</span>
+                    <span class="intro-pill-state ready"><span class="intro-dot"></span>READY · 0:12</span>
+                    <span class="intro-pill-state playing"><span class="intro-dot"></span>PLAYING</span>
+
+                    <span class="intro-action idle">
+                      <svg viewBox="0 0 16 16" width="10" height="10" aria-hidden="true">
+                        <path d="M9.2 1 L3.4 8.8 L7 8.8 L5.8 15 L12.6 6.6 L9 6.6 L10.2 1 Z" fill="currentColor"/>
+                      </svg>
+                      JOLT
+                    </span>
+                    <span class="intro-action progress">
+                      <svg viewBox="0 0 16 16" width="10" height="10" aria-hidden="true">
+                        <path d="M9.2 1 L3.4 8.8 L7 8.8 L5.8 15 L12.6 6.6 L9 6.6 L10.2 1 Z" fill="currentColor"/>
+                      </svg>
+                      JOLT
+                    </span>
+                    <span class="intro-action ready">
+                      <svg viewBox="0 0 16 16" width="10" height="10" aria-hidden="true">
+                        <path d="M5.2 3.2 L12.8 8 L5.2 12.8 Z" fill="currentColor"/>
+                      </svg>
+                      READY
+                    </span>
+                    <span class="intro-action playing">
+                      <svg viewBox="0 0 16 16" width="10" height="10" aria-hidden="true">
+                        <path d="M5 3 L5 13 M11 3 L11 13" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round"/>
+                      </svg>
+                      PLAYING
+                    </span>
+                  </div>
+                </div>
+              </div>
+
+              <div class="intro-caption intro-anim intro-anim-2">
+                <span class="intro-c1">CAPTURE</span>
+                <span class="intro-c2">CHARGE UP</span>
+                <span class="intro-c3">RELIVE</span>
+              </div>
+
+              <h1 class="intro-heading intro-anim intro-anim-3">
+                Turn your insights into<br/>
+                <em>peak experiences</em>.
+              </h1>
+            </div>
+
+            <div class="intro-footer intro-anim intro-anim-4">
+              <button class="intro-cta" data-action="intro-begin">Let’s begin</button>
+            </div>
+          </div>
+        `;
+      }
+
+      function introCharDelay(ch, prev) {
+        if (prev === "." || prev === "!" || prev === "?") return 180;
+        if (prev === ",") return 90;
+        if (ch === " ") return 14;
+        return 14 + Math.random() * 14;
+      }
+      function introSetPhase(note, noteStage, phase) {
+        note.className = "intro-note " + phase;
+        noteStage.setAttribute("data-phase", phase);
+      }
+      function introRenderTyped(body, n) {
+        body.textContent = INTRO_TEXT.slice(0, n);
+        const caret = document.createElement("span");
+        caret.className = "intro-caret";
+        body.appendChild(caret);
+      }
+      function introSleep(ms) {
+        return new Promise((r) => setTimeout(r, ms));
+      }
+
+      // Epoch-guarded loop: each call to startIntroAnim/stopIntroAnim
+      // bumps the epoch, so any in-flight loop sees its captured epoch
+      // is stale on the next sleep boundary and exits cleanly. Prevents
+      // overlapping loops if the user toggles screens quickly.
+      async function runIntroLoop(epoch) {
+        const note = document.getElementById("introNote");
+        const noteStage = document.getElementById("introNoteStage");
+        const body = document.getElementById("introNoteBody");
+        if (!note || !noteStage || !body) return;
+
+        while (introAnimEpoch === epoch) {
+          introSetPhase(note, noteStage, "empty");
+          introRenderTyped(body, 0);
+          await introSleep(900);
+          if (introAnimEpoch !== epoch) return;
+
+          introSetPhase(note, noteStage, "typing");
+          let prev = "";
+          for (let i = 1; i <= INTRO_TEXT.length; i++) {
+            if (introAnimEpoch !== epoch) return;
+            introRenderTyped(body, i);
+            const ch = INTRO_TEXT[i - 1];
+            await introSleep(introCharDelay(ch, prev));
+            prev = ch;
+          }
+
+          if (introAnimEpoch !== epoch) return;
+          introSetPhase(note, noteStage, "idle");
+          await introSleep(900);
+          if (introAnimEpoch !== epoch) return;
+
+          introSetPhase(note, noteStage, "progress");
+          await introSleep(1500);
+          if (introAnimEpoch !== epoch) return;
+
+          introSetPhase(note, noteStage, "ready");
+          await introSleep(1700);
+          if (introAnimEpoch !== epoch) return;
+
+          introSetPhase(note, noteStage, "playing");
+          await introSleep(3500);
+          if (introAnimEpoch !== epoch) return;
+
+          await introSleep(500);
+        }
+      }
+
+      function startIntroAnim() {
+        const epoch = ++introAnimEpoch;
+        setTimeout(() => runIntroLoop(epoch), 800);
+      }
+      function stopIntroAnim() {
+        introAnimEpoch++;
+      }
+
+      // ============ HEADPHONES SCREEN ============
+      // Verbatim from onboarding-1-headphones.html. Sits between the
+      // 4 questions and meditation playback. Tapping "I'm ready" hands
+      // off to startGeneration() which kicks the API + meditation flow.
+      function renderHeadphones() {
+        return `
+          <div class="hp-screen">
+            <div class="hp-stars" id="hpStars"></div>
+
+            <div class="hp-content">
+              <div class="hp-headphones-wrap hp-anim hp-anim-1">
+                <div class="hp-headphones-glow"></div>
+                <div class="hp-headphones">
+                  <span class="hp-wave left"></span>
+                  <span class="hp-wave right"></span>
+                  <svg viewBox="0 0 100 100" aria-hidden="true">
+                    <!-- Headband -->
+                    <path d="M 18 55 Q 18 18, 50 18 Q 82 18, 82 55"
+                          stroke="currentColor" stroke-width="3.5" fill="none"
+                          stroke-linecap="round"/>
+                    <!-- Left cup -->
+                    <rect x="10" y="50" width="20" height="30" rx="7"
+                          fill="currentColor"/>
+                    <rect x="14" y="54" width="12" height="22" rx="4"
+                          fill="rgba(91,74,240,0.30)"/>
+                    <!-- Right cup -->
+                    <rect x="70" y="50" width="20" height="30" rx="7"
+                          fill="currentColor"/>
+                    <rect x="74" y="54" width="12" height="22" rx="4"
+                          fill="rgba(91,74,240,0.30)"/>
+                  </svg>
+                </div>
+              </div>
+
+              <h1 class="hp-heading hp-anim hp-anim-2">
+                Your Jolt is about to <em>begin</em>.
+              </h1>
+
+              <ul class="hp-checks hp-anim hp-anim-3">
+                <li>
+                  <svg viewBox="0 0 16 16" width="14" height="14" aria-hidden="true">
+                    <path d="M3 8.4 L6.4 11.8 L13 5.2" stroke="currentColor"
+                          stroke-width="2" fill="none"
+                          stroke-linecap="round" stroke-linejoin="round"/>
+                  </svg>
+                  Put on headphones for full effect
+                </li>
+                <li>
+                  <svg viewBox="0 0 16 16" width="14" height="14" aria-hidden="true">
+                    <path d="M3 8.4 L6.4 11.8 L13 5.2" stroke="currentColor"
+                          stroke-width="2" fill="none"
+                          stroke-linecap="round" stroke-linejoin="round"/>
+                  </svg>
+                  Find a comfortable, quiet place
+                </li>
+                <li>
+                  <svg viewBox="0 0 16 16" width="14" height="14" aria-hidden="true">
+                    <path d="M3 8.4 L6.4 11.8 L13 5.2" stroke="currentColor"
+                          stroke-width="2" fill="none"
+                          stroke-linecap="round" stroke-linejoin="round"/>
+                  </svg>
+                  It will last about 10 minutes
+                </li>
+              </ul>
+            </div>
+
+            <div class="hp-footer hp-anim hp-anim-4">
+              <button class="hp-ready-btn" data-action="headphones-ready">I’m ready</button>
+            </div>
+          </div>
+        `;
+      }
+
+      // Sprinkle stars — runs once after the screen is rendered.
+      function startHeadphonesAnim() {
+        const stars = document.getElementById("hpStars");
+        if (!stars) return;
+        const N = 36;
+        for (let i = 0; i < N; i++) {
+          const s = document.createElement("span");
+          s.className = "hp-star";
+          s.style.left = Math.random() * 100 + "%";
+          s.style.top = Math.random() * 100 + "%";
+          s.style.animationDelay = Math.random() * 4 + "s";
+          s.style.animationDuration = 3 + Math.random() * 3 + "s";
+          const size = 1 + Math.random() * 1.6;
+          s.style.width = s.style.height = size + "px";
+          stars.appendChild(s);
+        }
+      }
+
+      // ============ FIRST-STICKY SCREEN ============
+      // Verbatim from onboarding-2-first-sticky.html. Triggered after the
+      // user finishes their first jolt's stimulus playback. Tapping
+      // "Capture it" advances to the next step (currently feedback;
+      // becomes sticky-notes once that screen lands in 4.5).
+      function renderFirstSticky() {
+        return `
+          <div class="fs-screen">
+            <div class="fs-sparks" id="fsSparks"></div>
+
+            <div class="fs-content">
+              <div class="fs-eyebrow">
+                <svg viewBox="0 0 16 16" width="13" height="13" aria-hidden="true">
+                  <path d="M3 8.4 L6.4 11.8 L13 5.2" stroke="currentColor"
+                        stroke-width="2" fill="none"
+                        stroke-linecap="round" stroke-linejoin="round"/>
+                </svg>
+                FIRST JOLT · COMPLETE
+              </div>
+
+              <h1 class="fs-heading">
+                You did your <em>first session</em>.
+              </h1>
+
+              <div class="fs-note-stage">
+                <div class="fs-note fs-old">
+                  <div class="fs-meta">MAY 04 · 9:41 PM</div>
+                  <div class="fs-body">
+                    The drum break in &ldquo;Strobe.&rdquo; Driving home, sun in the
+                    rear-view, suddenly very awake.
+                  </div>
+                  <div class="fs-footer-row">
+                    <span>WATCHED</span>
+                  </div>
+                </div>
+                <div class="fs-note fs-new">
+                  <div class="fs-meta">MAY 04 · NOW</div>
+                  <div class="fs-body">
+                    <span class="fs-placeholder">What just lit up&hellip;</span>
+                  </div>
+                  <div class="fs-footer-row">
+                    <span>FRESH NOTE</span>
+                    <span class="fs-pen">
+                      <svg viewBox="0 0 14 14" width="11" height="11" aria-hidden="true">
+                        <path d="M2 12 L4 11 L11 4 L10 3 L3 10 Z M9 4 L10 3"
+                              stroke="currentColor" stroke-width="1.4" fill="currentColor"
+                              stroke-linejoin="round"/>
+                      </svg>
+                    </span>
+                  </div>
+                </div>
+              </div>
+
+              <p class="fs-subhead">
+                Now let&rsquo;s capture the insight that came up.
+                Anything that lit up &mdash; even a half-thought.
+              </p>
+            </div>
+
+            <div class="fs-footer">
+              <button class="fs-cta" data-action="first-sticky-capture">Capture it</button>
+            </div>
+          </div>
+        `;
+      }
+
+      // Sparks burst from the eyebrow location — runs once after render.
+      function startFirstStickyAnim() {
+        const sparks = document.getElementById("fsSparks");
+        if (!sparks) return;
+        const colors = ["#5b4af0", "#8a76ff", "#ff9f1a", "#34c759"];
+        const N = 18;
+        for (let i = 0; i < N; i++) {
+          const s = document.createElement("span");
+          s.className = "fs-spark";
+          const angle = (i / N) * Math.PI * 2 + Math.random() * 0.4;
+          const dist = 80 + Math.random() * 120;
+          s.style.setProperty("--dx", Math.cos(angle) * dist + "px");
+          s.style.setProperty("--dy", Math.sin(angle) * dist + "px");
+          s.style.background = colors[i % colors.length];
+          s.style.animationDelay = Math.random() * 0.2 + "s";
+          const size = 4 + Math.random() * 4;
+          s.style.width = s.style.height = size + "px";
+          sparks.appendChild(s);
+        }
+      }
+
+      // ============================================================
+      // STICKY-NOTES HOME — verbatim deck physics from sticky-notes.html.
+      // Demo lifecycle (setTimeout idle→progress→ready) is swapped for
+      // real backend calls (/api/notes/*, /api/demo/generate, audio, state).
+      // Paywall trigger on watched re-jolt is deferred to substep 4.6.
+      // ============================================================
+
+      // ----- model -----
+      let snNotes = [];
+      let snPos = 0;
+      let snDragOffset = 0;
+      let snTransitioning = false;
+      let snActiveAnimation = null;
+      let snStarted = false; // true once we've installed listeners
+
+      // ----- audio "bp" click — verbatim from mockup -----
+      let snActx = null;
+      function snEnsureAudio() {
+        if (snActx) return snActx;
+        try {
+          const AC = window.AudioContext || window.webkitAudioContext;
+          if (!AC) return null;
+          snActx = new AC();
+        } catch (e) {
+          return null;
+        }
+        return snActx;
+      }
+      function snBp(vol) {
+        if (vol === undefined) vol = 0.05;
+        const a = snEnsureAudio();
+        if (!a) return;
+        if (a.state === "suspended") a.resume().catch(() => {});
+        const t0 = a.currentTime;
+        const dur = 0.055;
+        const buf = a.createBuffer(
+          1,
+          Math.max(1, Math.ceil(a.sampleRate * dur)),
+          a.sampleRate,
+        );
+        const ch = buf.getChannelData(0);
+        for (let i = 0; i < ch.length; i++) ch[i] = Math.random() * 2 - 1;
+        const src = a.createBufferSource();
+        src.buffer = buf;
+        const bpFilter = a.createBiquadFilter();
+        bpFilter.type = "bandpass";
+        bpFilter.frequency.value = 1250 + Math.random() * 280;
+        bpFilter.Q.value = 5.5;
+        const hp = a.createBiquadFilter();
+        hp.type = "highpass";
+        hp.frequency.value = 600;
+        hp.Q.value = 0.7;
+        const g = a.createGain();
+        g.gain.setValueAtTime(0.0001, t0);
+        g.gain.exponentialRampToValueAtTime(vol, t0 + 0.005);
+        g.gain.exponentialRampToValueAtTime(0.0001, t0 + dur);
+        src.connect(hp);
+        hp.connect(bpFilter);
+        bpFilter.connect(g);
+        g.connect(a.destination);
+        src.start(t0);
+        src.stop(t0 + dur + 0.01);
+      }
+
+      // ----- formatting -----
+      const snFmtDate = (d) =>
+        d.toLocaleDateString("en-US", { month: "short", day: "2-digit" }).toUpperCase();
+      const snFmtTime = (d) =>
+        d.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit", hour12: true });
+
+      // ----- icons -----
+      const SN_ICON = {
+        bolt: `<svg viewBox="0 0 16 16" width="12" height="12" aria-hidden="true"><path d="M9.2 1 L3.4 8.8 L7 8.8 L5.8 15 L12.6 6.6 L9 6.6 L10.2 1 Z" fill="currentColor"/></svg>`,
+        play: `<svg viewBox="0 0 16 16" width="11" height="11" aria-hidden="true"><path d="M5.2 3.2 L12.8 8 L5.2 12.8 Z" fill="currentColor"/></svg>`,
+        share: `<svg viewBox="0 0 16 16" width="13" height="13" aria-hidden="true"><path d="M8 1.4 L8 10.4 M8 1.4 L5.3 4.1 M8 1.4 L10.7 4.1" stroke="currentColor" stroke-width="1.6" fill="none" stroke-linecap="round" stroke-linejoin="round"/><path d="M3.2 8 L3.2 13.5 L12.8 13.5 L12.8 8" stroke="currentColor" stroke-width="1.6" fill="none" stroke-linecap="round"/></svg>`,
+      };
+
+      // ----- DOM cache -----
+      const snCardEls = new Map();
+
+      // ----- skeleton renderer -----
+      function renderStickyNotes() {
+        return `
+          <div class="sn-screen" id="snScreen">
+            <div class="sn-top-spacer"></div>
+            <div class="sn-stack-area" id="snStackArea">
+              <div class="sn-stack" id="snStack"></div>
+            </div>
+            <div class="sn-bottom-bar">
+              <button class="sn-new-btn" id="snNewBtn" title="New note" aria-label="New note">
+                <svg viewBox="0 0 20 20" width="20" height="20">
+                  <path d="M10 4.5 L10 15.5 M4.5 10 L15.5 10" stroke="currentColor"
+                        stroke-width="1.8" stroke-linecap="round"/>
+                </svg>
+              </button>
+            </div>
+            <div class="sn-modal" id="snModal">
+              <button class="sn-modal-back" id="snModalBack">
+                <svg viewBox="0 0 16 16" width="14" height="14" aria-hidden="true">
+                  <path d="M10 3 L5 8 L10 13" stroke="currentColor" stroke-width="1.7"
+                        fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+                </svg>
+                Back
+              </button>
+            </div>
+            <div class="sn-share-sheet" id="snShareSheet" aria-hidden="true">
+              <div class="sn-share-sheet-scrim" id="snShareSheetScrim"></div>
+              <div class="sn-share-sheet-card">
+                <div class="sn-share-sheet-grabber"></div>
+                <div class="sn-share-sheet-eyebrow">SHARE THIS NOTE</div>
+                <div class="sn-share-sheet-options">
+                  <button class="sn-share-option" data-share="messages">
+                    <span class="sn-share-icon" style="background:#34c759">
+                      <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><path d="M12 3 C6.5 3 3 6.5 3 10.5 C3 13 4.5 15 6.5 16 L5.5 19 L9 17.5 C10 17.8 11 18 12 18 C17.5 18 21 14.5 21 10.5 C21 6.5 17.5 3 12 3 Z" fill="#fff"/></svg>
+                    </span>
+                    <span class="sn-share-label">Messages</span>
+                  </button>
+                  <button class="sn-share-option" data-share="mail">
+                    <span class="sn-share-icon" style="background:#2563eb">
+                      <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><path d="M3 7 L3 17 C3 18 4 19 5 19 L19 19 C20 19 21 18 21 17 L21 7 C21 6 20 5 19 5 L5 5 C4 5 3 6 3 7 Z M5 7 L19 7 L12 12 Z" fill="#fff"/></svg>
+                    </span>
+                    <span class="sn-share-label">Mail</span>
+                  </button>
+                  <button class="sn-share-option" data-share="copy">
+                    <span class="sn-share-icon" style="background:#1a1a1c">
+                      <svg viewBox="0 0 24 24" width="17" height="17" aria-hidden="true"><rect x="6" y="3" width="13" height="16" rx="2" fill="none" stroke="#fff" stroke-width="1.7"/><path d="M5 7 L4 7 C3 7 3 8 3 9 L3 20 C3 21 4 21 5 21 L14 21 C15 21 15 20 15 20 L15 19" fill="none" stroke="#fff" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                    </span>
+                    <span class="sn-share-label">Copy</span>
+                  </button>
+                  <button class="sn-share-option" data-share="more">
+                    <span class="sn-share-icon" style="background:#8e8e93">
+                      <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><circle cx="6" cy="12" r="1.6" fill="#fff"/><circle cx="12" cy="12" r="1.6" fill="#fff"/><circle cx="18" cy="12" r="1.6" fill="#fff"/></svg>
+                    </span>
+                    <span class="sn-share-label">More</span>
+                  </button>
+                </div>
+                <button class="sn-share-sheet-cancel" id="snShareSheetCancel">Cancel</button>
+              </div>
+            </div>
+            <div class="sn-toast" id="snToast" aria-live="polite"></div>
+
+            <!-- Paywall overlay (verbatim from sticky-notes.html embedded) -->
+            <div class="pw-paywall" id="pwPaywall" aria-hidden="true">
+              <button class="pw-close" id="pwClose" aria-label="Close">
+                <svg viewBox="0 0 20 20" width="16" height="16" aria-hidden="true">
+                  <path d="M5 5 L15 15 M15 5 L5 15" stroke="currentColor" stroke-width="1.7"
+                        fill="none" stroke-linecap="round"/>
+                </svg>
+              </button>
+
+              <div class="pw-inner">
+                <div class="pw-eyebrow">
+                  <svg viewBox="0 0 16 16" width="13" height="13" aria-hidden="true">
+                    <path d="M9.2 1 L3.4 8.8 L7 8.8 L5.8 15 L12.6 6.6 L9 6.6 L10.2 1 Z"
+                          fill="currentColor"/>
+                  </svg>
+                  OUT OF JOLTS
+                </div>
+                <h1 class="pw-title">One Jolt a day, every day.</h1>
+                <p class="pw-tagline">
+                  Three-minute personalized chills, plus early access to everything
+                  we're building next.
+                </p>
+
+                <ul class="pw-features">
+                  <li>
+                    <svg viewBox="0 0 16 16" width="13" height="13" aria-hidden="true">
+                      <path d="M3 8.4 L6.4 11.8 L13 5.2" stroke="currentColor"
+                            stroke-width="2" fill="none"
+                            stroke-linecap="round" stroke-linejoin="round"/>
+                    </svg>
+                    Daily personalized 3-minute Jolt
+                  </li>
+                  <li>
+                    <svg viewBox="0 0 16 16" width="13" height="13" aria-hidden="true">
+                      <path d="M3 8.4 L6.4 11.8 L13 5.2" stroke="currentColor"
+                            stroke-width="2" fill="none"
+                            stroke-linecap="round" stroke-linejoin="round"/>
+                    </svg>
+                    Unlimited stack &amp; sticky notes
+                  </li>
+                  <li>
+                    <svg viewBox="0 0 16 16" width="13" height="13" aria-hidden="true">
+                      <path d="M3 8.4 L6.4 11.8 L13 5.2" stroke="currentColor"
+                            stroke-width="2" fill="none"
+                            stroke-linecap="round" stroke-linejoin="round"/>
+                    </svg>
+                    Re-jolt any note, any time
+                  </li>
+                  <li>
+                    <svg viewBox="0 0 16 16" width="13" height="13" aria-hidden="true">
+                      <path d="M3 8.4 L6.4 11.8 L13 5.2" stroke="currentColor"
+                            stroke-width="2" fill="none"
+                            stroke-linecap="round" stroke-linejoin="round"/>
+                    </svg>
+                    Early access to new features
+                  </li>
+                </ul>
+
+                <div class="pw-plans">
+                  <button class="pw-plan" id="pwYearly">
+                    <span class="pw-plan-name">
+                      Yearly
+                      <span class="pw-plan-badge">SAVE 34%</span>
+                    </span>
+                    <span class="pw-plan-price">$79<span class="pw-plan-period">/year</span></span>
+                    <span class="pw-plan-equiv">$6.58/month</span>
+                  </button>
+                  <button class="pw-plan pw-secondary" id="pwMonthly">
+                    <span class="pw-plan-name">Monthly</span>
+                    <span class="pw-plan-price">$9.99<span class="pw-plan-period">/month</span></span>
+                  </button>
+                </div>
+
+                <p class="pw-fineprint">Cancel anytime.</p>
+
+                <button class="pw-code-btn" id="pwCodeBtn">
+                  Have a code?
+                </button>
+                <div class="pw-code-row" id="pwCodeRow">
+                  <input type="text" id="pwCodeInput"
+                         placeholder="Enter code"
+                         autocomplete="off"
+                         autocapitalize="characters"
+                         spellcheck="false"/>
+                  <button class="pw-code-submit" id="pwCodeSubmit"
+                          aria-label="Submit code">
+                    <svg viewBox="0 0 16 16" width="14" height="14" aria-hidden="true">
+                      <path d="M3 8 L13 8 M9 4 L13 8 L9 12" stroke="currentColor"
+                            stroke-width="1.8" fill="none"
+                            stroke-linecap="round" stroke-linejoin="round"/>
+                    </svg>
+                  </button>
+                  <div class="pw-code-error" id="pwCodeError"></div>
+                </div>
+              </div>
+            </div>
+          </div>
+        `;
+      }
+
+      // ----- card DOM -----
+      function snBtnContent(state) {
+        if (state === "progress") return SN_ICON.bolt + " IN PROGRESS";
+        if (state === "ready") return SN_ICON.play + " READY";
+        return SN_ICON.bolt + " JOLT";
+      }
+      function snPillContent(state) {
+        if (state === "progress") return `<span class="sn-dot"></span>RENDERING`;
+        if (state === "ready") return `<span class="sn-dot"></span>READY · 0:12`;
+        return "";
+      }
+
+      function snBuildCard(note) {
+        const el = document.createElement("div");
+        el.className = "sn-card " + note.state;
+        el.dataset.id = note.id;
+        el.innerHTML = `
+          <div class="sn-top-row">
+            <div class="sn-meta">
+              <div class="sn-when"></div>
+              <div class="sn-place"></div>
+            </div>
+            <button class="sn-jolt-btn" data-action="sn-jolt"></button>
+          </div>
+          <div class="sn-body">
+            <textarea rows="5" placeholder="Write what just lit up…"></textarea>
+            <div class="sn-text" style="display:none"></div>
+          </div>
+          <div class="sn-card-footer">
+            <div class="sn-pill"></div>
+            <button class="sn-watched-btn" data-action="sn-jolt" style="display:none"></button>
+            <button class="sn-share-btn" data-action="sn-share">${SN_ICON.share}</button>
+          </div>
+        `;
+        return el;
+      }
+
+      function snFillCard(el, note, editable) {
+        const d = new Date(note.when);
+        const newClass = "sn-card " + note.state + (note._shake ? " shake" : "");
+        if (el.className !== newClass) el.className = newClass;
+
+        const whenEl = el.querySelector(".sn-when");
+        const whenText = `${snFmtDate(d)} · ${snFmtTime(d)}`;
+        if (whenEl.textContent !== whenText) whenEl.textContent = whenText;
+        const placeEl = el.querySelector(".sn-place");
+        if (placeEl.textContent !== (note.place || "")) placeEl.textContent = note.place || "";
+
+        const jb = el.querySelector(".sn-jolt-btn");
+        const wb = el.querySelector(".sn-watched-btn");
+        const pillEl = el.querySelector(".sn-pill");
+
+        if (note.state === "watched") {
+          jb.style.display = "none";
+          jb.disabled = true;
+          wb.style.display = "";
+          wb.disabled = false;
+          pillEl.style.display = "none";
+          const newWb = SN_ICON.bolt + " WATCHED";
+          if (wb.innerHTML !== newWb) wb.innerHTML = newWb;
+        } else {
+          jb.style.display = "";
+          const newBtn = snBtnContent(note.state);
+          if (jb.innerHTML !== newBtn) jb.innerHTML = newBtn;
+          jb.disabled = note.state === "progress";
+          wb.style.display = "none";
+          pillEl.style.display = "";
+        }
+
+        const newPill = snPillContent(note.state);
+        if (pillEl.innerHTML !== newPill) pillEl.innerHTML = newPill;
+
+        const ta = el.querySelector("textarea");
+        const txt = el.querySelector(".sn-text");
+        if (editable) {
+          if (ta.style.display === "none") ta.style.display = "";
+          if (txt.style.display !== "none") txt.style.display = "none";
+          if (document.activeElement !== ta && ta.value !== note.text) {
+            ta.value = note.text;
+          }
+        } else {
+          if (ta.style.display !== "none") ta.style.display = "none";
+          if (txt.style.display === "none") txt.style.display = "";
+          const wantText = note.text || "(empty)";
+          if (txt.textContent !== wantText) txt.textContent = wantText;
+          const wantPlaceholder = !note.text;
+          if (wantPlaceholder !== txt.classList.contains("sn-placeholder")) {
+            txt.classList.toggle("sn-placeholder", wantPlaceholder);
+          }
+        }
+      }
+
+      // ----- transform math (verbatim from mockup) -----
+      function snTransformFor(off, drag) {
+        const effective = off - drag;
+        let ty, scale, opacity, blur, z;
+        if (effective >= 0) {
+          ty = effective * 32;
+          scale = Math.max(0.84, 1 - effective * 0.06);
+          opacity = Math.max(0, 1 - effective * 0.20);
+          blur = effective > 0.7 ? Math.min(2.5, (effective - 0.7) * 1.5) : 0;
+          z = 100 - Math.round(effective * 10);
+        } else {
+          const dir = drag > 0 ? -1 : +1;
+          const t = -effective;
+          ty = dir * t * 140;
+          scale = Math.max(0.86, 1 - t * 0.10);
+          opacity = Math.max(0, 1 - t * 1.4);
+          blur = t > 0.25 ? Math.min(3.5, (t - 0.25) * 2.4) : 0;
+          z = 200 + Math.round(t * 10);
+        }
+        return { ty, scale, opacity, blur, z };
+      }
+
+      function snRenderStack() {
+        const stack = document.getElementById("snStack");
+        if (!stack) return;
+        const center = snDragOffset;
+        const winLo = Math.floor(center - 1.2);
+        const winHi = Math.ceil(center + 3.2);
+
+        const visibleIds = new Set();
+        const items = [];
+        for (let off = winLo; off <= winHi; off++) {
+          const i = snPos + off;
+          if (i < 0 || i >= snNotes.length) continue;
+          const note = snNotes[i];
+          visibleIds.add(note.id);
+          items.push({ note, idx: i, off });
+        }
+
+        for (const [nid, el] of snCardEls) {
+          if (!visibleIds.has(nid)) {
+            el.remove();
+            snCardEls.delete(nid);
+          }
+        }
+
+        items.forEach(({ note, idx, off }) => {
+          let el = snCardEls.get(note.id);
+          if (!el) {
+            el = snBuildCard(note);
+            snCardEls.set(note.id, el);
+          }
+          if (el.parentNode !== stack) stack.appendChild(el);
+
+          const editable =
+            idx === 0 && off === 0 && snDragOffset === 0 && !snTransitioning;
+          snFillCard(el, note, editable);
+
+          const { ty, scale, opacity, blur, z } = snTransformFor(off, snDragOffset);
+          el.style.transform = `translate3d(0, ${ty}px, 0) scale(${scale})`;
+          el.style.opacity = opacity;
+          el.style.filter = blur ? `blur(${blur}px)` : "none";
+          el.style.zIndex = z;
+          el.style.pointerEvents =
+            Math.abs(off - snDragOffset) > 2.5 ? "none" : "auto";
+
+          el.onclick = (e) => {
+            if (e.target.closest("[data-action]")) return;
+            if (off > 0 && !snTransitioning) {
+              snTransitionTo(idx, +1);
+            }
+          };
+
+          const ta = el.querySelector("textarea");
+          ta.oninput = () => {
+            if (idx === 0) {
+              snNotes[0].text = ta.value;
+              snNotes[0].when = new Date().toISOString();
+              const d2 = new Date(snNotes[0].when);
+              el.querySelector(".sn-when").textContent =
+                `${snFmtDate(d2)} · ${snFmtTime(d2)}`;
+              snScheduleSaveText(snNotes[0]);
+            }
+          };
+          ta.onblur = () => {
+            if (idx === 0) snFlushSaveText(snNotes[0]);
+          };
+        });
+      }
+
+      // ----- text-save debounce (backend) -----
+      const snSaveTimers = new Map();
+      function snScheduleSaveText(note) {
+        if (snSaveTimers.has(note.id)) clearTimeout(snSaveTimers.get(note.id));
+        snSaveTimers.set(
+          note.id,
+          setTimeout(() => snFlushSaveText(note), 800),
+        );
+      }
+      async function snFlushSaveText(note) {
+        if (snSaveTimers.has(note.id)) {
+          clearTimeout(snSaveTimers.get(note.id));
+          snSaveTimers.delete(note.id);
+        }
+        // Skip backend write for client-only notes (locally-created ones get
+        // a real id once /api/notes responds).
+        if (typeof note.id !== "number") return;
+        try {
+          await api(`/api/notes/${note.id}`, {
+            method: "PUT",
+            body: JSON.stringify({ text: note.text || "" }),
+          });
+        } catch (e) {
+          /* ignore — user is still typing, retry next debounce */
+        }
+      }
+
+      // ----- animation driver -----
+      function snAnimateTo(targetDrag, ms, onFinish) {
+        if (snActiveAnimation) snActiveAnimation.cancel();
+        const start = performance.now();
+        const from = snDragOffset;
+        const ease = (t) => 1 - Math.pow(1 - t, 3);
+        let cancelled = false;
+        let lastFloor = Math.floor(Math.abs(from));
+
+        function step(now) {
+          if (cancelled) return;
+          const t = Math.min(1, (now - start) / ms);
+          const next = from + (targetDrag - from) * ease(t);
+          const floorNow = Math.floor(Math.abs(next));
+          if (floorNow > lastFloor) {
+            snBp(0.05);
+            lastFloor = floorNow;
+          }
+          snDragOffset = next;
+          snRenderStack();
+          if (t < 1) requestAnimationFrame(step);
+          else {
+            snActiveAnimation = null;
+            onFinish && onFinish();
+          }
+        }
+        snActiveAnimation = {
+          cancel() {
+            cancelled = true;
+            snActiveAnimation = null;
+          },
+        };
+        requestAnimationFrame(step);
+        return snActiveAnimation;
+      }
+
+      function snCommitSteps(steps) {
+        if (snTransitioning) return;
+        if (steps === 0) {
+          snSnapBack();
+          return;
+        }
+        snTransitioning = true;
+        const absSteps = Math.abs(steps);
+        const ms = Math.min(620, 220 + absSteps * 110);
+        snAnimateTo(steps, ms, () => {
+          snPos = snPos + steps;
+          snDragOffset = 0;
+          snTransitioning = false;
+          snRenderStack();
+        });
+      }
+
+      function snTransitionTo(nextPos, dir) {
+        nextPos = Math.max(0, Math.min(snNotes.length - 1, nextPos));
+        const steps = nextPos - snPos;
+        if (steps === 0) return;
+        snCommitSteps(steps);
+      }
+
+      function snSnapBack() {
+        if (Math.abs(snDragOffset) < 0.001) return;
+        snAnimateTo(0, 220, () => snRenderStack());
+      }
+
+      // ----- jolt (REAL BACKEND) -----
+      async function snJoltAt(idx) {
+        const n = snNotes[idx];
+        if (!n) return;
+        if (n.state === "progress") return;
+
+        // READY → play audio
+        if (n.state === "ready") {
+          snBp(0.07);
+          snOpenModal(n.id);
+          return;
+        }
+
+        // IDLE with empty text → ignore (button is unreachable visually too)
+        if (n.state === "idle" && !(n.text || "").trim()) return;
+
+        // IDLE (with text) or WATCHED → run the jolt+generate cycle.
+        // The backend's jolt endpoint decides whether to allow (jolt_count==0
+        // or active subscription) or block (subscription_required) → paywall.
+        snBp(0.07);
+        await snTriggerJoltGeneration(n);
+      }
+
+      // Run the full jolt + generate + poll cycle for a single note.
+      // Used by both snJoltAt (initial click) and post-paywall unlock.
+      // No state-machine guards here — the caller is responsible for
+      // ensuring the note is in a state where this should run.
+      async function snTriggerJoltGeneration(n) {
+        const prevState = n.state;
+        n.state = "progress";
+        n._shake = true;
+        snRenderStack();
+        setTimeout(() => {
+          n._shake = false;
+          snRenderStack();
+        }, 620);
+
+        // Make sure latest text is saved before triggering.
+        await snFlushSaveText(n);
+
+        try {
+          const joltRes = await api(`/api/notes/${n.id}/jolt`, { method: "POST" });
+          if (joltRes.status === "blocked") {
+            // Subscription required — revert state and open paywall.
+            n.state = prevState;
+            snRenderStack();
+            snOpenPaywall(n.id);
+            return;
+          }
+        } catch (e) {
+          n.state = prevState;
+          snRenderStack();
+          alert("Could not start jolt: " + e.message);
+          return;
+        }
+
+        // Kick off generation with the note text as q1.
+        let jobId;
+        try {
+          const genRes = await api("/api/demo/generate", {
+            method: "POST",
+            body: JSON.stringify({
+              q1_low_voice: n.text || "",
+              q2_chills: "",
+              q3_first_call: "",
+              q4_unseen: "",
+              note_id: n.id,
+            }),
+          });
+          jobId = genRes.job_id;
+        } catch (e) {
+          n.state = prevState;
+          snRenderStack();
+          alert("Could not start generation: " + e.message);
+          return;
+        }
+
+        // Poll status until done.
+        const poll = setInterval(async () => {
+          try {
+            const st = await api(`/api/demo/generate/status/${jobId}`);
+            if (st.stage === "done") {
+              clearInterval(poll);
+              n.state = "ready";
+              n.session_id = st.session_id;
+              n.audio_url = st.audio_url;
+              snBp(0.05);
+              snRenderStack();
+            } else if (st.stage === "error") {
+              clearInterval(poll);
+              n.state = prevState;
+              snRenderStack();
+              alert("Generation error: " + (st.error || "Unknown"));
+            }
+          } catch (e) {
+            /* swallow transient errors; loop continues */
+          }
+        }, 2500);
+      }
+
+      // ----- modal (audio playback) -----
+      let snModalNoteId = null;
+      let snModalAudio = null;
+      function snOpenModal(noteId) {
+        snModalNoteId = noteId;
+        const modal = document.getElementById("snModal");
+        if (modal) modal.classList.add("show");
+        const n = snNotes.find((x) => x.id === noteId);
+        if (n && n.audio_url) {
+          snModalAudio = new Audio(n.audio_url);
+          snModalAudio.play().catch(() => {});
+          snModalAudio.onended = () => snCloseModal();
+        }
+      }
+      async function snCloseModal() {
+        const modal = document.getElementById("snModal");
+        if (modal) modal.classList.remove("show");
+        if (snModalAudio) {
+          try { snModalAudio.pause(); } catch (_) {}
+          snModalAudio = null;
+        }
+        if (snModalNoteId) {
+          const n = snNotes.find((x) => x.id === snModalNoteId);
+          if (n && n.state === "ready") {
+            n.state = "watched";
+            snRenderStack();
+            snBp(0.05);
+            try {
+              await api(`/api/notes/${n.id}/state`, {
+                method: "PUT",
+                body: JSON.stringify({ state: "watched" }),
+              });
+            } catch (e) {
+              /* ignore */
+            }
+          }
+        }
+        snModalNoteId = null;
+      }
+
+      // ----- share sheet + toast -----
+      let snShareSheetNote = null;
+      let snToastTimer = null;
+      function snShowToast(msg) {
+        const toast = document.getElementById("snToast");
+        if (!toast) return;
+        toast.textContent = msg;
+        toast.classList.add("show");
+        if (snToastTimer) clearTimeout(snToastTimer);
+        snToastTimer = setTimeout(() => toast.classList.remove("show"), 1800);
+      }
+      function snOpenShareSheet(note) {
+        snShareSheetNote = note;
+        snBp(0.05);
+        const ss = document.getElementById("snShareSheet");
+        if (ss) ss.classList.add("show");
+      }
+      function snCloseShareSheet() {
+        const ss = document.getElementById("snShareSheet");
+        if (ss) ss.classList.remove("show");
+        setTimeout(() => {
+          snShareSheetNote = null;
+        }, 350);
+      }
+
+      // ----- new blank note (backend create) -----
+      function snWordCount(s) {
+        return (s || "").trim().split(/\s+/).filter(Boolean).length;
+      }
+      function snCanCreateNewNote() {
+        return snWordCount(snNotes[0]?.text) >= 2;
+      }
+      function snNudgeNewBtn() {
+        const btn = document.getElementById("snNewBtn");
+        if (!btn) return;
+        btn.classList.remove("nudge");
+        void btn.offsetWidth;
+        btn.classList.add("nudge");
+      }
+      async function snNewBlankNote() {
+        if (snTransitioning) return;
+        if (!snCanCreateNewNote()) {
+          snNudgeNewBtn();
+          if (snPos === 0) {
+            snCardEls.get(snNotes[0].id)?.querySelector("textarea")?.focus();
+          }
+          return;
+        }
+        snTransitioning = true;
+        snBp(0.05);
+
+        // Optimistically prepend a temp note so the animation feels instant,
+        // then patch its id once the backend responds.
+        const tempId = "tmp_" + Math.random().toString(36).slice(2, 9);
+        const tempNote = {
+          id: tempId,
+          text: "",
+          when: new Date().toISOString(),
+          place: null,
+          state: "idle",
+        };
+        snNotes.unshift(tempNote);
+        snPos = 1;
+        snDragOffset = 0;
+        snRenderStack();
+        requestAnimationFrame(() => {
+          snAnimateTo(-1, 420, () => {
+            snPos = 0;
+            snDragOffset = 0;
+            snTransitioning = false;
+            snRenderStack();
+            snCardEls.get(snNotes[0].id)?.querySelector("textarea")?.focus();
+          });
+        });
+
+        // Real create
+        try {
+          const created = await api("/api/notes", {
+            method: "POST",
+            body: JSON.stringify({ text: "" }),
+          });
+          // Patch id on the temp note (DOM key migrates: rebuild map entry)
+          const tmpEl = snCardEls.get(tempId);
+          tempNote.id = created.id;
+          tempNote.when = created.created_at || tempNote.when;
+          tempNote.place = created.place;
+          if (tmpEl) {
+            tmpEl.dataset.id = created.id;
+            snCardEls.delete(tempId);
+            snCardEls.set(created.id, tmpEl);
+          }
+        } catch (e) {
+          // Roll back optimistic insert.
+          snNotes = snNotes.filter((n) => n.id !== tempId);
+          snCardEls.get(tempId)?.remove();
+          snCardEls.delete(tempId);
+          snTransitioning = false;
+          snRenderStack();
+          alert("Could not create note: " + e.message);
+        }
+      }
+
+      // ----- input drivers (wheel / touch / mouse / keyboard) -----
+      let snTouchActive = false,
+        snTouchStartY = 0,
+        snTouchLastY = 0,
+        snTouchStartTime = 0,
+        snLastDragFloor = 0,
+        snWheelLock = 0,
+        snGestureStartedAsDrag = false,
+        snGestureCardId = null;
+
+      const SN_CARD_HEIGHT_PX = 180;
+
+      function snInEditable(target) {
+        return (
+          target &&
+          target.tagName === "TEXTAREA" &&
+          document.activeElement === target
+        );
+      }
+      function snFindTappedCardId(target) {
+        if (!target) return null;
+        const cardEl = target.closest && target.closest(".sn-card");
+        return cardEl ? cardEl.dataset.id : null;
+      }
+      function snIsInteractiveTarget(target) {
+        if (!target || !target.closest) return false;
+        return !!target.closest("button, [data-action]");
+      }
+
+      function snDragStart(y) {
+        if (snTransitioning) return false;
+        if (snActiveAnimation) snActiveAnimation.cancel();
+        snTouchActive = true;
+        snTouchStartY = y;
+        snTouchLastY = y;
+        snTouchStartTime = performance.now();
+        snLastDragFloor = Math.floor(Math.abs(snDragOffset));
+        const sa = document.getElementById("snStackArea");
+        if (sa) sa.classList.add("dragging");
+        return true;
+      }
+      function snDragMove(y) {
+        if (!snTouchActive) return;
+        snTouchLastY = y;
+        const dy = y - snTouchStartY;
+        let raw = -dy / SN_CARD_HEIGHT_PX;
+
+        const maxAdvance = snNotes.length - 1 - snPos;
+        const maxRetreat = snPos;
+        const newNotePossible = snPos === 0 && snCanCreateNewNote();
+
+        if (raw > maxAdvance) {
+          const over = raw - maxAdvance;
+          raw = maxAdvance + over * 0.25;
+        }
+        if (raw < -maxRetreat) {
+          const floor = newNotePossible ? -1 : -maxRetreat;
+          if (raw < floor) raw = floor + (raw - floor) * 0.25;
+        }
+
+        snDragOffset = raw;
+
+        const floorNow = Math.floor(Math.abs(snDragOffset));
+        if (floorNow > snLastDragFloor) {
+          snBp(0.05);
+          snLastDragFloor = floorNow;
+        } else if (floorNow < snLastDragFloor) {
+          snBp(0.045);
+          snLastDragFloor = floorNow;
+        }
+
+        snRenderStack();
+      }
+      function snDragEnd() {
+        if (!snTouchActive) return;
+        snTouchActive = false;
+        const sa = document.getElementById("snStackArea");
+        if (sa) sa.classList.remove("dragging");
+
+        const elapsed = performance.now() - snTouchStartTime;
+        const dy = snTouchLastY - snTouchStartY;
+        const velocity = elapsed > 0 ? -dy / elapsed : 0;
+        const drag = snDragOffset;
+
+        const FLICK_GAIN = 0.6;
+        const projected = drag + velocity * FLICK_GAIN;
+
+        let target = Math.round(projected);
+        if (Math.abs(projected) < 0.18) target = 0;
+
+        if (snPos === 0 && target < 0 && snCanCreateNewNote()) {
+          snAnimateTo(0, 160, () => {
+            snRenderStack();
+            snNewBlankNote();
+          });
+          return;
+        }
+
+        const maxAdvance = snNotes.length - 1 - snPos;
+        const maxRetreat = -snPos;
+        target = Math.max(maxRetreat, Math.min(maxAdvance, target));
+
+        if (target === 0) snSnapBack();
+        else snCommitSteps(target);
+      }
+
+      // Install global listeners only once.
+      function snInstallListenersOnce() {
+        if (snStarted) return;
+        snStarted = true;
+
+        // Stack-area gestures (delegated by ID lookup at event time so they
+        // survive re-renders).
+        const stackAreaSel = "#snStackArea";
+
+        document.addEventListener(
+          "wheel",
+          (e) => {
+            if (state.screen !== "sticky-notes") return;
+            const sa = document.querySelector(stackAreaSel);
+            if (!sa || !sa.contains(e.target)) return;
+            if (snInEditable(e.target)) return;
+            if (snTransitioning) return;
+            const t = Date.now();
+            if (t - snWheelLock < 320) return;
+            if (Math.abs(e.deltaY) < 12) return;
+            snWheelLock = t;
+            if (e.deltaY > 0) {
+              if (snPos < snNotes.length - 1) snCommitSteps(+1);
+            } else {
+              if (snPos > 0) snCommitSteps(-1);
+              else if (snPos === 0 && snCanCreateNewNote()) snNewBlankNote();
+            }
+          },
+          { passive: true },
+        );
+
+        document.addEventListener(
+          "touchstart",
+          (e) => {
+            if (state.screen !== "sticky-notes") return;
+            const sa = document.querySelector(stackAreaSel);
+            if (!sa || !sa.contains(e.target)) return;
+            if (snInEditable(e.target)) return;
+            if (snIsInteractiveTarget(e.target)) return;
+            snGestureStartedAsDrag = false;
+            snGestureCardId = snFindTappedCardId(e.target);
+            snDragStart(e.touches[0].clientY);
+          },
+          { passive: true },
+        );
+        document.addEventListener(
+          "touchmove",
+          (e) => {
+            if (state.screen !== "sticky-notes") return;
+            if (!snTouchActive) return;
+            const dy = Math.abs(e.touches[0].clientY - snTouchStartY);
+            if (dy > 6) snGestureStartedAsDrag = true;
+            snDragMove(e.touches[0].clientY);
+          },
+          { passive: true },
+        );
+        function handleTouchEnd() {
+          if (state.screen !== "sticky-notes") return;
+          const wasDrag = snGestureStartedAsDrag;
+          const cardId = snGestureCardId;
+          snDragEnd();
+          if (!wasDrag && cardId) {
+            const focusedNote = snNotes[snPos];
+            if (focusedNote && focusedNote.id === cardId && snPos === 0) {
+              const el = snCardEls.get(cardId);
+              const ta = el && el.querySelector("textarea");
+              if (ta) setTimeout(() => ta.focus(), 0);
+            }
+          }
+          snGestureCardId = null;
+        }
+        document.addEventListener("touchend", handleTouchEnd);
+        document.addEventListener("touchcancel", handleTouchEnd);
+
+        document.addEventListener("mousedown", (e) => {
+          if (state.screen !== "sticky-notes") return;
+          const sa = document.querySelector(stackAreaSel);
+          if (!sa || !sa.contains(e.target)) return;
+          if (snInEditable(e.target)) return;
+          if (e.button !== 0) return;
+          if (snIsInteractiveTarget(e.target)) return;
+          snGestureStartedAsDrag = false;
+          snGestureCardId = snFindTappedCardId(e.target);
+          if (!snDragStart(e.clientY)) return;
+          e.preventDefault();
+          const onMove = (ev) => {
+            const dy = Math.abs(ev.clientY - snTouchStartY);
+            if (dy > 6) snGestureStartedAsDrag = true;
+            snDragMove(ev.clientY);
+          };
+          const onUp = () => {
+            const wasDrag = snGestureStartedAsDrag;
+            const cardId = snGestureCardId;
+            snDragEnd();
+            window.removeEventListener("mousemove", onMove);
+            window.removeEventListener("mouseup", onUp);
+            if (!wasDrag && cardId) {
+              const focusedNote = snNotes[snPos];
+              if (focusedNote && focusedNote.id === cardId && snPos === 0) {
+                const el = snCardEls.get(cardId);
+                const ta = el && el.querySelector("textarea");
+                if (ta) ta.focus();
+              }
+            }
+            snGestureCardId = null;
+          };
+          window.addEventListener("mousemove", onMove);
+          window.addEventListener("mouseup", onUp);
+        });
+
+        document.addEventListener("keydown", (e) => {
+          if (state.screen !== "sticky-notes") return;
+          if (snInEditable(e.target)) return;
+          if (e.key === "ArrowDown" || e.key === "PageDown" || e.key === " ") {
+            if (snPos < snNotes.length - 1) {
+              e.preventDefault();
+              snCommitSteps(+1);
+            }
+          } else if (e.key === "ArrowUp" || e.key === "PageUp") {
+            e.preventDefault();
+            if (snPos > 0) snCommitSteps(-1);
+            else if (snPos === 0 && snCanCreateNewNote()) snNewBlankNote();
+          } else if (e.key === "Escape") {
+            const modal = document.getElementById("snModal");
+            const ss = document.getElementById("snShareSheet");
+            const pw = document.getElementById("pwPaywall");
+            if (modal && modal.classList.contains("show")) snCloseModal();
+            else if (pw && pw.classList.contains("show")) snClosePaywall();
+            else if (ss && ss.classList.contains("show")) snCloseShareSheet();
+          }
+        });
+
+        // Delegated card button clicks (jolt + share)
+        document.addEventListener("click", (e) => {
+          if (state.screen !== "sticky-notes") return;
+          const btn =
+            e.target &&
+            e.target.closest &&
+            e.target.closest("button[data-action]");
+          if (!btn) return;
+          const action = btn.dataset.action;
+
+          // Sticky-notes UI buttons
+          if (action === "sn-new") {
+            snNewBlankNote();
+            return;
+          }
+          if (action === "sn-modal-back") {
+            snCloseModal();
+            return;
+          }
+          if (action === "sn-share-cancel") {
+            snCloseShareSheet();
+            return;
+          }
+          if (action === "sn-share-scrim") {
+            snCloseShareSheet();
+            return;
+          }
+          // Paywall
+          if (action === "pw-close") {
+            snClosePaywall();
+            return;
+          }
+          if (action === "pw-yearly") {
+            snPurchasePlan("yearly");
+            return;
+          }
+          if (action === "pw-monthly") {
+            snPurchasePlan("monthly");
+            return;
+          }
+          if (action === "pw-code-toggle") {
+            const row = document.getElementById("pwCodeRow");
+            const input = document.getElementById("pwCodeInput");
+            const err = document.getElementById("pwCodeError");
+            if (err) err.textContent = "";
+            if (row) {
+              const showing = row.classList.toggle("show");
+              if (showing && input) setTimeout(() => input.focus(), 200);
+            }
+            return;
+          }
+          if (action === "pw-code-submit") {
+            snTryRedeem();
+            return;
+          }
+
+          // Card-level
+          const cardEl = btn.closest(".sn-card");
+          if (cardEl) {
+            const cardId = cardEl.dataset.id;
+            const idx = snNotes.findIndex((n) => String(n.id) === String(cardId));
+            if (idx < 0) return;
+            e.stopPropagation();
+            if (action === "sn-jolt") {
+              snJoltAt(idx);
+            } else if (action === "sn-share") {
+              snOpenShareSheet(snNotes[idx]);
+            }
+            return;
+          }
+
+          // Share-option taps
+          const opt = e.target.closest(".sn-share-option");
+          if (opt) {
+            (async () => {
+              const optAction = opt.dataset.share;
+              const note = snShareSheetNote;
+              const text = note ? note.text || "(empty note)" : "";
+              snBp(0.05);
+              if (optAction === "copy") {
+                try {
+                  await navigator.clipboard.writeText(text);
+                } catch (_) {
+                  const ta = document.createElement("textarea");
+                  ta.value = text;
+                  document.body.appendChild(ta);
+                  ta.select();
+                  try { document.execCommand("copy"); } catch (__) {}
+                  document.body.removeChild(ta);
+                }
+                snCloseShareSheet();
+                snShowToast("Copied to clipboard");
+              } else if (optAction === "messages") {
+                if (navigator.share) {
+                  try { await navigator.share({ text }); } catch (_) {}
+                  snCloseShareSheet();
+                } else {
+                  window.location.href = "sms:?body=" + encodeURIComponent(text);
+                  snCloseShareSheet();
+                }
+              } else if (optAction === "mail") {
+                window.location.href =
+                  "mailto:?subject=" +
+                  encodeURIComponent("A jolt from my stack") +
+                  "&body=" +
+                  encodeURIComponent(text);
+                snCloseShareSheet();
+              } else if (optAction === "more") {
+                if (navigator.share) {
+                  try { await navigator.share({ text }); snCloseShareSheet(); }
+                  catch (_) { snCloseShareSheet(); }
+                } else {
+                  snCloseShareSheet();
+                  snShowToast("System share not available");
+                }
+              }
+            })();
+          }
+        });
+      }
+
+      // ----- screen mount -----
+      async function startStickyNotes() {
+        snInstallListenersOnce();
+
+        // Wire screen-local buttons that aren't card-scoped.
+        const newBtn = document.getElementById("snNewBtn");
+        if (newBtn) newBtn.dataset.action = "sn-new";
+        const modalBack = document.getElementById("snModalBack");
+        if (modalBack) modalBack.dataset.action = "sn-modal-back";
+        const ssCancel = document.getElementById("snShareSheetCancel");
+        if (ssCancel) ssCancel.dataset.action = "sn-share-cancel";
+        const ssScrim = document.getElementById("snShareSheetScrim");
+        if (ssScrim) {
+          ssScrim.style.cursor = "pointer";
+          ssScrim.addEventListener("click", snCloseShareSheet);
+        }
+
+        // Paywall buttons
+        const pwClose = document.getElementById("pwClose");
+        if (pwClose) pwClose.dataset.action = "pw-close";
+        const pwYearly = document.getElementById("pwYearly");
+        if (pwYearly) pwYearly.dataset.action = "pw-yearly";
+        const pwMonthly = document.getElementById("pwMonthly");
+        if (pwMonthly) pwMonthly.dataset.action = "pw-monthly";
+        const pwCodeBtn = document.getElementById("pwCodeBtn");
+        if (pwCodeBtn) pwCodeBtn.dataset.action = "pw-code-toggle";
+        const pwCodeSubmit = document.getElementById("pwCodeSubmit");
+        if (pwCodeSubmit) pwCodeSubmit.dataset.action = "pw-code-submit";
+        // Enter on the code input submits redeem
+        const pwCodeInput = document.getElementById("pwCodeInput");
+        if (pwCodeInput) {
+          pwCodeInput.addEventListener("keydown", (ev) => {
+            if (ev.key === "Enter") {
+              ev.preventDefault();
+              snTryRedeem();
+            }
+          });
+        }
+
+        // Hydrate notes from backend.
+        await snLoadNotes();
+      }
+
+      async function snLoadNotes() {
+        try {
+          const res = await api("/api/notes");
+          // Map backend NoteResponse → mockup-shaped note. Mockup uses
+          // `when` for the timestamp; backend gives `updated_at`/`created_at`.
+          snNotes = (res.notes || []).map((n) => ({
+            id: n.id,
+            text: n.text || "",
+            when: n.updated_at || n.created_at || new Date().toISOString(),
+            place: n.place,
+            state: n.state || "idle",
+            session_id: n.session_id,
+            audio_url: n.session_id
+              ? `/api/demo/audio/${n.session_id}.mp3`
+              : null,
+            jolt_count: n.jolt_count || 0,
+          }));
+          // If the first note is a fresh blank, focus stays on it. Otherwise
+          // we still land on index 0 (newest).
+          snPos = 0;
+          snDragOffset = 0;
+          snCardEls.clear();
+          const stack = document.getElementById("snStack");
+          if (stack) stack.innerHTML = "";
+          snRenderStack();
+        } catch (e) {
+          alert("Could not load your notes: " + e.message);
+        }
+      }
+
+      // ============ PAYWALL ============
+      // Verbatim from sticky-notes.html embedded paywall. Demo VALID_CODES
+      // set is replaced with a real /api/subscription/redeem call. Plan
+      // taps hit /api/subscription/purchase. On unlock, we close the
+      // paywall and retrigger the jolt cycle on the originally-blocked note.
+      let snPaywallNoteId = null;
+
+      function snOpenPaywall(noteId) {
+        snPaywallNoteId = noteId;
+        // Reset code UI each open
+        const row = document.getElementById("pwCodeRow");
+        const input = document.getElementById("pwCodeInput");
+        const err = document.getElementById("pwCodeError");
+        if (row) row.classList.remove("show");
+        if (input) input.value = "";
+        if (err) {
+          err.textContent = "";
+          err.style.color = "";
+        }
+        const pw = document.getElementById("pwPaywall");
+        if (pw) pw.classList.add("show");
+      }
+
+      function snClosePaywall() {
+        const pw = document.getElementById("pwPaywall");
+        if (pw) pw.classList.remove("show");
+        snPaywallNoteId = null;
+      }
+
+      async function snTryRedeem() {
+        const input = document.getElementById("pwCodeInput");
+        const err = document.getElementById("pwCodeError");
+        if (!input) return;
+        const code = (input.value || "").trim().toUpperCase();
+        if (!code) return;
+        try {
+          await api("/api/subscription/redeem", {
+            method: "POST",
+            body: JSON.stringify({ code }),
+          });
+          // Code accepted — mark unlocked locally and retrigger.
+          if (state.user) state.user.hasSubscription = true;
+          snBp(0.05);
+          snAfterUnlock();
+        } catch (e) {
+          if (err) {
+            err.style.color = "#c2410c";
+            err.textContent = e.message || "That code didn’t work. Try another?";
+          }
+          input.classList.remove("shake");
+          void input.offsetWidth;
+          input.classList.add("shake");
+        }
+      }
+
+      async function snPurchasePlan(plan) {
+        try {
+          await api("/api/subscription/purchase", {
+            method: "POST",
+            body: JSON.stringify({ plan }),
+          });
+          if (state.user) state.user.hasSubscription = true;
+          snBp(0.05);
+          snAfterUnlock();
+        } catch (e) {
+          alert("Purchase failed: " + (e.message || "Unknown"));
+        }
+      }
+
+      // After successful redeem or purchase: close paywall, retrigger the
+      // jolt cycle on the note that was blocked. The /jolt endpoint will
+      // now pass since the user has an active subscription.
+      function snAfterUnlock() {
+        const id = snPaywallNoteId;
+        snClosePaywall();
+        if (id == null) return;
+        const n = snNotes.find((x) => String(x.id) === String(id));
+        if (!n) return;
+        snTriggerJoltGeneration(n);
+      }
+
       function previewFor(kind) {
         if (kind === "jolt") {
           return `<div class="preview-jolt"><img class="bolt" src="${BOLT_SRC}" alt="" /></div>`;
@@ -2118,6 +5101,7 @@
 
       function render() {
         stopAllAudio();
+        stopIntroAnim();
         if (pollTimer) {
           clearInterval(pollTimer);
           pollTimer = null;
@@ -2145,22 +5129,42 @@
           }, 50);
         } else if (state.screen === "login") app.innerHTML = renderLogin();
         else if (state.screen === "register") app.innerHTML = renderRegister();
-        else if (state.screen === "onboarding")
+        else if (state.screen === "intro") {
+          app.innerHTML = renderIntro();
+          startIntroAnim();
+        } else if (state.screen === "onboarding")
           app.innerHTML = renderOnboarding();
         else if (state.screen === "question") app.innerHTML = renderQuestion();
-        else if (state.screen === "meditation") {
+        else if (state.screen === "headphones") {
+          app.innerHTML = renderHeadphones();
+          startHeadphonesAnim();
+        } else if (state.screen === "meditation") {
           app.innerHTML = renderMeditation();
           startMeditation();
         } else if (state.screen === "stimulus") {
           app.innerHTML = renderStimulus();
           startStimulus();
+        } else if (state.screen === "first-sticky") {
+          app.innerHTML = renderFirstSticky();
+          startFirstStickyAnim();
+        } else if (state.screen === "sticky-notes") {
+          app.innerHTML = renderStickyNotes();
+          startStickyNotes();
         } else if (state.screen === "feedback")
           app.innerHTML = renderFeedback();
         else if (state.screen === "done") app.innerHTML = renderDone();
 
         // Auto-focus inputs -- but NOT on question screens (Felix: keyboard should not auto-open)
-        // and NOT on done screen unless email is focused
-        if (state.screen !== "question" && state.screen !== "splash") {
+        // and NOT on done screen unless email is focused, and NOT on intro / headphones /
+        // first-sticky / sticky-notes (sticky-notes has its own textarea focus logic).
+        if (
+          state.screen !== "question" &&
+          state.screen !== "splash" &&
+          state.screen !== "intro" &&
+          state.screen !== "headphones" &&
+          state.screen !== "first-sticky" &&
+          state.screen !== "sticky-notes"
+        ) {
           const input = app.querySelector("input[data-input]");
           const isDoneScreen = state.screen === "done" && !state.emailFocused;
           if (input && !isDoneScreen) {
@@ -2185,10 +5189,16 @@
             body: JSON.stringify({ email, password }),
           });
           state.token = res.token;
-          state.user = { id: res.user_id, email: res.email, name: res.name };
+          state.user = {
+            id: res.user_id,
+            email: res.email,
+            name: res.name,
+            hasCompletedFirstJolt: res.has_completed_first_jolt,
+            hasSubscription: res.has_subscription,
+          };
           localStorage.setItem("jolter_token", res.token);
           state.authError = "";
-          startOnboarding();
+          startIntro();
         } catch (e) {
           state.authError = e.message || "Login failed.";
           render();
@@ -2216,10 +5226,16 @@
             body: JSON.stringify({ email, password, name: name || null }),
           });
           state.token = res.token;
-          state.user = { id: res.user_id, email: res.email, name: res.name };
+          state.user = {
+            id: res.user_id,
+            email: res.email,
+            name: res.name,
+            hasCompletedFirstJolt: res.has_completed_first_jolt,
+            hasSubscription: res.has_subscription,
+          };
           localStorage.setItem("jolter_token", res.token);
           state.authError = "";
-          startOnboarding();
+          startIntro();
         } catch (e) {
           state.authError = e.message || "Registration failed.";
           render();
@@ -2269,10 +5285,16 @@
             body: JSON.stringify({ credential: response.credential }),
           });
           state.token = res.token;
-          state.user = { id: res.user_id, email: res.email, name: res.name };
+          state.user = {
+            id: res.user_id,
+            email: res.email,
+            name: res.name,
+            hasCompletedFirstJolt: res.has_completed_first_jolt,
+            hasSubscription: res.has_subscription,
+          };
           localStorage.setItem("jolter_token", res.token);
           state.authError = "";
-          startOnboarding();
+          startIntro();
         } catch (e) {
           state.authError = e && e.message ? e.message : "Google login failed.";
           render();
@@ -2318,7 +5340,16 @@
         });
       }
 
-      // ============ ONBOARDING FLOW ============
+      // ============ INTRO FLOW ============
+      // Replaces the 3-slide onboarding per Felix's spec.
+      function startIntro() {
+        state.screen = "intro";
+        render();
+      }
+
+      // ============ ONBOARDING FLOW (legacy, kept dormant) ============
+      // Old 3-slide onboarding code retained but unreachable from the
+      // main flow. Safe to delete in a later pass once intro is signed off.
       function startOnboarding() {
         state.screen = "onboarding";
         state.onboardIndex = 0;
@@ -2374,8 +5405,12 @@
           state.draft = state.answers[questions[state.questionIndex].id] || "";
           render();
         } else {
-          // All questions done -> start generation + meditation
-          startGeneration();
+          // All questions done -> show headphones screen first.
+          // Generation kicks off when the user taps "I'm ready" — this
+          // way we don't start an API call the user might back out of,
+          // and the meditation audio starts in sync with their consent.
+          state.screen = "headphones";
+          render();
         }
       }
 
@@ -2476,7 +5511,7 @@
             stimulusAudio.play().catch(() => {});
             state.audioStartTime = Date.now();
             stimulusAudio.onended = () => {
-              setTimeout(goToFeedback, 1500);
+              setTimeout(goToFirstSticky, 1500);
             };
           }
         } else if (state.meditationDone && !state.genDone) {
@@ -2506,9 +5541,20 @@
           stimulusAudio.play().catch(() => {});
           state.audioStartTime = Date.now();
           stimulusAudio.onended = () => {
-            setTimeout(goToFeedback, 1500);
+            setTimeout(goToFirstSticky, 1500);
           };
         }
+      }
+
+      // ============ FIRST-STICKY FLOW ============
+      // Lands the user on Felix's "you did your first session" screen
+      // 1.5s after stimulus audio ends. From here "Capture it" advances
+      // to the next step (currently feedback; becomes sticky-notes in 4.5).
+      function goToFirstSticky() {
+        stopParticles();
+        stopAllAudio();
+        state.screen = "first-sticky";
+        render();
       }
 
       function logChill() {
@@ -2663,7 +5709,11 @@
           case "google-login":
             doGoogleLogin();
             break;
-          // onboarding
+          // intro
+          case "intro-begin":
+            startQuestions();
+            break;
+          // onboarding (legacy)
           case "start":
             startOnboarding();
             break;
@@ -2683,6 +5733,10 @@
           case "q-send":
             sendQuestion();
             break;
+          // headphones
+          case "headphones-ready":
+            startGeneration();
+            break;
           // meditation/stimulus
           case "canvas-tap":
             if (state.screen === "stimulus") {
@@ -2697,6 +5751,12 @@
                 .getBoundingClientRect();
               spawnParticles(e.clientX - rect.left, e.clientY - rect.top);
             }
+            break;
+          // first-sticky
+          case "first-sticky-capture":
+            // Hand off to the sticky-notes home (Felix's spec).
+            state.screen = "sticky-notes";
+            render();
             break;
           // feedback
           case "feedback-send":
@@ -2771,9 +5831,40 @@
         }
       });
 
+      // ============ BOOT ============
+      // On app start, if a token exists in localStorage, validate it via
+      // /api/auth/me and hydrate state.user. If invalid (expired/revoked),
+      // clear the stale token. Routing decisions (e.g. skip onboarding for
+      // returning users) are layered on later — this step only ensures
+      // state.user is trustworthy when present.
+      async function bootSession() {
+        if (state.token) {
+          try {
+            const res = await api("/api/auth/me");
+            state.user = {
+              id: res.user_id,
+              email: res.email,
+              name: res.name,
+              hasCompletedFirstJolt: res.has_completed_first_jolt,
+              hasSubscription: res.has_subscription,
+            };
+            // Returning user who already finished their first jolt lands
+            // straight on the sticky-notes home, skipping splash/intro/4Q.
+            if (state.user.hasCompletedFirstJolt) {
+              state.screen = "sticky-notes";
+            }
+          } catch (e) {
+            state.token = null;
+            state.user = null;
+            localStorage.removeItem("jolter_token");
+          }
+        }
+        render();
+      }
+
       // ============ INIT ============
       initGoogleSignIn();
-      render();
-    </script>
+      bootSession();
+</script>
   </body>
 </html>
