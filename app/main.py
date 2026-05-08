@@ -9,11 +9,32 @@ from app.core.config import cfg
 
 # --- DB setup ---
 try:
-    from app.db import engine
-    from app.models import Base
+    from app.db import engine, SessionLocal
+    from app.models import Base, PromoCode
 except Exception:
     engine = None
     Base = None
+    SessionLocal = None
+    PromoCode = None
+
+
+def _seed_promo_codes():
+    """Insert default promo codes if missing. Idempotent — safe to run every boot."""
+    if SessionLocal is None or PromoCode is None:
+        return
+    defaults = ["CHILLS50", "JOLTER", "FRIEND"]
+    db = SessionLocal()
+    try:
+        for code in defaults:
+            existing = db.query(PromoCode).filter(PromoCode.code == code).first()
+            if not existing:
+                db.add(PromoCode(code=code, max_uses=0, is_active=True))
+        db.commit()
+    except Exception as e:
+        print(f"[startup] Promo code seed error: {e}")
+        db.rollback()
+    finally:
+        db.close()
 
 app = FastAPI(
     title="Jolter Backend",
@@ -56,6 +77,7 @@ if assets_path.exists():
 if Base is not None and engine is not None:
     try:
         Base.metadata.create_all(bind=engine)
+        _seed_promo_codes()
     except Exception as e:
         print(f"[startup] DB table creation error: {e}")
 
