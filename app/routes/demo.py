@@ -54,6 +54,7 @@ class GenerateRequest(BaseModel):
     q3_first_call: str
     q4_unseen: str = ""
     note_id: Optional[int] = None
+    place: Optional[str] = None
 
 
 class GenerateJobResponse(BaseModel):
@@ -139,7 +140,7 @@ def _trim_at_boundary(text: str, words_to_cut: int) -> str:
 
 # --- Background generation pipeline ---
 
-def _run_generate(job_id: str, q1: str, q2: str, q3: str, q4: str, track_name: str, user_id: int = None, note_id: int = None):
+def _run_generate(job_id: str, q1: str, q2: str, q3: str, q4: str, track_name: str, user_id: int = None, note_id: int = None, place: str = None):
     """Run the full generation pipeline in a background thread."""
     try:
         start = time.time()
@@ -370,15 +371,39 @@ Continue now. Only the continuation text. No preamble."""
                         else:
                             print(f"[Demo] Note {note_id} not found for user {user_id}, skipping note update")
                     else:
-                        # First jolt from questions flow: create a new note
-                        note = StickyNote(
+                        # First jolt from questions flow: create 4 answer notes
+                        # + 1 blank reflection note.
+                        # Created in order so that newest-first ordering puts
+                        # the blank note on top, then q4, q3, q2, q1 below.
+                        answers = [
+                            ("q1", q1),
+                            ("q2", q2),
+                            ("q3", q3),
+                            ("q4", q4),
+                        ]
+                        for label, answer_text in answers:
+                            if answer_text and answer_text.strip():
+                                note = StickyNote(
+                                    user_id=user_id,
+                                    text=encrypt_field(answer_text),
+                                    state="watched",
+                                    session_id=session_id,
+                                    place=place,
+                                )
+                                db.add(note)
+                        db.flush()
+                        print(f"[Demo] Created 4 answer notes for user {user_id}, session {session_id}")
+
+                        # Create blank reflection note (newest = top of stack)
+                        blank_note = StickyNote(
                             user_id=user_id,
-                            text=encrypt_field(q1),
-                            state="watched",
-                            session_id=session_id,
+                            text="",
+                            state="idle",
+                            session_id=None,
+                            place=place,
                         )
-                        db.add(note)
-                        print(f"[Demo] Created new sticky note from q1 for user {user_id}")
+                        db.add(blank_note)
+                        print(f"[Demo] Created blank reflection note for user {user_id}")
 
                     # Mark first jolt completed on user
                     user = db.query(User).filter(User.id == user_id).first()
@@ -423,7 +448,7 @@ def generate(req: GenerateRequest, user: User = Depends(get_current_user_optiona
     """
     job_id = uuid.uuid4().hex[:16]
 
-    # Select track (single-track mode, always returns a_thousand_hearts)
+    # Select track (single-track mode, always returns ad_infinitum)
     track_name = select_track(
         q1_low_voice=req.q1_low_voice,
         q2_chills=req.q2_chills,
@@ -451,7 +476,7 @@ def generate(req: GenerateRequest, user: User = Depends(get_current_user_optiona
     t = threading.Thread(
         target=_run_generate,
         args=(job_id, req.q1_low_voice, req.q2_chills, req.q3_first_call, req.q4_unseen, track_name),
-        kwargs={"user_id": uid, "note_id": req.note_id},
+        kwargs={"user_id": uid, "note_id": req.note_id, "place": req.place},
         daemon=True,
     )
     t.start()
