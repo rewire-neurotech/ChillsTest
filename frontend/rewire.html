@@ -2875,25 +2875,18 @@
         }
       }
 
-      let fullscreenAttempted = false;
       function maybeEnterFullscreen() {
-        if (fullscreenAttempted) return;
         if (document.fullscreenElement || document.webkitFullscreenElement)
           return;
         // Skip on desktop unless the viewport is narrow (someone testing mobile in dev tools)
         const isMobileSize = window.innerWidth <= 820;
         if (!isMobileSize) return;
-        fullscreenAttempted = true;
         requestFullscreenOnce();
       }
 
-      // First user interaction triggers fullscreen. Use { once: true } so we
-      // don\'t fight the user if they exit fullscreen later.
-      document.addEventListener("pointerdown", maybeEnterFullscreen, {
-        once: true,
-      });
+      // Every user interaction tries to re-enter fullscreen if exited.
+      document.addEventListener("pointerdown", maybeEnterFullscreen);
       document.addEventListener("touchstart", maybeEnterFullscreen, {
-        once: true,
         passive: true,
       });
 
@@ -2972,6 +2965,14 @@
         chillsCount: 0,
         chillsTimestamps: [],
         audioStartTime: 0,
+        // note jolt mode (chills screen triggered from sticky notes)
+        noteJoltMode: false,
+        joltNoteId: null,
+        joltSessionId: null,
+        // geolocation
+        userPlace: null,
+        // prompt bar
+        promptDismissed: false,
         // auth
         authError: "",
       };
@@ -3121,6 +3122,79 @@
       }
 
       // ============ GOOGLE SIGN-IN ICON ============
+
+      // ============ WAKE LOCK + MEDIA SESSION ============
+      let wakeLock = null;
+      async function acquireWakeLock() {
+        if ('wakeLock' in navigator) {
+          try {
+            wakeLock = await navigator.wakeLock.request('screen');
+            wakeLock.addEventListener('release', () => { wakeLock = null; });
+          } catch (e) { /* silent */ }
+        }
+      }
+      function releaseWakeLock() {
+        if (wakeLock) { try { wakeLock.release(); } catch (_) {} wakeLock = null; }
+      }
+      // Re-acquire on visibility change (browser releases on tab switch)
+      document.addEventListener('visibilitychange', () => {
+        if (document.visibilityState === 'visible' && (
+          state.screen === 'meditation' || state.screen === 'stimulus'
+        )) { acquireWakeLock(); }
+      });
+
+      function setupMediaSession(title) {
+        if ('mediaSession' in navigator) {
+          navigator.mediaSession.metadata = new MediaMetadata({
+            title: title || 'Your Jolt',
+            artist: 'ReWire',
+            album: 'ChillsTV',
+          });
+          navigator.mediaSession.setActionHandler('play', () => {
+            if (stimulusAudio && stimulusAudio.paused) stimulusAudio.play();
+            else if (meditationAudio && meditationAudio.paused) meditationAudio.play();
+          });
+          navigator.mediaSession.setActionHandler('pause', () => {
+            if (stimulusAudio && !stimulusAudio.paused) stimulusAudio.pause();
+            else if (meditationAudio && !meditationAudio.paused) meditationAudio.pause();
+          });
+        }
+      }
+
+      // ============ GEOLOCATION ============
+      function fetchUserLocation() {
+        if (!navigator.geolocation) return;
+        navigator.geolocation.getCurrentPosition(
+          (pos) => {
+            // Reverse geocode via simple fetch (best-effort, not critical)
+            fetch(`https://nominatim.openstreetmap.org/reverse?lat=${pos.coords.latitude}&lon=${pos.coords.longitude}&format=json&zoom=10`)
+              .then(r => r.json())
+              .then(data => {
+                const city = data.address?.city || data.address?.town || data.address?.village || '';
+                const country = data.address?.country || '';
+                state.userPlace = city ? (city + (country ? ', ' + country : '')) : country || null;
+              })
+              .catch(() => { /* silent */ });
+          },
+          () => { /* denied or error, silent */ },
+          { enableHighAccuracy: false, timeout: 10000, maximumAge: 300000 }
+        );
+      }
+
+      // ============ AUTO-SAVE CHILLS ============
+      async function saveChillsData() {
+        if (!state.sessionId) return;
+        try {
+          await api("/api/demo/feedback", {
+            method: "POST",
+            body: JSON.stringify({
+              session_id: state.sessionId,
+              chills_count: state.chillsCount,
+              chills_timestamps_json: JSON.stringify(state.chillsTimestamps),
+            }),
+          });
+        } catch (e) { /* silent */ }
+      }
       const GOOGLE_ICON = `<svg viewBox="0 0 48 48"><path fill="#EA4335" d="M24 9.5c3.5 0 6.6 1.2 9.1 3.6l6.8-6.8C35.9 2.4 30.2 0 24 0 14.6 0 6.7 5.4 2.9 13.3l7.9 6.1C12.7 13.3 17.9 9.5 24 9.5z"/><path fill="#4285F4" d="M46.5 24.5c0-1.6-.1-3.1-.4-4.5H24v9h12.7c-.6 3-2.3 5.5-4.8 7.2l7.7 6c4.5-4.1 7-10.2 7-17.7z"/><path fill="#FBBC05" d="M10.8 28.6c-1-3-1-6.2 0-9.2l-7.9-6.1C.3 18.2-.5 23.9 1 29.3l9.8-6.7z" transform="translate(0,6)"/><path fill="#34A853" d="M24 48c6.5 0 11.9-2.1 15.9-5.8l-7.7-6c-2.2 1.5-4.9 2.3-8.1 2.3-6.1 0-11.3-3.8-13.2-9.2l-7.9 6.1C6.7 42.6 14.6 48 24 48z"/></svg>`;
 
       // ============ RENDERERS ============
@@ -3632,6 +3706,16 @@
       function renderStickyNotes() {
         return `
           <div class="sn-screen" id="snScreen">
+            ${!state.promptDismissed ? `
+            <div class="sn-prompt-bar" id="snPromptBar" style="display:flex;align-items:center;justify-content:space-between;padding:12px 16px;margin:0 16px;border-radius:12px;background:var(--soft-2);font:14px/1.3 var(--font-body);color:var(--muted);">
+              <div style="display:flex;align-items:center;gap:8px;">
+                <svg viewBox="0 0 16 16" width="14" height="14" style="opacity:0.5;flex-shrink:0"><path d="M2 12.5 L2 4 C2 3 3 2 4 2 L12 2 C13 2 14 3 14 4 L14 12 C14 13 13 14 12 14 L4 14 C3 14 2 13 2 12 Z M5 5 L11 5 M5 8 L9 8" stroke="currentColor" stroke-width="1.3" fill="none" stroke-linecap="round"/></svg>
+                Write down what came up during your jolt
+              </div>
+              <button id="snPromptClose" data-action="sn-prompt-close" style="background:none;border:none;padding:4px;cursor:pointer;color:var(--muted);flex-shrink:0;">
+                <svg viewBox="0 0 16 16" width="12" height="12"><path d="M4 4 L12 12 M12 4 L4 12" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
+              </button>
+            </div>` : ''}
             <div class="sn-top-spacer"></div>
             <div class="sn-stack-area" id="snStackArea">
               <div class="sn-stack" id="snStack"></div>
@@ -3841,7 +3925,16 @@
         const wb = el.querySelector(".sn-watched-btn");
         const pillEl = el.querySelector(".sn-pill");
 
-        if (note.state === "watched") {
+        if (note.state === "progress") {
+          // Currently being generated
+          jb.style.display = "";
+          const newBtn = snBtnContent("progress");
+          if (jb.innerHTML !== newBtn) jb.innerHTML = newBtn;
+          jb.disabled = true;
+          wb.style.display = "none";
+          pillEl.style.display = "";
+        } else if (note.session_id) {
+          // Has generated audio - show Watched
           jb.style.display = "none";
           jb.disabled = true;
           wb.style.display = "";
@@ -3850,10 +3943,11 @@
           const newWb = SN_ICON.bolt + " WATCHED";
           if (wb.innerHTML !== newWb) wb.innerHTML = newWb;
         } else {
+          // No session_id, not in progress - show Jolt
           jb.style.display = "";
-          const newBtn = snBtnContent(note.state);
+          const newBtn = SN_ICON.bolt + " JOLT";
           if (jb.innerHTML !== newBtn) jb.innerHTML = newBtn;
-          jb.disabled = note.state === "progress";
+          jb.disabled = false;
           wb.style.display = "none";
           pillEl.style.display = "";
         }
@@ -4069,19 +4163,17 @@
         if (!n) return;
         if (n.state === "progress") return;
 
-        // READY → play audio
-        if (n.state === "ready") {
+        // Note with existing stimulus → play audio
+        if (n.session_id) {
           snBp(0.07);
           snOpenModal(n.id);
           return;
         }
 
-        // IDLE with empty text → ignore (button is unreachable visually too)
-        if (n.state === "idle" && !(n.text || "").trim()) return;
+        // No session_id, empty text → ignore
+        if (!(n.text || "").trim()) return;
 
-        // IDLE (with text) or WATCHED → run the jolt+generate cycle.
-        // The backend's jolt endpoint decides whether to allow (jolt_count==0
-        // or active subscription) or block (subscription_required) → paywall.
+        // No session_id, has text → run jolt generation → chills screen
         snBp(0.07);
         await snTriggerJoltGeneration(n);
       }
@@ -4130,6 +4222,7 @@
               q3_first_call: "",
               q4_unseen: "",
               note_id: n.id,
+              place: state.userPlace,
             }),
           });
           jobId = genRes.job_id;
@@ -4140,7 +4233,7 @@
           return;
         }
 
-        // Poll status until done.
+        // Poll status until done, then transition to chills screen.
         const poll = setInterval(async () => {
           try {
             const st = await api(`/api/demo/generate/status/${jobId}`);
@@ -4150,7 +4243,17 @@
               n.session_id = st.session_id;
               n.audio_url = st.audio_url;
               snBp(0.05);
-              snRenderStack();
+
+              // Transition to chills screen (stimulus) for note jolt
+              state.noteJoltMode = true;
+              state.joltNoteId = n.id;
+              state.joltSessionId = st.session_id;
+              state.sessionId = st.session_id;
+              state.audioUrl = st.audio_url;
+              state.chillsCount = 0;
+              state.chillsTimestamps = [];
+              state.screen = "stimulus";
+              render();
             } else if (st.stage === "error") {
               clearInterval(poll);
               n.state = prevState;
@@ -4172,6 +4275,8 @@
         if (modal) modal.classList.add("show");
         const n = snNotes.find((x) => x.id === noteId);
         if (n && n.audio_url) {
+          acquireWakeLock();
+          setupMediaSession("Your Jolt");
           snModalAudio = new Audio(n.audio_url);
           snModalAudio.play().catch(() => {});
           snModalAudio.onended = () => snCloseModal();
@@ -4184,6 +4289,7 @@
           try { snModalAudio.pause(); } catch (_) {}
           snModalAudio = null;
         }
+        releaseWakeLock();
         if (snModalNoteId) {
           const n = snNotes.find((x) => x.id === snModalNoteId);
           if (n && n.state === "ready") {
@@ -4217,8 +4323,19 @@
       function snOpenShareSheet(note) {
         snShareSheetNote = note;
         snBp(0.05);
-        const ss = document.getElementById("snShareSheet");
-        if (ss) ss.classList.add("show");
+        const text = note ? (note.text || "") : "";
+        const shareData = {
+          title: "A jolt from my stack",
+          text: text,
+          url: window.location.origin,
+        };
+        if (navigator.share) {
+          navigator.share(shareData).catch(() => {});
+        } else {
+          // Fallback: show built-in share sheet
+          const ss = document.getElementById("snShareSheet");
+          if (ss) ss.classList.add("show");
+        }
       }
       function snCloseShareSheet() {
         const ss = document.getElementById("snShareSheet");
@@ -4233,7 +4350,11 @@
         return (s || "").trim().split(/\s+/).filter(Boolean).length;
       }
       function snCanCreateNewNote() {
-        return snWordCount(snNotes[0]?.text) >= 2;
+        if (snNotes.length >= 20) return false;
+        // Prevent stacking empty notes: block only if the top note is blank
+        const top = snNotes[0];
+        if (top && !(top.text || "").trim()) return false;
+        return true;
       }
       function snNudgeNewBtn() {
         const btn = document.getElementById("snNewBtn");
@@ -4261,7 +4382,7 @@
           id: tempId,
           text: "",
           when: new Date().toISOString(),
-          place: null,
+          place: state.userPlace,
           state: "idle",
         };
         snNotes.unshift(tempNote);
@@ -4282,7 +4403,7 @@
         try {
           const created = await api("/api/notes", {
             method: "POST",
-            body: JSON.stringify({ text: "" }),
+            body: JSON.stringify({ text: "", place: state.userPlace }),
           });
           // Patch id on the temp note (DOM key migrates: rebuild map entry)
           const tmpEl = snCardEls.get(tempId);
@@ -4558,6 +4679,12 @@
             snNewBlankNote();
             return;
           }
+          if (action === "sn-prompt-close") {
+            state.promptDismissed = true;
+            const bar = document.getElementById("snPromptBar");
+            if (bar) bar.remove();
+            return;
+          }
           if (action === "sn-modal-back") {
             snCloseModal();
             return;
@@ -4705,6 +4832,20 @@
 
         // Hydrate notes from backend.
         await snLoadNotes();
+
+        // Hide plus button when keyboard opens (textarea focused)
+        const snNewBtnEl = document.getElementById("snNewBtn");
+        if (snNewBtnEl && window.visualViewport) {
+          let origHeight = window.visualViewport.height;
+          window.visualViewport.addEventListener("resize", () => {
+            if (state.screen !== "sticky-notes") return;
+            const btn = document.getElementById("snNewBtn");
+            if (!btn) return;
+            // Keyboard is open when viewport shrinks significantly
+            const keyboardOpen = window.visualViewport.height < origHeight * 0.75;
+            btn.style.display = keyboardOpen ? "none" : "";
+          });
+        }
       }
 
       async function snLoadNotes() {
@@ -5422,6 +5563,7 @@
             q2_chills: state.answers.chills || "",
             q3_first_call: state.answers.firstCall || "",
             q4_unseen: state.answers.unseen || "",
+            place: state.userPlace,
           };
           const res = await api("/api/demo/generate", {
             method: "POST",
@@ -5443,6 +5585,9 @@
       function startMeditation() {
         // Init particles
         setTimeout(() => initParticles("pCanvas"), 50);
+        // Acquire wake lock and set up media session
+        acquireWakeLock();
+        setupMediaSession("Meditation");
         // Play meditation audio
         if (state.meditationUrl) {
           meditationAudio = new Audio(state.meditationUrl);
@@ -5510,6 +5655,7 @@
             stimulusAudio = new Audio(state.audioUrl);
             stimulusAudio.play().catch(() => {});
             state.audioStartTime = Date.now();
+            setupMediaSession("Your Jolt");
             stimulusAudio.onended = () => {
               setTimeout(goToFirstSticky, 1500);
             };
@@ -5536,6 +5682,8 @@
       // ============ STIMULUS ============
       function startStimulus() {
         setTimeout(() => initParticles("pCanvas"), 50);
+        acquireWakeLock();
+        setupMediaSession("Your Jolt");
         if (state.audioUrl) {
           stimulusAudio = new Audio(state.audioUrl);
           stimulusAudio.play().catch(() => {});
@@ -5553,6 +5701,30 @@
       function goToFirstSticky() {
         stopParticles();
         stopAllAudio();
+        releaseWakeLock();
+
+        // Auto-save chills data before leaving stimulus
+        saveChillsData();
+
+        if (state.noteJoltMode) {
+          // Returning from a note jolt: mark note as watched and go to sticky-notes
+          const n = snNotes.find((x) => String(x.id) === String(state.joltNoteId));
+          if (n) {
+            n.state = "watched";
+            // Update backend state
+            api(`/api/notes/${n.id}/state`, {
+              method: "PUT",
+              body: JSON.stringify({ state: "watched" }),
+            }).catch(() => {});
+          }
+          state.noteJoltMode = false;
+          state.joltNoteId = null;
+          state.joltSessionId = null;
+          state.screen = "sticky-notes";
+          render();
+          return;
+        }
+
         state.screen = "first-sticky";
         render();
       }
@@ -5674,6 +5846,9 @@
         state.meditationDone = false;
         state.chillsCount = 0;
         state.chillsTimestamps = [];
+        state.noteJoltMode = false;
+        state.joltNoteId = null;
+        state.joltSessionId = null;
         render();
       }
 
@@ -5863,6 +6038,7 @@
       }
 
       // ============ INIT ============
+      fetchUserLocation();
       initGoogleSignIn();
       bootSession();
 </script>
