@@ -86,10 +86,15 @@ def _check_jolt_permission(user: User, note: StickyNote, db: Session) -> tuple:
     Check if the user can jolt this note.
     Returns (can_jolt: bool, reason: str or None).
 
-    Free tier rules:
+    Rules:
+      - Notes that already have a session_id cannot be jolted (use Watched instead)
       - First jolt on a note is always free
       - Re-jolting a watched note requires an active subscription
     """
+    # Notes with an existing stimulus cannot be re-jolted
+    if note.session_id:
+        return False, "already_generated"
+
     # First jolt on this note is always free
     if note.jolt_count == 0:
         return True, None
