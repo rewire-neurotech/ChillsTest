@@ -5,7 +5,6 @@ Supports:
   - Email / password registration and login
   - Google OAuth (frontend sends Google ID token, backend verifies)
   - JWT-based session tokens
-  - Push subscription management for notifications
 """
 
 from datetime import datetime, timedelta, timezone
@@ -21,7 +20,7 @@ from passlib.context import CryptContext
 
 from app.core.config import cfg
 from app.db import get_db
-from app.models import User, Subscription, PushSubscription
+from app.models import User, Subscription
 
 r = APIRouter(prefix="/api/auth", tags=["auth"])
 
@@ -156,16 +155,6 @@ class UserResponse(BaseModel):
     auth_provider: str
     has_completed_first_jolt: bool = False
     has_subscription: bool = False
-
-
-class PushSubscribeRequest(BaseModel):
-    endpoint: str
-    p256dh: str
-    auth: str
-
-
-class PushStatusResponse(BaseModel):
-    status: str
 
 
 # --- Endpoints ---
@@ -314,49 +303,7 @@ def get_me(user: User = Depends(get_current_user_required), db: Session = Depend
 @r.get("/config")
 def get_auth_config():
     """
-    Public endpoint. Returns the Google Client ID and VAPID public key
-    so the frontend can initialize Google Identity Services and push notifications.
+    Public endpoint. Returns the Google Client ID so the frontend
+    can initialize Google Identity Services.
     """
-    return {
-        "google_client_id": cfg.GOOGLE_CLIENT_ID or "",
-        "vapid_public_key": cfg.VAPID_PUBLIC_KEY or "",
-    }
-
-
-# --- Push subscription endpoints ---
-
-@r.post("/push/subscribe", response_model=PushStatusResponse)
-def push_subscribe(
-    req: PushSubscribeRequest,
-    user: User = Depends(get_current_user_required),
-    db: Session = Depends(get_db),
-):
-    """Save a push subscription for the current user."""
-    # Remove any existing subscription with the same endpoint for this user
-    db.query(PushSubscription).filter(
-        PushSubscription.user_id == user.id,
-        PushSubscription.endpoint == req.endpoint,
-    ).delete()
-
-    sub = PushSubscription(
-        user_id=user.id,
-        endpoint=req.endpoint,
-        p256dh_key=req.p256dh,
-        auth_key=req.auth,
-    )
-    db.add(sub)
-    db.commit()
-    return PushStatusResponse(status="ok")
-
-
-@r.post("/push/unsubscribe", response_model=PushStatusResponse)
-def push_unsubscribe(
-    user: User = Depends(get_current_user_required),
-    db: Session = Depends(get_db),
-):
-    """Remove all push subscriptions for the current user."""
-    db.query(PushSubscription).filter(
-        PushSubscription.user_id == user.id,
-    ).delete()
-    db.commit()
-    return PushStatusResponse(status="ok")
+    return {"google_client_id": cfg.GOOGLE_CLIENT_ID or ""}
