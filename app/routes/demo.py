@@ -18,7 +18,7 @@ from pydub import AudioSegment
 
 from app.core.config import cfg
 from app.db import get_db, SessionLocal
-from app.models import DemoSession, User, AuditLog, StickyNote
+from app.models import DemoSession, User, AuditLog, StickyNote, PushSubscription
 from app.services.prompt import build_user_prompt
 from app.services.llm import generate_speech
 from app.services.tts import synth
@@ -27,6 +27,12 @@ from app.services.music_selector import select_track
 from app.utils.audio import load_audio, duration_ms, content_duration_ms
 from app.utils.encryption import encrypt_field, decrypt_field, encrypt_file, decrypt_file_to_bytes
 from app.routes.auth import get_current_user_required, get_current_user_optional
+
+try:
+    from pywebpush import webpush, WebPushException
+except ImportError:
+    webpush = None
+    WebPushException = Exception
 
 r = APIRouter(prefix="/api/demo", tags=["demo"])
 
@@ -53,6 +59,7 @@ class GenerateRequest(BaseModel):
     q2_chills: str
     q3_first_call: str
     q4_unseen: str = ""
+    q0_wish_easier: Optional[str] = ""
     note_id: Optional[int] = None
     place: Optional[str] = None
 
@@ -135,12 +142,54 @@ def _trim_at_boundary(text: str, words_to_cut: int) -> str:
     if last_end > len(rough_cut) * 0.5:
         return rough_cut[:last_end + 1].rstrip()
 
+    # 5. Last resort: find any sentence boundary anywhere in the text
+    last_end = max(rough_cut.rfind("."), rough_cut.rfind("!"), rough_cut.rfind("?"))
+    if last_end > 0:
+        return rough_cut[:last_end + 1].rstrip()
+
     return rough_cut
+
+
+# --- Push notification helper ---
+
+def _send_push_notification(user_id: int, message: str):
+    """Send a web push notification to all subscriptions for a user."""
+    if not webpush or not cfg.VAPID_PRIVATE_KEY or not cfg.VAPID_PUBLIC_KEY:
+        return
+    db = SessionLocal()
+    try:
+        subs = db.query(PushSubscription).filter(PushSubscription.user_id == user_id).all()
+        for sub in subs:
+            try:
+                webpush(
+                    subscription_info={
+                        "endpoint": sub.endpoint,
+                        "keys": {
+                            "p256dh": sub.p256dh_key,
+                            "auth": sub.auth_key,
+                        },
+                    },
+                    data=json.dumps({"title": "Jolter", "body": message}),
+                    vapid_private_key=cfg.VAPID_PRIVATE_KEY,
+                    vapid_claims={"sub": cfg.VAPID_CLAIMS_EMAIL},
+                )
+            except WebPushException as e:
+                print(f"[Push] Failed for subscription {sub.id}: {e}")
+                # Remove invalid subscriptions (410 Gone = unsubscribed)
+                if hasattr(e, 'response') and e.response and getattr(e.response, 'status_code', 0) == 410:
+                    db.delete(sub)
+            except Exception as e:
+                print(f"[Push] Unexpected error for subscription {sub.id}: {e}")
+        db.commit()
+    except Exception as e:
+        print(f"[Push] Error sending notifications: {e}")
+    finally:
+        db.close()
 
 
 # --- Background generation pipeline ---
 
-def _run_generate(job_id: str, q1: str, q2: str, q3: str, q4: str, track_name: str, user_id: int = None, note_id: int = None, place: str = None):
+def _run_generate(job_id: str, q1: str, q2: str, q3: str, q4: str, track_name: str, user_id: int = None, note_id: int = None, place: str = None, q0_wish_easier: str = ""):
     """Run the full generation pipeline in a background thread."""
     try:
         start = time.time()
@@ -322,7 +371,7 @@ Continue now. Only the continuation text. No preamble."""
             out_path=str(out_path),
             sync_mode="retime_music_to_voice",
             music_fadein_ms=MUSIC_FADEIN_MS,
-            music_premix_gain_db=-5.0,
+            music_premix_gain_db=-3.5,
             ffmpeg_bin=cfg.FFMPEG_BIN,
         )
         print(f"[Demo] Mix done: {out_path}")
@@ -340,6 +389,7 @@ Continue now. Only the continuation text. No preamble."""
             session = DemoSession(
                 session_id=session_id,
                 user_id=user_id,
+                q0_wish_easier=encrypt_field(q0_wish_easier),
                 q1_low_voice=encrypt_field(q1),
                 q2_chills=encrypt_field(q2),
                 q3_first_call=encrypt_field(q3),
@@ -431,6 +481,10 @@ Continue now. Only the continuation text. No preamble."""
             audio_url=audio_url,
         )
 
+        # Send push notification
+        if user_id:
+            _send_push_notification(user_id, "Your Jolt is ready")
+
     except Exception as e:
         print(f"[Demo] Generation error for job {job_id}: {e}")
         _update_job(job_id, stage="error", error=str(e))
@@ -476,7 +530,7 @@ def generate(req: GenerateRequest, user: User = Depends(get_current_user_optiona
     t = threading.Thread(
         target=_run_generate,
         args=(job_id, req.q1_low_voice, req.q2_chills, req.q3_first_call, req.q4_unseen, track_name),
-        kwargs={"user_id": uid, "note_id": req.note_id, "place": req.place},
+        kwargs={"user_id": uid, "note_id": req.note_id, "place": req.place, "q0_wish_easier": req.q0_wish_easier or ""},
         daemon=True,
     )
     t.start()
@@ -581,6 +635,7 @@ def export_csv(request: Request, db: Session = Depends(get_db), user: User = Dep
         "session_id",
         "user_id",
         # Questions
+        "q0_wish_easier",
         "q1_low_voice",
         "q2_chills",
         "q3_first_call",
@@ -608,6 +663,7 @@ def export_csv(request: Request, db: Session = Depends(get_db), user: User = Dep
         writer.writerow([
             s.session_id,
             s.user_id,
+            decrypt_field(s.q0_wish_easier),
             decrypt_field(s.q1_low_voice),
             decrypt_field(s.q2_chills),
             decrypt_field(s.q3_first_call),
