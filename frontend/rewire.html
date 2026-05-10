@@ -848,79 +848,6 @@
         transform: scale(0.92);
       }
 
-      /* ============ SURVEY (pre-question screen) ============ */
-      .survey {
-        flex: 1;
-        display: flex;
-        flex-direction: column;
-        min-height: 0;
-        overflow: hidden;
-      }
-      .survey-title {
-        margin: 0;
-        font-family: var(--font-display);
-        font-size: 28px;
-        line-height: 1.18;
-        font-weight: 700;
-        letter-spacing: -0.025em;
-        padding: 40px 0 32px;
-      }
-      .survey-options {
-        display: flex;
-        flex-direction: column;
-        gap: 12px;
-      }
-      .survey-option {
-        width: 100%;
-        min-height: 52px;
-        border-radius: 14px;
-        background: var(--soft);
-        border: 2px solid transparent;
-        padding: 14px 18px;
-        font-size: 16px;
-        font-weight: 500;
-        font-family: var(--font-body);
-        color: var(--ink);
-        text-align: left;
-        cursor: pointer;
-        transition: background 140ms ease, border-color 140ms ease;
-      }
-      .survey-option:active {
-        transform: scale(0.98);
-      }
-      .survey-option.selected {
-        background: #e8e6ff;
-        border-color: var(--ink);
-      }
-      .survey-spacer {
-        flex: 1;
-        min-height: 16px;
-      }
-      .survey-input-row {
-        flex-shrink: 0;
-        padding-top: 12px;
-        padding-bottom: 8px;
-      }
-      .survey-input-pill {
-        display: flex;
-        align-items: center;
-        gap: 8px;
-        min-height: 52px;
-        border-radius: 22px;
-        background: var(--soft);
-        padding: 6px 6px 6px 18px;
-      }
-      .survey-input-pill input {
-        flex: 1;
-        min-width: 0;
-        height: 40px;
-        font-size: 16px;
-        background: transparent;
-      }
-      .survey-input-pill input::placeholder {
-        color: #b5afa3;
-      }
-
       /* ============ STIMULUS (black screen) ============ */
       .stimulus {
         background: #000;
@@ -2279,7 +2206,7 @@
 
       .sn-stack-area {
         flex: 1; min-height: 0;
-        display: flex; flex-direction: column; align-items: center; justify-content: center;
+        display: flex; align-items: center; justify-content: center;
         padding: 24px;
         perspective: 1400px;
         touch-action: none;
@@ -2620,108 +2547,6 @@
         transform: translateX(-50%) translateY(0);
       }
 
-      /* ---- Settings gear + panel (Felix's design) ---- */
-      .sn-gear-btn {
-        position: absolute;
-        top: max(28px, env(safe-area-inset-top, 28px));
-        right: 28px;
-        width: 40px; height: 40px;
-        border-radius: 50%;
-        background: transparent; border: none;
-        display: flex; align-items: center; justify-content: center;
-        cursor: pointer; color: #1a1a1c;
-        transition: background 200ms ease, transform 400ms cubic-bezier(0.4,0,0.2,1);
-        z-index: 10;
-      }
-      .sn-gear-btn:hover { background: rgba(0,0,0,0.04); }
-      .sn-gear-btn:active { transform: scale(0.95); }
-      .sn-gear-btn svg {
-        transition: transform 500ms cubic-bezier(0.4,0,0.2,1);
-      }
-      .sn-gear-btn:hover svg { transform: rotate(60deg); }
-      .sn-gear-btn.is-open svg { transform: rotate(120deg); }
-
-      .sn-settings-scrim {
-        position: fixed; inset: 0;
-        background: rgba(20,20,20,0.18);
-        backdrop-filter: blur(2px); -webkit-backdrop-filter: blur(2px);
-        opacity: 0; pointer-events: none;
-        transition: opacity 240ms ease;
-        z-index: 20;
-      }
-      .sn-settings-scrim.is-open {
-        opacity: 1; pointer-events: auto;
-      }
-
-      .sn-settings-panel {
-        position: absolute;
-        top: calc(max(28px, env(safe-area-inset-top, 28px)) + 48px);
-        right: 28px;
-        width: 240px;
-        background: #faf8f3;
-        border-radius: 14px;
-        padding: 8px;
-        box-shadow: 0 2px 4px rgba(0,0,0,0.05), 0 16px 40px rgba(0,0,0,0.08);
-        border: 1px solid rgba(0,0,0,0.08);
-        transform-origin: top right;
-        transform: scale(0.94) translateY(-4px);
-        opacity: 0; pointer-events: none;
-        transition: transform 220ms cubic-bezier(0.16,1,0.3,1), opacity 180ms ease;
-        z-index: 30;
-      }
-      .sn-settings-panel.is-open {
-        transform: scale(1) translateY(0);
-        opacity: 1; pointer-events: auto;
-      }
-
-      .sn-panel-header {
-        font-size: 10px; font-weight: 600;
-        letter-spacing: 0.14em; color: #8a8a85;
-        padding: 10px 12px 8px;
-        text-transform: uppercase;
-      }
-
-      .sn-settings-row {
-        display: flex; align-items: center;
-        justify-content: space-between;
-        padding: 12px; border-radius: 10px;
-        cursor: pointer;
-        transition: background 160ms ease;
-        user-select: none;
-      }
-      .sn-settings-row:hover { background: rgba(0,0,0,0.035); }
-      .sn-settings-row-label {
-        font-size: 14px; font-weight: 500; color: #1a1a1c;
-      }
-
-      .sn-toggle {
-        position: relative;
-        width: 34px; height: 20px;
-        border-radius: 999px;
-        background: #d6d4cd;
-        transition: background 220ms ease;
-        flex-shrink: 0;
-      }
-      .sn-toggle::after {
-        content: "";
-        position: absolute; top: 2px; left: 2px;
-        width: 16px; height: 16px;
-        background: #fff; border-radius: 50%;
-        box-shadow: 0 1px 2px rgba(0,0,0,0.2);
-        transition: transform 220ms cubic-bezier(0.4,0,0.2,1);
-      }
-      .sn-toggle.on { background: #2a2a2a; }
-      .sn-toggle.on::after { transform: translateX(14px); }
-
-      .sn-settings-divider {
-        height: 1px;
-        background: rgba(0,0,0,0.08);
-        margin: 4px 8px;
-      }
-
-      .sn-settings-row.danger .sn-settings-row-label { color: #b54a3a; }
-      .sn-settings-row.danger:hover { background: rgba(181,74,58,0.06); }
-
       @keyframes snCardJolt {
         0%   { transform: translate3d(0,0,0) rotate(0); }
         14%  { transform: translate3d(-3px,1px,0) rotate(-1deg); }
@@ -3053,6 +2878,9 @@
       function maybeEnterFullscreen() {
         if (document.fullscreenElement || document.webkitFullscreenElement)
           return;
+        // Skip on desktop unless the viewport is narrow (someone testing mobile in dev tools)
+        const isMobileSize = window.innerWidth <= 820;
+        if (!isMobileSize) return;
         requestFullscreenOnce();
       }
 
@@ -3147,8 +2975,6 @@
         promptDismissed: false,
         // auth
         authError: "",
-        // survey (pre-question)
-        surveyAnswer: "",
       };
 
       const app = document.getElementById("app");
@@ -3177,18 +3003,6 @@
           throw new Error(err.detail || "Request failed");
         }
         return resp.json();
-      }
-
-      // ============ PUSH HELPERS ============
-      function urlBase64ToUint8Array(base64String) {
-        const padding = '='.repeat((4 - base64String.length % 4) % 4);
-        const base64 = (base64String + padding).replace(/-/g, '+').replace(/_/g, '/');
-        const rawData = window.atob(base64);
-        const outputArray = new Uint8Array(rawData.length);
-        for (let i = 0; i < rawData.length; ++i) {
-          outputArray[i] = rawData.charCodeAt(i);
-        }
-        return outputArray;
       }
 
       // ============ PARTICLE SYSTEM ============
@@ -3350,20 +3164,6 @@
       // ============ GEOLOCATION ============
       function fetchUserLocation() {
         if (!navigator.geolocation) return;
-        // US state abbreviation lookup
-        const US_STATES = {
-          "Alabama":"AL","Alaska":"AK","Arizona":"AZ","Arkansas":"AR","California":"CA",
-          "Colorado":"CO","Connecticut":"CT","Delaware":"DE","Florida":"FL","Georgia":"GA",
-          "Hawaii":"HI","Idaho":"ID","Illinois":"IL","Indiana":"IN","Iowa":"IA","Kansas":"KS",
-          "Kentucky":"KY","Louisiana":"LA","Maine":"ME","Maryland":"MD","Massachusetts":"MA",
-          "Michigan":"MI","Minnesota":"MN","Mississippi":"MS","Missouri":"MO","Montana":"MT",
-          "Nebraska":"NE","Nevada":"NV","New Hampshire":"NH","New Jersey":"NJ","New Mexico":"NM",
-          "New York":"NY","North Carolina":"NC","North Dakota":"ND","Ohio":"OH","Oklahoma":"OK",
-          "Oregon":"OR","Pennsylvania":"PA","Rhode Island":"RI","South Carolina":"SC",
-          "South Dakota":"SD","Tennessee":"TN","Texas":"TX","Utah":"UT","Vermont":"VT",
-          "Virginia":"VA","Washington":"WA","West Virginia":"WV","Wisconsin":"WI","Wyoming":"WY",
-          "District of Columbia":"DC"
-        };
         navigator.geolocation.getCurrentPosition(
           (pos) => {
             // Reverse geocode via simple fetch (best-effort, not critical)
@@ -3371,18 +3171,8 @@
               .then(r => r.json())
               .then(data => {
                 const city = data.address?.city || data.address?.town || data.address?.village || '';
-                const stateName = data.address?.state || '';
-                const cc = (data.address?.country_code || '').toUpperCase();
-                let region = '';
-                if (cc === 'US' && stateName && US_STATES[stateName]) {
-                  region = US_STATES[stateName];
-                } else if (stateName) {
-                  // For non-US: use first letters of state/region words (e.g. "England" -> "ENG")
-                  region = stateName.length <= 3 ? stateName.toUpperCase() : stateName.slice(0, 3).toUpperCase();
-                } else {
-                  region = cc;
-                }
-                state.userPlace = city ? (city + (region ? ', ' + region : '')) : region || null;
+                const country = data.address?.country || '';
+                state.userPlace = city ? (city + (country ? ', ' + country : '')) : country || null;
               })
               .catch(() => { /* silent */ });
           },
@@ -3916,43 +3706,18 @@
       function renderStickyNotes() {
         return `
           <div class="sn-screen" id="snScreen">
-            <!-- Gear + Settings panel (Felix's design) -->
-            <button class="sn-gear-btn" id="snGearBtn" aria-label="Settings">
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
-                <circle cx="12" cy="12" r="3"/>
-                <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/>
-              </svg>
-            </button>
-            <div class="sn-settings-scrim" id="snSettingsScrim"></div>
-            <div class="sn-settings-panel" id="snSettingsPanel">
-              <div class="sn-panel-header">Settings</div>
-              <div class="sn-settings-row" id="snNotifRow">
-                <span class="sn-settings-row-label">Notifications</span>
-                <span class="sn-toggle${localStorage.getItem('jolter_notif') === 'on' ? ' on' : ''}" id="snNotifToggle"></span>
+            ${!state.promptDismissed ? `
+            <div class="sn-prompt-bar" id="snPromptBar" style="display:flex;align-items:center;justify-content:space-between;padding:12px 16px;margin:0 16px;border-radius:12px;background:var(--soft-2);font:14px/1.3 var(--font-body);color:var(--muted);">
+              <div style="display:flex;align-items:center;gap:8px;">
+                <svg viewBox="0 0 16 16" width="14" height="14" style="opacity:0.5;flex-shrink:0"><path d="M2 12.5 L2 4 C2 3 3 2 4 2 L12 2 C13 2 14 3 14 4 L14 12 C14 13 13 14 12 14 L4 14 C3 14 2 13 2 12 Z M5 5 L11 5 M5 8 L9 8" stroke="currentColor" stroke-width="1.3" fill="none" stroke-linecap="round"/></svg>
+                Write down what came up during your jolt
               </div>
-              <div class="sn-settings-divider"></div>
-              <div class="sn-settings-row danger" id="snSignOutRow">
-                <span class="sn-settings-row-label">Sign out</span>
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
-                  <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/>
-                  <polyline points="16 17 21 12 16 7"/>
-                  <line x1="21" y1="12" x2="9" y2="12"/>
-                </svg>
-              </div>
-            </div>
-
+              <button id="snPromptClose" data-action="sn-prompt-close" style="background:none;border:none;padding:4px;cursor:pointer;color:var(--muted);flex-shrink:0;">
+                <svg viewBox="0 0 16 16" width="12" height="12"><path d="M4 4 L12 12 M12 4 L4 12" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
+              </button>
+            </div>` : ''}
             <div class="sn-top-spacer"></div>
             <div class="sn-stack-area" id="snStackArea">
-              ${!state.promptDismissed ? `
-              <div class="sn-prompt-bar" id="snPromptBar" style="display:flex;align-items:center;justify-content:space-between;padding:12px 16px;margin:0 0 12px 0;border-radius:12px;background:var(--soft-2);font:14px/1.3 var(--font-body);color:var(--muted);width:100%;max-width:380px;flex-shrink:0;">
-                <div style="display:flex;align-items:center;gap:8px;">
-                  <svg viewBox="0 0 16 16" width="14" height="14" style="opacity:0.5;flex-shrink:0"><path d="M2 12.5 L2 4 C2 3 3 2 4 2 L12 2 C13 2 14 3 14 4 L14 12 C14 13 13 14 12 14 L4 14 C3 14 2 13 2 12 Z M5 5 L11 5 M5 8 L9 8" stroke="currentColor" stroke-width="1.3" fill="none" stroke-linecap="round"/></svg>
-                  Write down what came up during your jolt
-                </div>
-                <button id="snPromptClose" data-action="sn-prompt-close" style="background:none;border:none;padding:4px;cursor:pointer;color:var(--muted);flex-shrink:0;">
-                  <svg viewBox="0 0 16 16" width="12" height="12"><path d="M4 4 L12 12 M12 4 L4 12" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
-                </button>
-              </div>` : ''}
               <div class="sn-stack" id="snStack"></div>
             </div>
             <div class="sn-bottom-bar">
@@ -4559,27 +4324,13 @@
         snShareSheetNote = note;
         snBp(0.05);
         const text = note ? (note.text || "") : "";
-        // If note has generated audio, share the audio file
-        if (note && note.audio_url && navigator.share) {
-          // Try to share audio as a file
-          fetch(note.audio_url)
-            .then(r => r.blob())
-            .then(blob => {
-              const file = new File([blob], "jolt.mp3", { type: "audio/mpeg" });
-              const shareData = { title: "Listen to my Jolt", files: [file] };
-              if (navigator.canShare && navigator.canShare(shareData)) {
-                navigator.share(shareData).catch(() => {});
-              } else {
-                // Fallback: share audio URL
-                navigator.share({ title: "Listen to my Jolt", text: "Listen to my Jolt", url: window.location.origin + note.audio_url }).catch(() => {});
-              }
-            })
-            .catch(() => {
-              // Fallback: share audio URL
-              navigator.share({ title: "Listen to my Jolt", url: window.location.origin + note.audio_url }).catch(() => {});
-            });
-        } else if (navigator.share) {
-          navigator.share({ title: "A jolt from my stack", text: text, url: window.location.origin }).catch(() => {});
+        const shareData = {
+          title: "A jolt from my stack",
+          text: text,
+          url: window.location.origin,
+        };
+        if (navigator.share) {
+          navigator.share(shareData).catch(() => {});
         } else {
           // Fallback: show built-in share sheet
           const ss = document.getElementById("snShareSheet");
@@ -5082,103 +4833,6 @@
         // Hydrate notes from backend.
         await snLoadNotes();
 
-        // ---- Settings panel wiring ----
-        const gearBtn = document.getElementById("snGearBtn");
-        const settingsPanel = document.getElementById("snSettingsPanel");
-        const settingsScrim = document.getElementById("snSettingsScrim");
-        const notifRow = document.getElementById("snNotifRow");
-        const notifToggle = document.getElementById("snNotifToggle");
-        const signOutRow = document.getElementById("snSignOutRow");
-
-        function openSettings() {
-          if (settingsPanel) settingsPanel.classList.add("is-open");
-          if (settingsScrim) settingsScrim.classList.add("is-open");
-          if (gearBtn) gearBtn.classList.add("is-open");
-        }
-        function closeSettings() {
-          if (settingsPanel) settingsPanel.classList.remove("is-open");
-          if (settingsScrim) settingsScrim.classList.remove("is-open");
-          if (gearBtn) gearBtn.classList.remove("is-open");
-        }
-
-        if (gearBtn) {
-          gearBtn.addEventListener("click", (ev) => {
-            ev.stopPropagation();
-            if (settingsPanel && settingsPanel.classList.contains("is-open")) closeSettings();
-            else openSettings();
-          });
-        }
-        if (settingsScrim) settingsScrim.addEventListener("click", closeSettings);
-
-        // Notification toggle
-        if (notifRow) {
-          notifRow.addEventListener("click", async () => {
-            const isOn = notifToggle && notifToggle.classList.contains("on");
-            if (isOn) {
-              // Turn off
-              if (notifToggle) notifToggle.classList.remove("on");
-              localStorage.removeItem("jolter_notif");
-              try {
-                await api("/api/auth/push/unsubscribe", { method: "POST" });
-              } catch (e) { /* silent */ }
-            } else {
-              // Turn on: request permission and subscribe
-              if (!("Notification" in window) || !("serviceWorker" in navigator)) {
-                alert("Notifications are not supported on this browser.");
-                return;
-              }
-              const perm = await Notification.requestPermission();
-              if (perm !== "granted") {
-                alert("Notification permission denied.");
-                return;
-              }
-              try {
-                const configRes = await api("/api/auth/config");
-                const vapidKey = configRes.vapid_public_key;
-                if (!vapidKey) { alert("Push not configured on server."); return; }
-                const reg = await navigator.serviceWorker.register("/sw.js");
-                await navigator.serviceWorker.ready;
-                const sub = await reg.pushManager.subscribe({
-                  userVisibleOnly: true,
-                  applicationServerKey: urlBase64ToUint8Array(vapidKey),
-                });
-                const subJson = sub.toJSON();
-                await api("/api/auth/push/subscribe", {
-                  method: "POST",
-                  body: JSON.stringify({
-                    endpoint: subJson.endpoint,
-                    p256dh: subJson.keys.p256dh,
-                    auth: subJson.keys.auth,
-                  }),
-                });
-                if (notifToggle) notifToggle.classList.add("on");
-                localStorage.setItem("jolter_notif", "on");
-              } catch (e) {
-                console.error("[Push] Subscribe error:", e);
-                alert("Could not enable notifications.");
-              }
-            }
-          });
-        }
-
-        // Sign out
-        if (signOutRow) {
-          signOutRow.addEventListener("click", () => {
-            closeSettings();
-            state.token = null;
-            state.user = null;
-            localStorage.removeItem("jolter_token");
-            localStorage.removeItem("jolter_notif");
-            state.screen = "splash";
-            render();
-          });
-        }
-
-        // Esc closes settings
-        document.addEventListener("keydown", function snEscSettings(ev) {
-          if (ev.key === "Escape") closeSettings();
-        });
-
         // Hide plus button when keyboard opens (textarea focused)
         const snNewBtnEl = document.getElementById("snNewBtn");
         if (snNewBtnEl && window.visualViewport) {
@@ -5371,30 +5025,6 @@
                   <path d="M5 12h14M13 5l7 7-7 7"/>
                 </svg>
               </button>
-            </div>
-          </section>
-        `;
-      }
-
-      function renderSurvey() {
-        const opts = ["Exercise", "Making new friends", "Studying", "Outdoor activities"];
-        return `
-          <section class="screen">
-            <div class="topbar">
-              <span></span>
-              <button class="skip" data-action="survey-skip">Skip for now</button>
-            </div>
-            <div class="survey">
-              <h1 class="survey-title">What's one thing you wish felt easier?</h1>
-              <div class="survey-options">
-                ${opts.map(o => `<button class="survey-option${state.surveyAnswer === o ? ' selected' : ''}" data-action="survey-pick" data-value="${escapeAttr(o)}">${o}</button>`).join('')}
-              </div>
-              <div class="survey-spacer"></div>
-              <div class="survey-input-row">
-                <div class="survey-input-pill">
-                  <input data-input="survey-other" type="text" autocomplete="off" placeholder="Other" value="${escapeAttr(state.surveyAnswer && !opts.includes(state.surveyAnswer) ? state.surveyAnswer : '')}" />
-                </div>
-              </div>
             </div>
           </section>
         `;
@@ -5645,7 +5275,6 @@
           startIntroAnim();
         } else if (state.screen === "onboarding")
           app.innerHTML = renderOnboarding();
-        else if (state.screen === "survey") app.innerHTML = renderSurvey();
         else if (state.screen === "question") app.innerHTML = renderQuestion();
         else if (state.screen === "headphones") {
           app.innerHTML = renderHeadphones();
@@ -5671,7 +5300,6 @@
         // first-sticky / sticky-notes (sticky-notes has its own textarea focus logic).
         if (
           state.screen !== "question" &&
-          state.screen !== "survey" &&
           state.screen !== "splash" &&
           state.screen !== "intro" &&
           state.screen !== "headphones" &&
@@ -5935,7 +5563,6 @@
             q2_chills: state.answers.chills || "",
             q3_first_call: state.answers.firstCall || "",
             q4_unseen: state.answers.unseen || "",
-            q0_wish_easier: state.surveyAnswer || "",
             place: state.userPlace,
           };
           const res = await api("/api/demo/generate", {
@@ -6222,7 +5849,6 @@
         state.noteJoltMode = false;
         state.joltNoteId = null;
         state.joltSessionId = null;
-        state.surveyAnswer = "";
         render();
       }
 
@@ -6260,17 +5886,6 @@
             break;
           // intro
           case "intro-begin":
-            state.screen = "survey";
-            state.surveyAnswer = "";
-            render();
-            break;
-          // survey
-          case "survey-pick":
-            state.surveyAnswer = btn.dataset.value || "";
-            startQuestions();
-            break;
-          case "survey-skip":
-            state.surveyAnswer = "";
             startQuestions();
             break;
           // onboarding (legacy)
@@ -6367,8 +5982,6 @@
           state._regName = input.value;
         } else if (input.dataset.input === "reg-email") {
           state._regEmail = input.value;
-        } else if (input.dataset.input === "survey-other") {
-          state.surveyAnswer = input.value;
         }
       });
 
@@ -6390,9 +6003,6 @@
         } else if (t.dataset.input === "reg-password") {
           e.preventDefault();
           doRegister();
-        } else if (t.dataset.input === "survey-other") {
-          e.preventDefault();
-          if (state.surveyAnswer.trim()) startQuestions();
         }
       });
 
