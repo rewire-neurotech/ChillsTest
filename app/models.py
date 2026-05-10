@@ -32,9 +32,6 @@ class DemoSession(Base):
     # --- Link to user (nullable for backward compat during transition) ---
     user_id = Column(Integer, ForeignKey("users.id"), nullable=True, index=True)
 
-    # --- Pre-question survey (not used in speech generation) ---
-    q0_wish_easier = Column(Text)       # "What's one thing you wish felt easier?"
-
     # --- 4 Questions (new order matching Felix's UI) ---
     q1_low_voice = Column(Text)       # "What does the voice in your head say at your lowest?"
     q2_chills = Column(Text)          # "When was the last time you got chills or goosebumps?"
@@ -122,19 +119,4 @@ class PromoCode(Base):
     max_uses = Column(Integer, default=0, nullable=False)       # 0 = unlimited
     uses_count = Column(Integer, default=0, nullable=False, server_default="0")
     is_active = Column(Boolean, default=True, nullable=False, server_default="true")
-    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
-
-
-# ============================================================
-# PUSH SUBSCRIPTIONS (Web Push notifications)
-# ============================================================
-
-class PushSubscription(Base):
-    __tablename__ = "push_subscriptions"
-
-    id = Column(Integer, primary_key=True, autoincrement=True)
-    user_id = Column(Integer, ForeignKey("users.id"), nullable=False, index=True)
-    endpoint = Column(Text, nullable=False)
-    p256dh_key = Column(Text, nullable=False)          # public key from browser
-    auth_key = Column(Text, nullable=False)             # auth secret from browser
     created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
