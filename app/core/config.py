@@ -99,5 +99,10 @@ class Config:
     # --- Encryption (AES-256 via Fernet for sensitive fields) ---
     ENCRYPTION_KEY: str = os.getenv("ENCRYPTION_KEY", "")
 
+    # --- Web Push (VAPID) ---
+    VAPID_PRIVATE_KEY: str = os.getenv("VAPID_PRIVATE_KEY", "")
+    VAPID_PUBLIC_KEY: str = os.getenv("VAPID_PUBLIC_KEY", "")
+    VAPID_CLAIMS_EMAIL: str = os.getenv("VAPID_CLAIMS_EMAIL", "mailto:hello@rewire.bio")
+
 
 cfg = Config()
