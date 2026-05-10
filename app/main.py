@@ -104,9 +104,16 @@ app.include_router(sub_r)
 
 # --- Serve frontend ---
 FRONTEND_PATH = Path(__file__).resolve().parent.parent / "frontend" / "rewire.html"
+SW_PATH = Path(__file__).resolve().parent.parent / "frontend" / "sw.js"
 
 @app.get("/")
 def serve_frontend():
     if FRONTEND_PATH.exists():
         return FileResponse(str(FRONTEND_PATH), media_type="text/html")
     return {"error": "frontend not found"}
+
+@app.get("/sw.js")
+def serve_sw():
+    if SW_PATH.exists():
+        return FileResponse(str(SW_PATH), media_type="application/javascript")
+    return {"error": "service worker not found"}
