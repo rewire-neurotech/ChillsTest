@@ -18,7 +18,7 @@ from pydub import AudioSegment
 
 from app.core.config import cfg
 from app.db import get_db, SessionLocal
-from app.models import DemoSession, User, AuditLog, StickyNote
+from app.models import DemoSession, User, AuditLog, StickyNote, PushSubscription
 from app.services.prompt import build_user_prompt
 from app.services.llm import generate_speech
 from app.services.tts import synth
@@ -44,6 +44,51 @@ def _update_job(job_id: str, **kwargs):
     with _jobs_lock:
         if job_id in _jobs:
             _jobs[job_id].update(kwargs)
+
+
+# --- Push notification helper ---
+
+def _send_push_notifications(user_id: int):
+    """Send 'Your Jolt is ready' push notification to all of the user's subscriptions."""
+    if not user_id or not cfg.VAPID_PRIVATE_KEY:
+        return
+    try:
+        from pywebpush import webpush, WebPushException
+    except ImportError:
+        print("[Push] pywebpush not installed, skipping push notification")
+        return
+
+    db = SessionLocal()
+    try:
+        subs = db.query(PushSubscription).filter(PushSubscription.user_id == user_id).all()
+        if not subs:
+            return
+
+        payload = json.dumps({"title": "ReWire", "body": "Your Jolt is ready"})
+
+        for sub in subs:
+            try:
+                webpush(
+                    subscription_info={
+                        "endpoint": sub.endpoint,
+                        "keys": {"p256dh": sub.p256dh, "auth": sub.auth},
+                    },
+                    data=payload,
+                    vapid_private_key=cfg.VAPID_PRIVATE_KEY,
+                    vapid_claims={"sub": cfg.VAPID_CLAIMS_EMAIL},
+                )
+                print(f"[Push] Notification sent to user {user_id}")
+            except Exception as e:
+                print(f"[Push] Failed for subscription {sub.id}: {e}")
+                # Remove invalid subscriptions (expired/unsubscribed)
+                if "410" in str(e) or "404" in str(e):
+                    db.delete(sub)
+                    db.commit()
+                    print(f"[Push] Removed stale subscription {sub.id}")
+    except Exception as e:
+        print(f"[Push] Error querying subscriptions: {e}")
+    finally:
+        db.close()
 
 
 # --- Request / Response schemas ---
@@ -432,6 +477,9 @@ Continue now. Only the continuation text. No preamble."""
             session_id=session_id,
             audio_url=audio_url,
         )
+
+        # 11. Send push notification (after everything else succeeds)
+        _send_push_notifications(user_id)
 
     except Exception as e:
         print(f"[Demo] Generation error for job {job_id}: {e}")
