@@ -2547,6 +2547,142 @@
         transform: translateX(-50%) translateY(0);
       }
 
+      /* ---- Settings gear + panel (Felix's journal design) ---- */
+      .sn-gear-btn {
+        position: absolute;
+        top: calc(12px + env(safe-area-inset-top));
+        right: 16px;
+        width: 40px; height: 40px;
+        border-radius: 50%;
+        background: transparent;
+        border: none;
+        display: flex; align-items: center; justify-content: center;
+        cursor: pointer;
+        color: #1a1a1c;
+        transition: background 200ms ease, transform 400ms cubic-bezier(0.4, 0, 0.2, 1);
+        z-index: 10;
+      }
+      .sn-gear-btn:hover { background: rgba(0,0,0,0.04); }
+      .sn-gear-btn:active { transform: scale(0.95); }
+      .sn-gear-btn svg {
+        transition: transform 500ms cubic-bezier(0.4, 0, 0.2, 1);
+      }
+      .sn-gear-btn:hover svg { transform: rotate(60deg); }
+      .sn-gear-btn.is-open svg { transform: rotate(120deg); }
+
+      .sn-settings-scrim {
+        position: fixed; inset: 0;
+        background: rgba(20, 20, 20, 0.18);
+        backdrop-filter: blur(2px);
+        -webkit-backdrop-filter: blur(2px);
+        opacity: 0;
+        pointer-events: none;
+        transition: opacity 240ms ease;
+        z-index: 20;
+      }
+      .sn-settings-scrim.is-open {
+        opacity: 1;
+        pointer-events: auto;
+      }
+
+      .sn-settings-panel {
+        position: absolute;
+        top: calc(56px + env(safe-area-inset-top));
+        right: 16px;
+        width: 240px;
+        background: #faf8f3;
+        border-radius: 14px;
+        padding: 8px;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.05), 0 16px 40px rgba(0,0,0,0.08);
+        border: 1px solid rgba(0,0,0,0.08);
+        transform-origin: top right;
+        transform: scale(0.94) translateY(-4px);
+        opacity: 0;
+        pointer-events: none;
+        transition: transform 220ms cubic-bezier(0.16, 1, 0.3, 1), opacity 180ms ease;
+        z-index: 30;
+      }
+      .sn-settings-panel.is-open {
+        transform: scale(1) translateY(0);
+        opacity: 1;
+        pointer-events: auto;
+      }
+
+      .sn-panel-header {
+        font-size: 10px; font-weight: 600;
+        letter-spacing: 0.14em;
+        color: #8a8a85;
+        padding: 10px 12px 8px;
+        text-transform: uppercase;
+      }
+      .sn-settings-row {
+        display: flex; align-items: center;
+        justify-content: space-between;
+        padding: 12px;
+        border-radius: 10px;
+        cursor: pointer;
+        transition: background 160ms ease;
+        user-select: none;
+      }
+      .sn-settings-row:hover { background: rgba(0,0,0,0.035); }
+      .sn-settings-row-label {
+        font-size: 14px; font-weight: 500;
+        color: #2a2a2a;
+      }
+      .sn-toggle {
+        position: relative;
+        width: 34px; height: 20px;
+        border-radius: 999px;
+        background: #d6d4cd;
+        transition: background 220ms ease;
+        flex-shrink: 0;
+      }
+      .sn-toggle::after {
+        content: "";
+        position: absolute;
+        top: 2px; left: 2px;
+        width: 16px; height: 16px;
+        background: #fff;
+        border-radius: 50%;
+        box-shadow: 0 1px 2px rgba(0,0,0,0.2);
+        transition: transform 220ms cubic-bezier(0.4, 0, 0.2, 1);
+      }
+      .sn-toggle.on { background: #2a2a2a; }
+      .sn-toggle.on::after { transform: translateX(14px); }
+      .sn-settings-divider {
+        height: 1px;
+        background: rgba(0,0,0,0.08);
+        margin: 4px 8px;
+      }
+      .sn-settings-row.danger .sn-settings-row-label { color: #b54a3a; }
+      .sn-settings-row.danger:hover { background: rgba(181, 74, 58, 0.06); }
+
+      /* ---- Survey screen (Q0) ---- */
+      .survey-options {
+        display: flex; flex-direction: column;
+        gap: 12px;
+        margin-top: 32px;
+      }
+      .survey-option {
+        width: 100%;
+        padding: 16px 20px;
+        border-radius: 16px;
+        background: var(--soft);
+        border: 2px solid transparent;
+        font-family: var(--font-body);
+        font-size: 16px; font-weight: 500;
+        color: var(--ink);
+        text-align: left;
+        cursor: pointer;
+        transition: background 150ms ease, border-color 150ms ease, transform 140ms ease;
+      }
+      .survey-option:hover { background: #eae9e4; }
+      .survey-option:active { transform: scale(0.98); }
+      .survey-option.selected {
+        border-color: var(--ink);
+        background: #eae9e4;
+      }
+
       @keyframes snCardJolt {
         0%   { transform: translate3d(0,0,0) rotate(0); }
         14%  { transform: translate3d(-3px,1px,0) rotate(-1deg); }
@@ -2878,9 +3014,6 @@
       function maybeEnterFullscreen() {
         if (document.fullscreenElement || document.webkitFullscreenElement)
           return;
-        // Skip on desktop unless the viewport is narrow (someone testing mobile in dev tools)
-        const isMobileSize = window.innerWidth <= 820;
-        if (!isMobileSize) return;
         requestFullscreenOnce();
       }
 
@@ -2975,6 +3108,8 @@
         promptDismissed: false,
         // auth
         authError: "",
+        // survey (Q0)
+        surveyAnswer: "",
       };
 
       const app = document.getElementById("app");
@@ -3167,12 +3302,25 @@
         navigator.geolocation.getCurrentPosition(
           (pos) => {
             // Reverse geocode via simple fetch (best-effort, not critical)
-            fetch(`https://nominatim.openstreetmap.org/reverse?lat=${pos.coords.latitude}&lon=${pos.coords.longitude}&format=json&zoom=10`)
+            fetch(`https://nominatim.openstreetmap.org/reverse?lat=${pos.coords.latitude}&lon=${pos.coords.longitude}&format=json&zoom=10&addressdetails=1`)
               .then(r => r.json())
               .then(data => {
                 const city = data.address?.city || data.address?.town || data.address?.village || '';
-                const country = data.address?.country || '';
-                state.userPlace = city ? (city + (country ? ', ' + country : '')) : country || null;
+                const cc = data.address?.country_code || '';
+                let region = '';
+                if (cc === 'us') {
+                  // US state abbreviation lookup
+                  const usStates = {Alabama:'AL',Alaska:'AK',Arizona:'AZ',Arkansas:'AR',California:'CA',Colorado:'CO',Connecticut:'CT',Delaware:'DE',Florida:'FL',Georgia:'GA',Hawaii:'HI',Idaho:'ID',Illinois:'IL',Indiana:'IN',Iowa:'IA',Kansas:'KS',Kentucky:'KY',Louisiana:'LA',Maine:'ME',Maryland:'MD',Massachusetts:'MA',Michigan:'MI',Minnesota:'MN',Mississippi:'MS',Missouri:'MO',Montana:'MT',Nebraska:'NE',Nevada:'NV','New Hampshire':'NH','New Jersey':'NJ','New Mexico':'NM','New York':'NY','North Carolina':'NC','North Dakota':'ND',Ohio:'OH',Oklahoma:'OK',Oregon:'OR',Pennsylvania:'PA','Rhode Island':'RI','South Carolina':'SC','South Dakota':'SD',Tennessee:'TN',Texas:'TX',Utah:'UT',Vermont:'VT',Virginia:'VA',Washington:'WA','West Virginia':'WV',Wisconsin:'WI',Wyoming:'WY','District of Columbia':'DC'};
+                  const st = data.address?.state || '';
+                  region = usStates[st] || st.substring(0, 2).toUpperCase();
+                } else {
+                  // Non-US: use state_code or short region name
+                  region = data.address?.['ISO3166-2-lvl4']?.split('-')[1]
+                    || data.address?.state_code
+                    || (data.address?.state || '').substring(0, 3).toUpperCase()
+                    || data.address?.country || '';
+                }
+                state.userPlace = city ? (city + (region ? ', ' + region : '')) : region || null;
               })
               .catch(() => { /* silent */ });
           },
@@ -3706,8 +3854,17 @@
       function renderStickyNotes() {
         return `
           <div class="sn-screen" id="snScreen">
+            <!-- Settings gear -->
+            <button class="sn-gear-btn" id="snGearBtn" aria-label="Settings">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+                <circle cx="12" cy="12" r="3"/>
+                <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/>
+              </svg>
+            </button>
+
+            <div class="sn-top-spacer"></div>
             ${!state.promptDismissed ? `
-            <div class="sn-prompt-bar" id="snPromptBar" style="display:flex;align-items:center;justify-content:space-between;padding:12px 16px;margin:0 16px;border-radius:12px;background:var(--soft-2);font:14px/1.3 var(--font-body);color:var(--muted);">
+            <div class="sn-prompt-bar" id="snPromptBar" style="display:flex;align-items:center;justify-content:space-between;padding:10px 16px;margin:0 40px 8px;border-radius:10px;background:var(--soft-2);font:13px/1.3 var(--font-body);color:var(--muted);">
               <div style="display:flex;align-items:center;gap:8px;">
                 <svg viewBox="0 0 16 16" width="14" height="14" style="opacity:0.5;flex-shrink:0"><path d="M2 12.5 L2 4 C2 3 3 2 4 2 L12 2 C13 2 14 3 14 4 L14 12 C14 13 13 14 12 14 L4 14 C3 14 2 13 2 12 Z M5 5 L11 5 M5 8 L9 8" stroke="currentColor" stroke-width="1.3" fill="none" stroke-linecap="round"/></svg>
                 Write down what came up during your jolt
@@ -3716,7 +3873,6 @@
                 <svg viewBox="0 0 16 16" width="12" height="12"><path d="M4 4 L12 12 M12 4 L4 12" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
               </button>
             </div>` : ''}
-            <div class="sn-top-spacer"></div>
             <div class="sn-stack-area" id="snStackArea">
               <div class="sn-stack" id="snStack"></div>
             </div>
@@ -3772,6 +3928,25 @@
               </div>
             </div>
             <div class="sn-toast" id="snToast" aria-live="polite"></div>
+
+            <!-- Settings scrim + panel -->
+            <div class="sn-settings-scrim" id="snSettingsScrim"></div>
+            <div class="sn-settings-panel" id="snSettingsPanel">
+              <div class="sn-panel-header">Settings</div>
+              <div class="sn-settings-row" id="snNotifRow">
+                <span class="sn-settings-row-label">Notifications</span>
+                <span class="sn-toggle" id="snNotifToggle"></span>
+              </div>
+              <div class="sn-settings-divider"></div>
+              <div class="sn-settings-row danger" id="snSignOutRow">
+                <span class="sn-settings-row-label">Sign out</span>
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/>
+                  <polyline points="16 17 21 12 16 7"/>
+                  <line x1="21" y1="12" x2="9" y2="12"/>
+                </svg>
+              </div>
+            </div>
 
             <!-- Paywall overlay (verbatim from sticky-notes.html embedded) -->
             <div class="pw-paywall" id="pwPaywall" aria-hidden="true">
@@ -4323,6 +4498,35 @@
       function snOpenShareSheet(note) {
         snShareSheetNote = note;
         snBp(0.05);
+
+        // Share the Jolt audio file if available
+        if (note && note.audio_url && navigator.share) {
+          fetch(note.audio_url)
+            .then(r => r.blob())
+            .then(blob => {
+              const file = new File([blob], "jolt.mp3", { type: "audio/mpeg" });
+              if (navigator.canShare && navigator.canShare({ files: [file] })) {
+                navigator.share({
+                  title: "My Jolt",
+                  files: [file],
+                }).catch(() => {});
+              } else {
+                // Fallback: download the audio
+                const a = document.createElement("a");
+                a.href = URL.createObjectURL(blob);
+                a.download = "jolt.mp3";
+                a.click();
+                URL.revokeObjectURL(a.href);
+                snShowToast("Audio downloaded");
+              }
+            })
+            .catch(() => {
+              snShowToast("Could not load audio");
+            });
+          return;
+        }
+
+        // Fallback for notes without audio
         const text = note ? (note.text || "") : "";
         const shareData = {
           title: "A jolt from my stack",
@@ -4332,7 +4536,6 @@
         if (navigator.share) {
           navigator.share(shareData).catch(() => {});
         } else {
-          // Fallback: show built-in share sheet
           const ss = document.getElementById("snShareSheet");
           if (ss) ss.classList.add("show");
         }
@@ -4808,6 +5011,107 @@
           ssScrim.addEventListener("click", snCloseShareSheet);
         }
 
+        // Settings panel wiring
+        const gearBtn = document.getElementById("snGearBtn");
+        const settingsPanel = document.getElementById("snSettingsPanel");
+        const settingsScrim = document.getElementById("snSettingsScrim");
+        const notifRow = document.getElementById("snNotifRow");
+        const notifToggle = document.getElementById("snNotifToggle");
+        const signOutRow = document.getElementById("snSignOutRow");
+
+        function openSettingsPanel() {
+          if (settingsPanel) settingsPanel.classList.add("is-open");
+          if (settingsScrim) settingsScrim.classList.add("is-open");
+          if (gearBtn) gearBtn.classList.add("is-open");
+        }
+        function closeSettingsPanel() {
+          if (settingsPanel) settingsPanel.classList.remove("is-open");
+          if (settingsScrim) settingsScrim.classList.remove("is-open");
+          if (gearBtn) gearBtn.classList.remove("is-open");
+        }
+
+        if (gearBtn) {
+          gearBtn.addEventListener("click", (e) => {
+            e.stopPropagation();
+            if (settingsPanel && settingsPanel.classList.contains("is-open")) closeSettingsPanel();
+            else openSettingsPanel();
+          });
+        }
+        if (settingsScrim) settingsScrim.addEventListener("click", closeSettingsPanel);
+
+        // Initialize notification toggle state
+        if (notifToggle && Notification.permission === "granted") {
+          notifToggle.classList.add("on");
+        }
+
+        if (notifRow) {
+          notifRow.addEventListener("click", async () => {
+            if (!notifToggle) return;
+            if (notifToggle.classList.contains("on")) {
+              // Turn off: unsubscribe
+              notifToggle.classList.remove("on");
+              try {
+                const reg = await navigator.serviceWorker.ready;
+                const sub = await reg.pushManager.getSubscription();
+                if (sub) {
+                  const keys = sub.toJSON().keys || {};
+                  await api("/api/push/unsubscribe", {
+                    method: "POST",
+                    body: JSON.stringify({
+                      endpoint: sub.endpoint,
+                      p256dh: keys.p256dh || "",
+                      auth: keys.auth || "",
+                    }),
+                  });
+                  await sub.unsubscribe();
+                }
+              } catch(e) { /* silent */ }
+            } else {
+              // Turn on: request permission + subscribe
+              const perm = await Notification.requestPermission();
+              if (perm !== "granted") return;
+              notifToggle.classList.add("on");
+              try {
+                const reg = await navigator.serviceWorker.ready;
+                const vapidRes = await api("/api/push/vapid-key");
+                if (vapidRes.vapid_public_key) {
+                  const sub = await reg.pushManager.subscribe({
+                    userVisibleOnly: true,
+                    applicationServerKey: vapidRes.vapid_public_key,
+                  });
+                  const keys = sub.toJSON().keys || {};
+                  await api("/api/push/subscribe", {
+                    method: "POST",
+                    body: JSON.stringify({
+                      endpoint: sub.endpoint,
+                      p256dh: keys.p256dh || "",
+                      auth: keys.auth || "",
+                    }),
+                  });
+                }
+              } catch(e) {
+                notifToggle.classList.remove("on");
+              }
+            }
+          });
+        }
+
+        if (signOutRow) {
+          signOutRow.addEventListener("click", () => {
+            closeSettingsPanel();
+            state.token = null;
+            state.user = null;
+            localStorage.removeItem("jolter_token");
+            state.screen = "splash";
+            render();
+          });
+        }
+
+        // Esc closes settings panel
+        document.addEventListener("keydown", function snEscHandler(e) {
+          if (e.key === "Escape") closeSettingsPanel();
+        });
+
         // Paywall buttons
         const pwClose = document.getElementById("pwClose");
         if (pwClose) pwClose.dataset.action = "pw-close";
@@ -5039,7 +5343,7 @@
           <section class="screen">
             <div class="topbar">
               <button class="back" data-action="q-back" aria-label="Back">\u2039</button>
-              <span class="page">${num} / ${total}</span>
+              <span class="page">${num + 1} / ${total + 1}</span>
             </div>
             <div class="question">
               <div class="question-head">
@@ -5060,6 +5364,50 @@
                       placeholder="${escapeAttr(q.placeholder)}"
                     />
                     <button class="send ${ready ? "ready" : ""}" data-action="q-send" aria-label="Send">\u2191</button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </section>
+        `;
+      }
+
+      function renderSurvey() {
+        const userName = (state.user && state.user.name) ? state.user.name.split(' ')[0] : '';
+        const greeting = userName ? (userName + ', what') : 'What';
+        const options = ['Exercise', 'Making new friends', 'Studying', 'Outdoor activities'];
+        const selected = state.surveyAnswer;
+        const isCustom = selected && !options.includes(selected);
+        const ready = selected && selected.trim().length > 0;
+        return `
+          <section class="screen">
+            <div class="topbar">
+              <button class="back" data-action="survey-back" aria-label="Back">\u2039</button>
+              <span class="page">1 / ${questions.length + 1}</span>
+              <button class="skip" data-action="survey-skip">Skip for now</button>
+            </div>
+            <div class="question">
+              <div class="question-head">
+                <h1 class="question-title">${greeting}'s one thing you wish felt <span class="accent">easier</span>?</h1>
+              </div>
+              <div class="survey-options">
+                ${options.map(opt => `
+                  <button class="survey-option ${selected === opt ? 'selected' : ''}" data-action="survey-pick" data-value="${escapeAttr(opt)}">${opt}</button>
+                `).join('')}
+              </div>
+              <div class="composer" style="margin-top:16px;">
+                <div class="composer-box no-instruction">
+                  <div class="composer-pill">
+                    <input
+                      data-input="survey-other"
+                      type="text"
+                      autocomplete="off"
+                      autocapitalize="sentences"
+                      enterkeyhint="send"
+                      value="${isCustom ? escapeAttr(selected) : ''}"
+                      placeholder="Other"
+                    />
+                    <button class="send ${ready ? "ready" : ""}" data-action="survey-send" aria-label="Send">\u2191</button>
                   </div>
                 </div>
               </div>
@@ -5276,6 +5624,7 @@
         } else if (state.screen === "onboarding")
           app.innerHTML = renderOnboarding();
         else if (state.screen === "question") app.innerHTML = renderQuestion();
+        else if (state.screen === "survey") app.innerHTML = renderSurvey();
         else if (state.screen === "headphones") {
           app.innerHTML = renderHeadphones();
           startHeadphonesAnim();
@@ -5300,6 +5649,7 @@
         // first-sticky / sticky-notes (sticky-notes has its own textarea focus logic).
         if (
           state.screen !== "question" &&
+          state.screen !== "survey" &&
           state.screen !== "splash" &&
           state.screen !== "intro" &&
           state.screen !== "headphones" &&
@@ -5530,8 +5880,8 @@
           state.draft = state.answers[questions[state.questionIndex].id] || "";
           render();
         } else {
-          state.screen = "onboarding";
-          state.onboardIndex = onboarding.length - 1;
+          // Back from Q1 goes to survey (Q0)
+          state.screen = "survey";
           render();
         }
       }
@@ -5559,6 +5909,7 @@
       async function startGeneration() {
         try {
           const body = {
+            q0_wish_easier: state.surveyAnswer || "",
             q1_low_voice: state.answers.lowVoice || "",
             q2_chills: state.answers.chills || "",
             q3_first_call: state.answers.firstCall || "",
@@ -5834,6 +6185,7 @@
         state.questionIndex = 0;
         state.answers = {};
         state.draft = "";
+        state.surveyAnswer = "";
         state.feedback = "";
         state.email = "";
         state.emailSubmitted = false;
@@ -5886,7 +6238,8 @@
             break;
           // intro
           case "intro-begin":
-            startQuestions();
+            state.screen = "survey";
+            render();
             break;
           // onboarding (legacy)
           case "start":
@@ -5907,6 +6260,24 @@
             break;
           case "q-send":
             sendQuestion();
+            break;
+          // survey (Q0)
+          case "survey-back":
+            state.screen = "intro";
+            render();
+            break;
+          case "survey-skip":
+            state.surveyAnswer = "";
+            startQuestions();
+            break;
+          case "survey-pick":
+            state.surveyAnswer = btn.dataset.value || "";
+            startQuestions();
+            break;
+          case "survey-send":
+            if (state.surveyAnswer && state.surveyAnswer.trim()) {
+              startQuestions();
+            }
             break;
           // headphones
           case "headphones-ready":
@@ -5978,6 +6349,12 @@
           }
         } else if (input.dataset.input === "login-email") {
           state._loginEmail = input.value;
+        } else if (input.dataset.input === "survey-other") {
+          state.surveyAnswer = input.value;
+          const send = app.querySelector(".send");
+          if (send) send.classList.toggle("ready", input.value.trim().length > 0);
+          // Deselect preset options when typing custom
+          app.querySelectorAll(".survey-option").forEach(b => b.classList.remove("selected"));
         } else if (input.dataset.input === "reg-name") {
           state._regName = input.value;
         } else if (input.dataset.input === "reg-email") {
@@ -5997,6 +6374,9 @@
         } else if (t.dataset.input === "email") {
           e.preventDefault();
           submitEmail();
+        } else if (t.dataset.input === "survey-other") {
+          e.preventDefault();
+          if (state.surveyAnswer && state.surveyAnswer.trim()) startQuestions();
         } else if (t.dataset.input === "login-password") {
           e.preventDefault();
           doLogin();
@@ -6041,6 +6421,11 @@
       fetchUserLocation();
       initGoogleSignIn();
       bootSession();
+
+      // Register service worker for push notifications
+      if ('serviceWorker' in navigator) {
+        navigator.serviceWorker.register('/sw.js').catch(() => {});
+      }
 </script>
   </body>
 </html>
