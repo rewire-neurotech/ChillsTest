@@ -3,7 +3,7 @@ from pathlib import Path
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, Response
 
 from app.core.config import cfg
 
@@ -100,6 +100,15 @@ app.include_router(notes_r)
 
 from app.routes.subscription import r as sub_r
 app.include_router(sub_r)
+
+
+# --- Service worker for notification support ---
+_SW_JS = "self.addEventListener('install', e => self.skipWaiting()); self.addEventListener('activate', e => e.waitUntil(self.clients.claim()));"
+
+@app.get("/sw.js")
+def serve_sw():
+    return Response(content=_SW_JS, media_type="application/javascript",
+                    headers={"Cache-Control": "no-cache", "Service-Worker-Allowed": "/"})
 
 
 # --- Serve frontend ---
