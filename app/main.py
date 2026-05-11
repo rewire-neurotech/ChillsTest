@@ -23,7 +23,7 @@ except Exception:
 
 
 def _seed_promo_codes():
-    """Insert default promo codes if missing. Idempotent — safe to run every boot."""
+    """Insert default promo codes if missing. Idempotent -- safe to run every boot."""
     if SessionLocal is None or PromoCode is None:
         return
     defaults = ["CHILLS50", "JOLTER", "FRIEND"]
@@ -108,31 +108,22 @@ app.include_router(sub_r)
 
 # --- Service worker for push notifications ---
 _SW_JS = """
-self.addEventListener('install', function(e) { self.skipWaiting(); });
-self.addEventListener('activate', function(e) { e.waitUntil(self.clients.claim()); });
-self.addEventListener('push', function(e) {
-  var data = {title: 'ReWire', body: 'Your Jolt is ready'};
-  try { data = e.data.json(); } catch(err) {}
-  e.waitUntil(
-    self.registration.showNotification(data.title || 'ReWire', {
-      body: data.body || 'Your Jolt is ready',
-      icon: '/assets/jolter-logo.jpeg',
-      badge: '/assets/jolter-logo.jpeg',
-      tag: 'jolt-ready',
-      renotify: true
-    })
-  );
+self.addEventListener('install', e => self.skipWaiting());
+self.addEventListener('activate', e => e.waitUntil(self.clients.claim()));
+self.addEventListener('push', e => {
+  let data = {title: 'ReWire', body: 'Your Jolt is ready'};
+  try { data = e.data.json(); } catch(_) {}
+  e.waitUntil(self.registration.showNotification(data.title, {
+    body: data.body,
+    icon: '/assets/jolter-logo.jpeg',
+  }));
 });
-self.addEventListener('notificationclick', function(e) {
+self.addEventListener('notificationclick', e => {
   e.notification.close();
-  e.waitUntil(
-    self.clients.matchAll({type: 'window'}).then(function(clients) {
-      for (var i = 0; i < clients.length; i++) {
-        if (clients[i].visibilityState === 'visible') { return clients[i].focus(); }
-      }
-      return self.clients.openWindow('/');
-    })
-  );
+  e.waitUntil(clients.matchAll({type:'window'}).then(cs => {
+    for (const c of cs) { if (c.url.includes(self.location.origin)) return c.focus(); }
+    return clients.openWindow('/');
+  }));
 });
 """.strip()
 
@@ -143,9 +134,6 @@ def serve_sw():
 
 
 # --- Push notification endpoints ---
-from app.routes.auth import get_current_user_required
-from app.models import User
-
 class PushSubscribeRequest(BaseModel):
     endpoint: str
     p256dh: str
@@ -156,8 +144,10 @@ def get_vapid_key():
     return {"vapid_public_key": cfg.VAPID_PUBLIC_KEY or ""}
 
 @app.post("/api/push/subscribe")
-def push_subscribe(req: PushSubscribeRequest, user: User = Depends(get_current_user_required), db: Session = Depends(get_db)):
-    """Save a push subscription for the current user."""
+def push_subscribe(req: PushSubscribeRequest, request: Request, db: Session = Depends(get_db)):
+    from app.routes.auth import get_current_user_required
+    user = get_current_user_required(request=request, db=db)
+    # Upsert: avoid duplicate subscriptions for same endpoint
     existing = db.query(PushSubscription).filter(
         PushSubscription.user_id == user.id,
         PushSubscription.endpoint == req.endpoint,
@@ -176,8 +166,9 @@ def push_subscribe(req: PushSubscribeRequest, user: User = Depends(get_current_u
     return {"status": "ok"}
 
 @app.post("/api/push/unsubscribe")
-def push_unsubscribe(req: PushSubscribeRequest, user: User = Depends(get_current_user_required), db: Session = Depends(get_db)):
-    """Remove a push subscription for the current user."""
+def push_unsubscribe(req: PushSubscribeRequest, request: Request, db: Session = Depends(get_db)):
+    from app.routes.auth import get_current_user_required
+    user = get_current_user_required(request=request, db=db)
     sub = db.query(PushSubscription).filter(
         PushSubscription.user_id == user.id,
         PushSubscription.endpoint == req.endpoint,
