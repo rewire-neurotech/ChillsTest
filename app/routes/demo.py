@@ -49,6 +49,7 @@ def _update_job(job_id: str, **kwargs):
 # --- Request / Response schemas ---
 
 class GenerateRequest(BaseModel):
+    q0_wish_easier: str = ""
     q1_low_voice: str
     q2_chills: str
     q3_first_call: str
@@ -140,7 +141,7 @@ def _trim_at_boundary(text: str, words_to_cut: int) -> str:
 
 # --- Background generation pipeline ---
 
-def _run_generate(job_id: str, q1: str, q2: str, q3: str, q4: str, track_name: str, user_id: int = None, note_id: int = None, place: str = None):
+def _run_generate(job_id: str, q0: str, q1: str, q2: str, q3: str, q4: str, track_name: str, user_id: int = None, note_id: int = None, place: str = None):
     """Run the full generation pipeline in a background thread."""
     try:
         start = time.time()
@@ -322,7 +323,7 @@ Continue now. Only the continuation text. No preamble."""
             out_path=str(out_path),
             sync_mode="retime_music_to_voice",
             music_fadein_ms=MUSIC_FADEIN_MS,
-            music_premix_gain_db=-5.0,
+            music_premix_gain_db=-3.5,
             ffmpeg_bin=cfg.FFMPEG_BIN,
         )
         print(f"[Demo] Mix done: {out_path}")
@@ -340,6 +341,7 @@ Continue now. Only the continuation text. No preamble."""
             session = DemoSession(
                 session_id=session_id,
                 user_id=user_id,
+                q0_wish_easier=encrypt_field(q0),
                 q1_low_voice=encrypt_field(q1),
                 q2_chills=encrypt_field(q2),
                 q3_first_call=encrypt_field(q3),
@@ -475,7 +477,7 @@ def generate(req: GenerateRequest, user: User = Depends(get_current_user_optiona
 
     t = threading.Thread(
         target=_run_generate,
-        args=(job_id, req.q1_low_voice, req.q2_chills, req.q3_first_call, req.q4_unseen, track_name),
+        args=(job_id, req.q0_wish_easier, req.q1_low_voice, req.q2_chills, req.q3_first_call, req.q4_unseen, track_name),
         kwargs={"user_id": uid, "note_id": req.note_id, "place": req.place},
         daemon=True,
     )
@@ -581,6 +583,7 @@ def export_csv(request: Request, db: Session = Depends(get_db), user: User = Dep
         "session_id",
         "user_id",
         # Questions
+        "q0_wish_easier",
         "q1_low_voice",
         "q2_chills",
         "q3_first_call",
@@ -608,6 +611,7 @@ def export_csv(request: Request, db: Session = Depends(get_db), user: User = Dep
         writer.writerow([
             s.session_id,
             s.user_id,
+            decrypt_field(s.q0_wish_easier),
             decrypt_field(s.q1_low_voice),
             decrypt_field(s.q2_chills),
             decrypt_field(s.q3_first_call),
