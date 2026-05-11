@@ -439,7 +439,7 @@ Continue now. Only the continuation text. No preamble."""
                             user_id=user_id,
                             text="",
                             state="idle",
-                            session_id=None,
+                            session_id=session_id,
                             place=place,
                         )
                         db.add(blank_note)
