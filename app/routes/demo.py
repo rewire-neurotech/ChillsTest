@@ -20,6 +20,13 @@ from app.core.config import cfg
 from app.db import get_db, SessionLocal
 from app.models import DemoSession, User, AuditLog, StickyNote, PushSubscription
 from app.services.prompt import build_user_prompt
+
+# Module-level import: happens once at server start, not during generation
+try:
+    from pywebpush import webpush
+    _HAS_WEBPUSH = True
+except ImportError:
+    _HAS_WEBPUSH = False
 from app.services.llm import generate_speech
 from app.services.tts import synth
 from app.services.mix import mix as mix_audio
@@ -46,26 +53,18 @@ def _update_job(job_id: str, **kwargs):
             _jobs[job_id].update(kwargs)
 
 
-# --- Push notification helper ---
+# --- Request / Response schemas ---
 
 def _send_push_notifications(user_id: int):
-    """Send 'Your Jolt is ready' push notification to all of the user's subscriptions."""
-    if not user_id or not cfg.VAPID_PRIVATE_KEY:
+    """Send 'Your Jolt is ready' push. Runs in its own thread, never blocks generation."""
+    if not _HAS_WEBPUSH or not user_id or not cfg.VAPID_PRIVATE_KEY:
         return
-    try:
-        from pywebpush import webpush, WebPushException
-    except ImportError:
-        print("[Push] pywebpush not installed, skipping push notification")
-        return
-
     db = SessionLocal()
     try:
         subs = db.query(PushSubscription).filter(PushSubscription.user_id == user_id).all()
         if not subs:
             return
-
         payload = json.dumps({"title": "ReWire", "body": "Your Jolt is ready"})
-
         for sub in subs:
             try:
                 webpush(
@@ -77,21 +76,15 @@ def _send_push_notifications(user_id: int):
                     vapid_private_key=cfg.VAPID_PRIVATE_KEY,
                     vapid_claims={"sub": cfg.VAPID_CLAIMS_EMAIL},
                 )
-                print(f"[Push] Notification sent to user {user_id}")
             except Exception as e:
-                print(f"[Push] Failed for subscription {sub.id}: {e}")
-                # Remove invalid subscriptions (expired/unsubscribed)
                 if "410" in str(e) or "404" in str(e):
                     db.delete(sub)
                     db.commit()
-                    print(f"[Push] Removed stale subscription {sub.id}")
-    except Exception as e:
-        print(f"[Push] Error querying subscriptions: {e}")
+    except Exception:
+        pass
     finally:
         db.close()
 
-
-# --- Request / Response schemas ---
 
 class GenerateRequest(BaseModel):
     q0_wish_easier: str = ""
@@ -478,8 +471,9 @@ Continue now. Only the continuation text. No preamble."""
             audio_url=audio_url,
         )
 
-        # 11. Send push notification (after everything else succeeds)
-        _send_push_notifications(user_id)
+        # Send push notification in its own thread (never blocks generation)
+        if user_id:
+            threading.Thread(target=_send_push_notifications, args=(user_id,), daemon=True).start()
 
     except Exception as e:
         print(f"[Demo] Generation error for job {job_id}: {e}")
