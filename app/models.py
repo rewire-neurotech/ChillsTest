@@ -32,6 +32,9 @@ class DemoSession(Base):
     # --- Link to user (nullable for backward compat during transition) ---
     user_id = Column(Integer, ForeignKey("users.id"), nullable=True, index=True)
 
+    # --- Survey question (before the 4 deep questions) ---
+    q0_wish_easier = Column(Text)     # "What's one thing you wish felt easier?"
+
     # --- 4 Questions (new order matching Felix's UI) ---
     q1_low_voice = Column(Text)       # "What does the voice in your head say at your lowest?"
     q2_chills = Column(Text)          # "When was the last time you got chills or goosebumps?"
