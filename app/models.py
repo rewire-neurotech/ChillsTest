@@ -123,3 +123,18 @@ class PromoCode(Base):
     uses_count = Column(Integer, default=0, nullable=False, server_default="0")
     is_active = Column(Boolean, default=True, nullable=False, server_default="true")
     created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
+
+
+# ============================================================
+# PUSH SUBSCRIPTIONS (Web Push notifications)
+# ============================================================
+
+class PushSubscription(Base):
+    __tablename__ = "push_subscriptions"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False, index=True)
+    endpoint = Column(Text, nullable=False)
+    p256dh = Column(String(200), nullable=False)
+    auth = Column(String(200), nullable=False)
+    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
