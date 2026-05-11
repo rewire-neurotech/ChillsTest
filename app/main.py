@@ -1,21 +1,25 @@
 import os
 from pathlib import Path
-from fastapi import FastAPI, Request
+from fastapi import FastAPI, Request, Depends
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse, Response
+from pydantic import BaseModel
+from sqlalchemy.orm import Session
 
 from app.core.config import cfg
 
 # --- DB setup ---
 try:
-    from app.db import engine, SessionLocal
-    from app.models import Base, PromoCode
+    from app.db import engine, SessionLocal, get_db
+    from app.models import Base, PromoCode, PushSubscription
 except Exception:
     engine = None
     Base = None
     SessionLocal = None
     PromoCode = None
+    PushSubscription = None
+    get_db = None
 
 
 def _seed_promo_codes():
@@ -102,13 +106,86 @@ from app.routes.subscription import r as sub_r
 app.include_router(sub_r)
 
 
-# --- Service worker for notification support ---
-_SW_JS = "self.addEventListener('install', e => self.skipWaiting()); self.addEventListener('activate', e => e.waitUntil(self.clients.claim()));"
+# --- Service worker for push notifications ---
+_SW_JS = """
+self.addEventListener('install', function(e) { self.skipWaiting(); });
+self.addEventListener('activate', function(e) { e.waitUntil(self.clients.claim()); });
+self.addEventListener('push', function(e) {
+  var data = {title: 'ReWire', body: 'Your Jolt is ready'};
+  try { data = e.data.json(); } catch(err) {}
+  e.waitUntil(
+    self.registration.showNotification(data.title || 'ReWire', {
+      body: data.body || 'Your Jolt is ready',
+      icon: '/assets/jolter-logo.jpeg',
+      badge: '/assets/jolter-logo.jpeg',
+      tag: 'jolt-ready',
+      renotify: true
+    })
+  );
+});
+self.addEventListener('notificationclick', function(e) {
+  e.notification.close();
+  e.waitUntil(
+    self.clients.matchAll({type: 'window'}).then(function(clients) {
+      for (var i = 0; i < clients.length; i++) {
+        if (clients[i].visibilityState === 'visible') { return clients[i].focus(); }
+      }
+      return self.clients.openWindow('/');
+    })
+  );
+});
+""".strip()
 
 @app.get("/sw.js")
 def serve_sw():
     return Response(content=_SW_JS, media_type="application/javascript",
                     headers={"Cache-Control": "no-cache", "Service-Worker-Allowed": "/"})
+
+
+# --- Push notification endpoints ---
+from app.routes.auth import get_current_user_required
+from app.models import User
+
+class PushSubscribeRequest(BaseModel):
+    endpoint: str
+    p256dh: str
+    auth: str
+
+@app.get("/api/push/vapid-key")
+def get_vapid_key():
+    return {"vapid_public_key": cfg.VAPID_PUBLIC_KEY or ""}
+
+@app.post("/api/push/subscribe")
+def push_subscribe(req: PushSubscribeRequest, user: User = Depends(get_current_user_required), db: Session = Depends(get_db)):
+    """Save a push subscription for the current user."""
+    existing = db.query(PushSubscription).filter(
+        PushSubscription.user_id == user.id,
+        PushSubscription.endpoint == req.endpoint,
+    ).first()
+    if existing:
+        existing.p256dh = req.p256dh
+        existing.auth = req.auth
+    else:
+        db.add(PushSubscription(
+            user_id=user.id,
+            endpoint=req.endpoint,
+            p256dh=req.p256dh,
+            auth=req.auth,
+        ))
+    db.commit()
+    return {"status": "ok"}
+
+@app.post("/api/push/unsubscribe")
+def push_unsubscribe(req: PushSubscribeRequest, user: User = Depends(get_current_user_required), db: Session = Depends(get_db)):
+    """Remove a push subscription for the current user."""
+    sub = db.query(PushSubscription).filter(
+        PushSubscription.user_id == user.id,
+        PushSubscription.endpoint == req.endpoint,
+    ).first()
+    if sub:
+        db.delete(sub)
+        db.commit()
+    return {"status": "ok"}
 
 
 # --- Serve frontend ---
