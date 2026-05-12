@@ -312,7 +312,18 @@ Read their answers. Understand the EMOTIONAL LANDSCAPE -- what kind of pain, wha
 
 THE RULE: Understand what they feel. Never repeat what they said. Stay emotionally specific but physically universal. You can be deeply personal without being obvious. The most powerful thing you can do is make someone feel understood without them knowing how you did it.
 
-OUTPUT: Begin with exactly 2 opening statements (no tags, no format header). Then --- break. Then the main speech with ElevenLabs v3 audio tags. Nothing else. No preamble. No explanation. No markdown. No notes. Just the opening statements, break, and speech. The word count target will be provided -- hit it precisely."""
+=== WORD COUNT (NON-NEGOTIABLE) ===
+
+The word count target will be provided in the user prompt. This is a HARD TECHNICAL CONSTRAINT, not a suggestion. The speech will be synthesized into audio and layered over a music track of fixed length. If you write too many words, the voice will overrun the music. If you write too few, there will be dead silence.
+
+Rules:
+- Count your words as you write. Audio tags like [sighs], [pause], [whispers] do NOT count as words.
+- Section breaks (---) do NOT count as words.
+- ONLY count the actual spoken text.
+- You MUST land within the range given. Do not exceed the maximum. Do not fall below the minimum.
+- If in doubt, err slightly SHORT rather than long. A few seconds of music-only outro is natural. Overrunning the music is not.
+
+OUTPUT: Begin with exactly 2 opening statements (no tags, no format header). Then --- break. Then the main speech with ElevenLabs v3 audio tags. Nothing else. No preamble. No explanation. No markdown. No notes. Just the opening statements, break, and speech."""
 
 
 def pick_format(exclude: str = None) -> str:
@@ -329,6 +340,8 @@ def build_user_prompt(
     target_words: int = 550,
 ) -> str:
     """Build the user prompt from the 4 answers. Claude picks the format."""
+    word_min = int(target_words * 0.95)
+    word_max = target_words
     return f"""PERSONAL CONTEXT FROM USER:
 
 The voice in their head at their lowest:
@@ -343,7 +356,13 @@ If something beautiful happened today, the first person they'd call:
 Something true about them that nobody sees:
 "{q4_unseen}"
 
-TARGET LENGTH: approximately {target_words} words. This is CRITICAL -- the speech will be layered over a music track and must fill it completely. Write approximately {target_words} words. Not significantly more. Not significantly less. The 2 opening statements count toward this total.
+TARGET LENGTH: exactly {target_words} words of spoken text. This is a HARD CONSTRAINT.
+- Minimum: {word_min} words. Maximum: {word_max} words.
+- Count ONLY spoken words. Audio tags like [sighs], [pause], [whispers] do NOT count.
+- Section breaks (---) do NOT count.
+- Do NOT exceed {word_max} words under any circumstances.
+- If in doubt, land at {word_min}-{word_max} words rather than going over.
+- The 2 opening statements count toward this total.
 
 Choose the FORMAT that best fits this person's emotional state and answers. Then write the speech.
 
@@ -352,4 +371,5 @@ REMEMBER:
 - Do NOT repeat or directly reference their specific answers. Echo the emotional landscape, not the details.
 - Do NOT claim to know, feel, or have experienced anything. Describe feelings with precision instead.
 - Do NOT name the person they'd call first. Use the emotional weight of that connection subtly.
-- Stay emotionally specific, physically universal. Make them feel understood without being obvious about it."""
+- Stay emotionally specific, physically universal. Make them feel understood without being obvious about it.
+- WORD COUNT IS NON-NEGOTIABLE: {word_min}-{word_max} spoken words. Count carefully."""
