@@ -48,6 +48,11 @@ class DemoSession(Base):
     music_track = Column(String(120))
     audio_filename = Column(String(200))
 
+    # --- Generation job tracking (persisted in DB instead of in-memory dict) ---
+    stage = Column(String(40), nullable=False, default="queued", server_default="done")
+    progress = Column(Integer, nullable=False, default=0, server_default="100")
+    gen_error = Column(Text, nullable=True)
+
     # --- Chills Data (from stimulus tap-to-log) ---
     chills_count = Column(Integer, default=0)
     chills_timestamps_json = Column(Text)     # JSON array of timestamps in seconds
