@@ -17,7 +17,7 @@ from sqlalchemy.orm import Session
 from pydub import AudioSegment
 
 from app.core.config import cfg
-from app.db import get_db, SessionLocal
+from app.db import get_db, SessionLocal, engine
 from app.models import DemoSession, User, AuditLog
 from app.services.prompt import build_user_prompt
 from app.services.llm import generate_speech
@@ -34,16 +34,57 @@ MUSIC_FADEIN_MS = 10     # Joaquin's new mix: near-zero fade-in, music enters im
 TAIL_BUFFER_MS = 4000    # Music plays 4 seconds after voice ends
 
 
-# --- In-memory job tracking for progress ---
+# --- Auto-migration: ensure job tracking columns exist on existing tables ---
 
-_jobs = {}
-_jobs_lock = threading.Lock()
+def _ensure_job_columns():
+    """Add stage/progress/gen_error columns to demo_sessions if missing.
+    Runs once on startup. Existing completed rows get stage='done', progress=100."""
+    from sqlalchemy import inspect, text
+    try:
+        insp = inspect(engine)
+        existing = {c['name'] for c in insp.get_columns('demo_sessions')}
+        with engine.begin() as conn:
+            if 'stage' not in existing:
+                conn.execute(text(
+                    "ALTER TABLE demo_sessions ADD COLUMN stage VARCHAR(40) NOT NULL DEFAULT 'done'"
+                ))
+                print("[Demo] Added 'stage' column to demo_sessions")
+            if 'progress' not in existing:
+                conn.execute(text(
+                    "ALTER TABLE demo_sessions ADD COLUMN progress INTEGER NOT NULL DEFAULT 100"
+                ))
+                print("[Demo] Added 'progress' column to demo_sessions")
+            if 'gen_error' not in existing:
+                conn.execute(text(
+                    "ALTER TABLE demo_sessions ADD COLUMN gen_error TEXT"
+                ))
+                print("[Demo] Added 'gen_error' column to demo_sessions")
+    except Exception as e:
+        print(f"[Demo] Auto-migration note: {e}")
+
+_ensure_job_columns()
 
 
-def _update_job(job_id: str, **kwargs):
-    with _jobs_lock:
-        if job_id in _jobs:
-            _jobs[job_id].update(kwargs)
+# --- DB-backed job status updates (replaces in-memory _jobs dict) ---
+
+def _update_job_db(session_id: str, **kwargs):
+    """Update generation job status in the database."""
+    db = SessionLocal()
+    try:
+        row = db.query(DemoSession).filter(DemoSession.session_id == session_id).first()
+        if row:
+            for key, value in kwargs.items():
+                if hasattr(row, key):
+                    setattr(row, key, value)
+            db.commit()
+    except Exception as e:
+        print(f"[Demo] Job status update error: {e}")
+        try:
+            db.rollback()
+        except Exception:
+            pass
+    finally:
+        db.close()
 
 
 # --- Request / Response schemas ---
@@ -144,7 +185,7 @@ def _run_generate(job_id: str, q1: str, q2: str, q3: str, q4: str, track_name: s
         start = time.time()
         session_id = job_id  # reuse job_id as session_id
 
-        _update_job(job_id, stage="writing", progress=5)
+        _update_job_db(session_id, stage="writing", progress=5)
 
         # 0. Get track info (track already selected in /generate endpoint)
         track = cfg.get_track(track_name)
@@ -153,7 +194,7 @@ def _run_generate(job_id: str, q1: str, q2: str, q3: str, q4: str, track_name: s
         # 1. Get music duration info
         music_path = track["file"]
         if not music_path.exists():
-            _update_job(job_id, stage="error", error="Music file not found in assets")
+            _update_job_db(session_id, stage="error", gen_error="Music file not found in assets")
             return
 
         music_audio = load_audio(str(music_path))
@@ -177,14 +218,14 @@ def _run_generate(job_id: str, q1: str, q2: str, q3: str, q4: str, track_name: s
         )
         speech_format = "AI_SELECTED"
 
-        _update_job(job_id, stage="writing", progress=10)
+        _update_job_db(session_id, stage="writing", progress=10)
 
         # 3. Generate speech text via Claude
         print(f"[Demo] Generating speech for session {session_id}, target_words={target_words}")
         speech_text = generate_speech(user_prompt)
         print(f"[Demo] Speech generated, {_word_count(speech_text)} words")
 
-        _update_job(job_id, stage="synthesizing", progress=35)
+        _update_job_db(session_id, stage="synthesizing", progress=35)
 
         # 4. TTS via ElevenLabs
         print(f"[Demo] Synthesizing TTS...")
@@ -196,7 +237,7 @@ def _run_generate(job_id: str, q1: str, q2: str, q3: str, q4: str, track_name: s
         )
         print(f"[Demo] TTS done: {voice_wav_path}")
 
-        _update_job(job_id, stage="refining", progress=60)
+        _update_job_db(session_id, stage="refining", progress=60)
 
         # 5. Check duration and correct if needed (up to 5 attempts)
         tts_ms = duration_ms(load_audio(voice_wav_path))
@@ -247,7 +288,7 @@ Continue now. Only the continuation text. No preamble."""
             tts_ms = duration_ms(load_audio(best_wav))
             print(f"[Demo] Correction attempt {attempt + 1}: {tts_ms}ms (target: {spoken_target_ms}ms)")
 
-            _update_job(job_id, progress=60 + (attempt + 1) * 4)
+            _update_job_db(session_id, progress=60 + (attempt + 1) * 4)
 
         speech_text = best_script
         voice_wav_path = best_wav
@@ -263,7 +304,7 @@ Continue now. Only the continuation text. No preamble."""
             voice_wav_path = capped_wav.name
             print(f"[Demo] Voice hard-capped to {spoken_target_ms}ms")
 
-        _update_job(job_id, stage="mixing", progress=78)
+        _update_job_db(session_id, stage="mixing", progress=78)
 
         # 6. Pad silence so voice file matches content_ms exactly.
         #    This ensures retime_music_to_voice has a ~1:1 ratio
@@ -312,7 +353,7 @@ Continue now. Only the continuation text. No preamble."""
         audio_filename = f"{session_id}.mp3"
         out_path = cfg.out_dir_path / audio_filename
 
-        _update_job(job_id, stage="mixing", progress=82)
+        _update_job_db(session_id, stage="mixing", progress=82)
 
         mix_audio(
             voice_path=voice_wav_path,
@@ -330,52 +371,36 @@ Continue now. Only the continuation text. No preamble."""
 
         elapsed = round(time.time() - start, 2)
 
-        _update_job(job_id, stage="saving", progress=92)
+        _update_job_db(session_id, stage="saving", progress=92)
 
-        # 9. Save session to DB (manual session since we're in a thread)
+        # 9. Save generation results to DB (update existing row created by /generate endpoint)
         db = SessionLocal()
         try:
-            session = DemoSession(
-                session_id=session_id,
-                q1_low_voice=encrypt_field(q1),
-                q2_chills=encrypt_field(q2),
-                q3_first_call=encrypt_field(q3),
-                q4_unseen=encrypt_field(q4),
-                speech_format=speech_format,
-                speech_text=encrypt_field(speech_text),
-                voice_id=voice_id,
-                music_track=track["name"],
-                audio_filename=audio_filename,
-                generation_time_seconds=elapsed,
-            )
-            db.add(session)
+            row = db.query(DemoSession).filter(DemoSession.session_id == session_id).first()
+            if row:
+                row.speech_format = speech_format
+                row.speech_text = encrypt_field(speech_text)
+                row.voice_id = voice_id
+                row.music_track = track["name"]
+                row.audio_filename = audio_filename
+                row.generation_time_seconds = elapsed
+                row.stage = "done"
+                row.progress = 100
             db.commit()
         finally:
             db.close()
 
-        # Build audio URL
-        base = cfg.PUBLIC_BASE_URL.rstrip("/") if cfg.PUBLIC_BASE_URL else ""
-        audio_url = f"{base}/api/demo/audio/{audio_filename}"
-
         print(f"[Demo] Session {session_id} complete in {elapsed}s")
-
-        _update_job(
-            job_id,
-            stage="done",
-            progress=100,
-            session_id=session_id,
-            audio_url=audio_url,
-        )
 
     except Exception as e:
         print(f"[Demo] Generation error for job {job_id}: {e}")
-        _update_job(job_id, stage="error", error=str(e))
+        _update_job_db(job_id, stage="error", gen_error=str(e))
 
 
 # --- Endpoints ---
 
 @r.post("/generate", response_model=GenerateJobResponse)
-def generate(req: GenerateRequest):
+def generate(req: GenerateRequest, db: Session = Depends(get_db)):
     """
     Start generation in background. Returns a job_id immediately,
     along with the meditation audio URL so the frontend can start
@@ -396,15 +421,18 @@ def generate(req: GenerateRequest):
     base = cfg.PUBLIC_BASE_URL.rstrip("/") if cfg.PUBLIC_BASE_URL else ""
     meditation_url = f"{base}/assets/{cfg.MEDITATION_FILE}"
 
-    with _jobs_lock:
-        _jobs[job_id] = {
-            "job_id": job_id,
-            "stage": "queued",
-            "progress": 0,
-            "session_id": None,
-            "audio_url": None,
-            "error": None,
-        }
+    # Create DemoSession row immediately so status polling always finds it
+    session = DemoSession(
+        session_id=job_id,
+        q1_low_voice=encrypt_field(req.q1_low_voice),
+        q2_chills=encrypt_field(req.q2_chills),
+        q3_first_call=encrypt_field(req.q3_first_call),
+        q4_unseen=encrypt_field(req.q4_unseen),
+        stage="queued",
+        progress=0,
+    )
+    db.add(session)
+    db.commit()
 
     t = threading.Thread(
         target=_run_generate,
@@ -417,15 +445,27 @@ def generate(req: GenerateRequest):
 
 
 @r.get("/generate/status/{job_id}", response_model=GenerateStatusResponse)
-def generate_status(job_id: str):
+def generate_status(job_id: str, db: Session = Depends(get_db)):
     """Poll this endpoint for generation progress."""
-    with _jobs_lock:
-        job = _jobs.get(job_id)
+    session = db.query(DemoSession).filter(DemoSession.session_id == job_id).first()
 
-    if not job:
+    if not session:
         raise HTTPException(status_code=404, detail="Job not found")
 
-    return GenerateStatusResponse(**job)
+    # Build audio URL from filename if generation is complete
+    audio_url = None
+    if session.audio_filename:
+        base = cfg.PUBLIC_BASE_URL.rstrip("/") if cfg.PUBLIC_BASE_URL else ""
+        audio_url = f"{base}/api/demo/audio/{session.audio_filename}"
+
+    return GenerateStatusResponse(
+        job_id=job_id,
+        stage=session.stage,
+        progress=session.progress,
+        session_id=session.session_id if session.stage == "done" else None,
+        audio_url=audio_url,
+        error=session.gen_error,
+    )
 
 
 @r.post("/feedback", response_model=StatusResponse)
