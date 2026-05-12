@@ -246,8 +246,8 @@ def _run_generate(job_id: str, q0: str, q1: str, q2: str, q3: str, q4: str, trac
 
         # Voice should end before the music content ends
         spoken_target_ms = max(int(content_ms - TAIL_BUFFER_MS), int(0.75 * content_ms))
-        # ElevenLabs v3 at style=1.0 with audio tags speaks at ~1.90 words per second
-        target_words = min(int((spoken_target_ms / 1000) * 1.90), 1200)
+        # ElevenLabs v3 at style=1.0 speaks at ~2.0 words per second
+        target_words = min(int((spoken_target_ms / 1000) * 2.0), 1200)
 
         print(f"[Demo] Music file: {full_music_ms}ms, content: {content_ms}ms, spoken target: {spoken_target_ms}ms, target words: {target_words}")
 
