@@ -99,6 +99,8 @@ app.include_router(demo_r)
 from app.routes.auth import r as auth_r
 app.include_router(auth_r)
 
+from app.routes.auth import get_current_user_required as _require_user
+
 from app.routes.notes import r as notes_r
 app.include_router(notes_r)
 
@@ -144,9 +146,7 @@ def get_vapid_key():
     return {"vapid_public_key": cfg.VAPID_PUBLIC_KEY or ""}
 
 @app.post("/api/push/subscribe")
-def push_subscribe(req: PushSubscribeRequest, request: Request, db: Session = Depends(get_db)):
-    from app.routes.auth import get_current_user_required
-    user = get_current_user_required(request=request, db=db)
+def push_subscribe(req: PushSubscribeRequest, db: Session = Depends(get_db), user=Depends(_require_user)):
     # Upsert: avoid duplicate subscriptions for same endpoint
     existing = db.query(PushSubscription).filter(
         PushSubscription.user_id == user.id,
@@ -166,9 +166,7 @@ def push_subscribe(req: PushSubscribeRequest, request: Request, db: Session = De
     return {"status": "ok"}
 
 @app.post("/api/push/unsubscribe")
-def push_unsubscribe(req: PushSubscribeRequest, request: Request, db: Session = Depends(get_db)):
-    from app.routes.auth import get_current_user_required
-    user = get_current_user_required(request=request, db=db)
+def push_unsubscribe(req: PushSubscribeRequest, db: Session = Depends(get_db), user=Depends(_require_user)):
     sub = db.query(PushSubscription).filter(
         PushSubscription.user_id == user.id,
         PushSubscription.endpoint == req.endpoint,
