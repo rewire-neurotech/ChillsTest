@@ -89,21 +89,24 @@
         background: transparent;
       }
 
-      /* Root app container — uses dynamic viewport height so it shrinks with keyboard */
+      /* Root app container — stays full viewport; screens inside use --vh to
+         track the visual-viewport height so content sits above the keyboard.
+         Keeping #app full-size prevents white body background from leaking
+         through the gap between content and keyboard on iOS / Android. */
       #app {
         position: fixed;
         inset: 0;
-        height: 100vh;
-        height: 100dvh; /* dynamic viewport height — handles mobile keyboard */
         display: flex;
         flex-direction: column;
         overflow: hidden;
+        background: #fff;
       }
 
       /* Each screen fills the app container */
       .screen {
         position: absolute;
-        inset: 0;
+        top: 0; left: 0; right: 0;
+        height: var(--vh, 100%);
         display: flex;
         flex-direction: column;
         padding: max(20px, var(--safe-top)) 24px max(16px, var(--safe-bottom));
@@ -119,6 +122,14 @@
 
       /* Remove bottom padding when keyboard is open so composer sits flush */
       #app.keyboard-open .screen {
+        padding-bottom: 0 !important;
+      }
+      #app.keyboard-open .sn-screen {
+        padding-bottom: 0 !important;
+      }
+      #app.keyboard-open .intro-screen,
+      #app.keyboard-open .hp-screen,
+      #app.keyboard-open .fs-screen {
         padding-bottom: 0 !important;
       }
 
@@ -1446,7 +1457,9 @@
          Replaces the 3-slide onboarding.
          ============================================================ */
       .intro-screen {
-        position: absolute; inset: 0;
+        position: absolute;
+        top: 0; left: 0; right: 0;
+        height: var(--vh, 100%);
         background: radial-gradient(ellipse 100% 60% at 50% 0%,
           #fafaf6 0%, #f5f4ef 60%, #efece6 100%);
         color: #1a1a1c;
@@ -1733,7 +1746,9 @@
          meditation/stimulus playback per Felix's spec.
          ============================================================ */
       .hp-screen {
-        position: absolute; inset: 0;
+        position: absolute;
+        top: 0; left: 0; right: 0;
+        height: var(--vh, 100%);
         font-family:
           -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'SF Pro Display',
           system-ui, 'Helvetica Neue', sans-serif;
@@ -1920,7 +1935,9 @@
          and the sticky-notes home (currently feedback) per Felix's spec.
          ============================================================ */
       .fs-screen {
-        position: absolute; inset: 0;
+        position: absolute;
+        top: 0; left: 0; right: 0;
+        height: var(--vh, 100%);
         font-family:
           -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'SF Pro Display',
           system-ui, 'Helvetica Neue', sans-serif;
@@ -2155,7 +2172,9 @@
          prefixed with `sn-`. Paywall overlay deferred to substep 4.6.
          ============================================================ */
       .sn-screen {
-        position: absolute; inset: 0;
+        position: absolute;
+        top: 0; left: 0; right: 0;
+        height: var(--vh, 100%);
         font-family:
           -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'SF Pro Display',
           system-ui, 'Helvetica Neue', sans-serif;
@@ -2231,12 +2250,12 @@
 
       .sn-prompt-bar {
         display: flex; align-items: center; justify-content: space-between;
-        padding: 12px 18px;
+        padding: 14px 18px;
         width: 100%;
-        margin-bottom: 14px;
+        margin-bottom: 8px;
         border-radius: 12px;
         background: var(--soft-2);
-        font: 16px/1.35 var(--font-body);
+        font: 17px/1.35 var(--font-body);
         color: var(--muted);
         box-sizing: border-box;
       }
@@ -2689,6 +2708,7 @@
         display: flex; flex-direction: column;
         gap: 12px;
         margin-top: 32px;
+        flex-shrink: 0;
       }
       .survey-option {
         width: 100%;
@@ -3005,8 +3025,11 @@
         document.documentElement.style.setProperty("--vh", h + "px");
         const root = document.getElementById("app");
         if (root) {
-          root.style.height = h + "px";
-          // Detect keyboard: viewport shrunk significantly from initial height
+          // Do NOT set root.style.height -- #app stays full viewport via
+          // position:fixed + inset:0.  Screen containers inside use --vh to
+          // track the visible area so content sits above the keyboard.
+          // This eliminates the white body-background gap that appeared
+          // between the app content and the soft keyboard on mobile.
           const kbOpen = h < _initialVH * 0.75;
           root.classList.toggle("keyboard-open", kbOpen);
         }
@@ -4197,22 +4220,53 @@
         // Direct onclick handlers for reliable button clicks on all devices.
         // These bypass event delegation which can be unreliable on some
         // mobile browsers when the event must bubble from app to document.
+        // Use removeEventListener/addEventListener pattern to avoid stacking.
         const noteRef = note;
-        jb.onclick = (e) => {
+        const jbHandler = (e) => {
+          e.stopPropagation();
+          e.preventDefault();
+          const idx = snNotes.findIndex((n) => String(n.id) === String(noteRef.id));
+          if (idx >= 0) snJoltAt(idx);
+        };
+        const wbHandler = (e) => {
+          e.stopPropagation();
+          e.preventDefault();
+          const idx = snNotes.findIndex((n) => String(n.id) === String(noteRef.id));
+          if (idx >= 0) snJoltAt(idx);
+        };
+        const sbHandler = (e) => {
+          e.stopPropagation();
+          e.preventDefault();
+          const idx = snNotes.findIndex((n) => String(n.id) === String(noteRef.id));
+          if (idx >= 0) snOpenShareSheet(snNotes[idx]);
+        };
+        // Clean up old listeners to avoid stacking
+        if (jb._handler) jb.removeEventListener("click", jb._handler);
+        if (wb._handler) wb.removeEventListener("click", wb._handler);
+        if (sb._handler) sb.removeEventListener("click", sb._handler);
+        jb._handler = jbHandler;
+        wb._handler = wbHandler;
+        sb._handler = sbHandler;
+        jb.addEventListener("click", jbHandler);
+        wb.addEventListener("click", wbHandler);
+        sb.addEventListener("click", sbHandler);
+        // Also handle pointerup directly so touch gestures can't swallow the tap
+        if (wb._ptrHandler) wb.removeEventListener("pointerup", wb._ptrHandler);
+        if (sb._ptrHandler) sb.removeEventListener("pointerup", sb._ptrHandler);
+        const wbPtrHandler = (e) => {
           e.stopPropagation();
           const idx = snNotes.findIndex((n) => String(n.id) === String(noteRef.id));
           if (idx >= 0) snJoltAt(idx);
         };
-        wb.onclick = (e) => {
-          e.stopPropagation();
-          const idx = snNotes.findIndex((n) => String(n.id) === String(noteRef.id));
-          if (idx >= 0) snJoltAt(idx);
-        };
-        sb.onclick = (e) => {
+        const sbPtrHandler = (e) => {
           e.stopPropagation();
           const idx = snNotes.findIndex((n) => String(n.id) === String(noteRef.id));
           if (idx >= 0) snOpenShareSheet(snNotes[idx]);
         };
+        wb._ptrHandler = wbPtrHandler;
+        sb._ptrHandler = sbPtrHandler;
+        wb.addEventListener("pointerup", wbPtrHandler);
+        sb.addEventListener("pointerup", sbPtrHandler);
 
         const newPill = snPillContent(note.state);
         if (pillEl.innerHTML !== newPill) pillEl.innerHTML = newPill;
@@ -4362,9 +4416,10 @@
         const ease = (t) => 1 - Math.pow(1 - t, 3);
         let cancelled = false;
         let lastFloor = Math.floor(Math.abs(from));
+        let finished = false;
 
         function step(now) {
-          if (cancelled) return;
+          if (cancelled || finished) return;
           const t = Math.min(1, (now - start) / ms);
           const next = from + (targetDrag - from) * ease(t);
           const floorNow = Math.floor(Math.abs(next));
@@ -4376,6 +4431,7 @@
           snRenderStack();
           if (t < 1) requestAnimationFrame(step);
           else {
+            finished = true;
             snActiveAnimation = null;
             onFinish && onFinish();
           }
@@ -4387,6 +4443,17 @@
           },
         };
         requestAnimationFrame(step);
+        // Safety: if animation hasn't completed after 2x the expected duration
+        // (e.g. tab was backgrounded), force completion.
+        setTimeout(() => {
+          if (!cancelled && !finished) {
+            finished = true;
+            snDragOffset = targetDrag;
+            snActiveAnimation = null;
+            snRenderStack();
+            onFinish && onFinish();
+          }
+        }, ms * 2 + 100);
         return snActiveAnimation;
       }
 
@@ -4549,8 +4616,21 @@
           acquireWakeLock();
           setupMediaSession("Your Jolt");
           snModalAudio = new Audio(n.audio_url);
-          snModalAudio.play().catch(() => {});
+          snModalAudio.play().catch((err) => {
+            console.warn("[Modal] Audio play failed:", err);
+            snShowToast("Could not play audio");
+            snCloseModal();
+          });
+          snModalAudio.onerror = () => {
+            console.warn("[Modal] Audio load error for", n.audio_url);
+            snShowToast("Audio not available");
+            snCloseModal();
+          };
           snModalAudio.onended = () => snCloseModal();
+        } else {
+          // No audio URL - show feedback and close
+          snShowToast("No audio available for this note");
+          setTimeout(() => snCloseModal(), 300);
         }
       }
       async function snCloseModal() {
@@ -4760,10 +4840,13 @@
       function snDragStart(y) {
         if (snTransitioning) return false;
         if (snActiveAnimation) {
+          // Snap to the nearest integer position before cancelling so the
+          // card doesn't get stuck between positions.
+          const nearestStep = Math.round(snDragOffset);
           snActiveAnimation.cancel();
-          // Reset any fractional offset left from a cancelled snap-back
-          // animation so the card doesn't get stuck between positions.
+          snPos = Math.max(0, Math.min(snNotes.length - 1, snPos + nearestStep));
           snDragOffset = 0;
+          snTransitioning = false;
           snRenderStack();
         }
         snTouchActive = true;
@@ -5518,7 +5601,7 @@
                   <button class="survey-option ${selected === opt ? 'selected' : ''}" data-action="survey-pick" data-value="${escapeAttr(opt)}">${opt}</button>
                 `).join('')}
               </div>
-              <div class="question-spacer" style="min-height:24px"></div>
+              <div class="question-spacer"></div>
               <div class="composer" style="margin-top:auto">
                 <div class="composer-box no-instruction">
                   <div class="composer-pill">
@@ -5720,11 +5803,17 @@
           pollTimer = null;
         }
 
-        // Match body background to screen theme so no white bleed shows
-        // below the app container on devices with bottom safe areas.
+        // Match body AND #app background to current screen theme so no
+        // white bleed shows when the keyboard opens or on devices with
+        // bottom safe areas.  #app stays full viewport; the gap between
+        // the --vh-sized screen and #app's bottom shows #app's background.
         const darkScreens = ["headphones", "meditation", "stimulus", "intro"];
         const isDark = darkScreens.includes(state.screen);
-        document.body.style.background = isDark ? "#000" : "#fff";
+        const warmScreens = ["sticky-notes", "first-sticky"];
+        const isWarm = warmScreens.includes(state.screen);
+        const bgColor = isDark ? "#000" : (isWarm ? "#efece6" : "#fff");
+        document.body.style.background = bgColor;
+        app.style.background = bgColor;
         // Update theme-color meta so the system navigation bar / status bar
         // matches the current screen's background on Android and iOS.
         const meta = document.querySelector('meta[name="theme-color"]');
@@ -6347,12 +6436,20 @@
       // instead of just dismissing the keyboard. Covers ALL send/submit buttons.
       const _sendBtnSelector = ".send, .email-submit, [data-action='q-send'], [data-action='survey-send'], [data-action='feedback-send'], [data-action='submit-email'], [data-action='do-login'], [data-action='do-register']";
       app.addEventListener("mousedown", (e) => {
-        const btn = e.target.closest(_sendBtnSelector);
+        const btn = e.target && e.target.closest && e.target.closest(_sendBtnSelector);
         if (btn) e.preventDefault();
       });
       app.addEventListener("touchstart", (e) => {
-        const btn = e.target.closest(_sendBtnSelector);
+        const btn = e.target && e.target.closest && e.target.closest(_sendBtnSelector);
         if (btn) e.preventDefault();
+      }, { passive: false });
+      // On iOS, preventDefault on touchstart can suppress the synthetic click.
+      // Fire the action directly on touchend so the first tap always submits.
+      app.addEventListener("touchend", (e) => {
+        const btn = e.target && e.target.closest && e.target.closest(_sendBtnSelector);
+        if (!btn) return;
+        e.preventDefault(); // suppress delayed click to avoid double-fire
+        btn.click();        // manually trigger click handler synchronously
       }, { passive: false });
 
       app.addEventListener("click", (e) => {
