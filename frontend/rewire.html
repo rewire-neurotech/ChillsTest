@@ -4164,6 +4164,7 @@
 
         const jb = el.querySelector(".sn-jolt-btn");
         const wb = el.querySelector(".sn-watched-btn");
+        const sb = el.querySelector(".sn-share-btn");
         const pillEl = el.querySelector(".sn-pill");
 
         if (note.state === "progress") {
@@ -4192,6 +4193,26 @@
           wb.style.display = "none";
           pillEl.style.display = "";
         }
+
+        // Direct onclick handlers for reliable button clicks on all devices.
+        // These bypass event delegation which can be unreliable on some
+        // mobile browsers when the event must bubble from app to document.
+        const noteRef = note;
+        jb.onclick = (e) => {
+          e.stopPropagation();
+          const idx = snNotes.findIndex((n) => String(n.id) === String(noteRef.id));
+          if (idx >= 0) snJoltAt(idx);
+        };
+        wb.onclick = (e) => {
+          e.stopPropagation();
+          const idx = snNotes.findIndex((n) => String(n.id) === String(noteRef.id));
+          if (idx >= 0) snJoltAt(idx);
+        };
+        sb.onclick = (e) => {
+          e.stopPropagation();
+          const idx = snNotes.findIndex((n) => String(n.id) === String(noteRef.id));
+          if (idx >= 0) snOpenShareSheet(snNotes[idx]);
+        };
 
         const newPill = snPillContent(note.state);
         if (pillEl.innerHTML !== newPill) pillEl.innerHTML = newPill;
