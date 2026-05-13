@@ -49,7 +49,7 @@
         padding: 0;
         height: 100%;
         overflow: hidden;
-        background: #fff;
+        background: #000;
         color: var(--ink);
         font-family: var(--font-body);
         -webkit-font-smoothing: antialiased;
@@ -99,7 +99,7 @@
         display: flex;
         flex-direction: column;
         overflow: hidden;
-        background: #fff;
+        background: #000;
       }
 
       /* Each screen fills the app container */
@@ -2405,8 +2405,8 @@
         caret-color: #5b4af0;
       }
       .sn-card .sn-body { cursor: text; }
-      .sn-body textarea { pointer-events: none; }
-      .sn-body textarea:focus { pointer-events: auto; user-select: text; -webkit-user-select: text; }
+      .sn-body textarea { pointer-events: auto; user-select: text; -webkit-user-select: text; }
+      .sn-body .sn-text { pointer-events: none; }
       .sn-card.watched .sn-body textarea,
       .sn-card.watched .sn-body .sn-text { caret-color: #fff; }
       .sn-body .sn-text { white-space: pre-wrap; text-wrap: pretty; }
@@ -2456,6 +2456,9 @@
       .sn-share-btn:active { transform: scale(0.92); }
 
       .sn-card.shake { animation: snCardJolt .6s cubic-bezier(.36,.07,.19,.97); }
+
+      /* Ensure card buttons always show pointer cursor even inside grab-cursor stack area */
+      .sn-card button { cursor: pointer !important; position: relative; z-index: 2; }
 
       /* Modal — playback gate */
       .sn-modal {
@@ -3246,6 +3249,16 @@
         if (state.token) headers["Authorization"] = "Bearer " + state.token;
         const resp = await fetch(path, { ...opts, headers });
         if (!resp.ok) {
+          // Token expired or revoked: clear stale session, redirect to splash
+          if (resp.status === 401) {
+            state.token = null;
+            state.user = null;
+            localStorage.removeItem("jolter_token");
+            clearFlowState();
+            state.screen = "splash";
+            render();
+            throw new Error("Session expired. Please sign in again.");
+          }
           const err = await resp
             .json()
             .catch(() => ({ detail: "Request failed" }));
@@ -3993,7 +4006,7 @@
               </div>
             </div>
             <div class="sn-bottom-bar">
-              <button class="sn-new-btn" id="snNewBtn" title="New note" aria-label="New note">
+              <button class="sn-new-btn" id="snNewBtn" data-action="sn-new" title="New note" aria-label="New note">
                 <svg viewBox="0 0 20 20" width="20" height="20">
                   <path d="M10 4.5 L10 15.5 M4.5 10 L15.5 10" stroke="currentColor"
                         stroke-width="1.8" stroke-linecap="round"/>
@@ -4387,7 +4400,8 @@
             body: JSON.stringify({ text: note.text || "" }),
           });
         } catch (e) {
-          /* ignore — user is still typing, retry next debounce */
+          // api() handles 401 (clears token, redirects to splash).
+          // Other errors are transient -- user is still typing, retry next debounce.
         }
       }
 
@@ -4729,6 +4743,11 @@
         btn.classList.add("nudge");
       }
       async function snNewBlankNote() {
+        // Safety: if snTransitioning got stuck (e.g. animation cancelled
+        // without callback firing), reset it when no animation is running.
+        if (snTransitioning && !snActiveAnimation) {
+          snTransitioning = false;
+        }
         if (snTransitioning) return;
         if (!snCanCreateNewNote()) {
           snNudgeNewBtn();
@@ -4804,11 +4823,16 @@
       const SN_CARD_HEIGHT_PX = 180;
 
       function snInEditable(target) {
-        return (
-          target &&
-          target.tagName === "TEXTAREA" &&
-          document.activeElement === target
-        );
+        if (!target) return false;
+        // Let any textarea or input click pass through (skip drag handler)
+        // so the browser can focus it directly. On non-focused cards the
+        // textarea is hidden (display:none) so it won't receive clicks.
+        if (target.tagName === "TEXTAREA" || target.tagName === "INPUT") return true;
+        // Also skip if clicking inside a focused textarea's container
+        if (target.closest && target.closest(".sn-body") &&
+            document.activeElement &&
+            document.activeElement.tagName === "TEXTAREA") return true;
+        return false;
       }
       function snFindTappedCardId(target) {
         if (!target) return null;
@@ -6574,26 +6598,13 @@
               spawnParticles(e.clientX - rect.left, e.clientY - rect.top);
             }
             break;
-          // sticky-notes card buttons (belt-and-suspenders: also handled
-          // by the delegated document handler in snInstallListenersOnce)
-          case "sn-jolt": {
-            const cardEl = btn.closest(".sn-card");
-            if (cardEl) {
-              const cardId = cardEl.dataset.id;
-              const idx = snNotes.findIndex((n) => String(n.id) === String(cardId));
-              if (idx >= 0) snJoltAt(idx);
-            }
+          // sticky-notes card buttons are handled by the delegated
+          // document handler in snInstallListenersOnce — not here.
+
+          // sticky-notes new note button
+          case "sn-new":
+            snNewBlankNote();
             break;
-          }
-          case "sn-share": {
-            const cardEl = btn.closest(".sn-card");
-            if (cardEl) {
-              const cardId = cardEl.dataset.id;
-              const idx = snNotes.findIndex((n) => String(n.id) === String(cardId));
-              if (idx >= 0) snOpenShareSheet(snNotes[idx]);
-            }
-            break;
-          }
           // first-sticky
           case "first-sticky-capture":
             // Hand off to the sticky-notes home (Felix's spec).
