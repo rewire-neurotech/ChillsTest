@@ -4828,12 +4828,10 @@
           snActiveAnimation.cancel();
           snPos = Math.max(0, Math.min(snNotes.length - 1, snPos + nearestStep));
           snDragOffset = 0;
+          snTransitioning = false;
           snRenderStack();
         }
-        // Always clear transitioning flag on a new user gesture.  This covers
-        // the edge case where cancel() set snActiveAnimation=null but the
-        // onFinish callback (which resets snTransitioning) never fired.
-        snTransitioning = false;
+        if (snTransitioning) return false;
         snTouchActive = true;
         snTouchStartY = y;
         snTouchLastY = y;
@@ -6574,26 +6572,6 @@
               spawnParticles(e.clientX - rect.left, e.clientY - rect.top);
             }
             break;
-          // sticky-notes card buttons (belt-and-suspenders: also handled
-          // by the delegated document handler in snInstallListenersOnce)
-          case "sn-jolt": {
-            const cardEl = btn.closest(".sn-card");
-            if (cardEl) {
-              const cardId = cardEl.dataset.id;
-              const idx = snNotes.findIndex((n) => String(n.id) === String(cardId));
-              if (idx >= 0) snJoltAt(idx);
-            }
-            break;
-          }
-          case "sn-share": {
-            const cardEl = btn.closest(".sn-card");
-            if (cardEl) {
-              const cardId = cardEl.dataset.id;
-              const idx = snNotes.findIndex((n) => String(n.id) === String(cardId));
-              if (idx >= 0) snOpenShareSheet(snNotes[idx]);
-            }
-            break;
-          }
           // first-sticky
           case "first-sticky-capture":
             // Hand off to the sticky-notes home (Felix's spec).
