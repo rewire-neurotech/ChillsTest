@@ -60,12 +60,13 @@
       }
 
       /* When the app is in true fullscreen, the safe-area insets disappear,
-         but we keep our own internal padding via the .screen rule. */
+         but we keep our own internal padding via the .screen rule.
+         Body background is set dynamically by JS for dark/light screens. */
       :fullscreen body {
-        background: #fff;
+        background: inherit;
       }
       :-webkit-full-screen body {
-        background: #fff;
+        background: inherit;
       }
 
       input,
@@ -840,6 +841,8 @@
         font-size: 18px;
         font-weight: 700;
         flex-shrink: 0;
+        touch-action: manipulation;
+        -webkit-touch-callout: none;
         transition:
           background 160ms ease,
           transform 140ms ease;
@@ -2220,6 +2223,24 @@
         -webkit-user-select: none;
       }
       .sn-stack-area.dragging { cursor: grabbing; }
+
+      .sn-stack-group {
+        display: flex; flex-direction: column; align-items: center;
+        width: 100%; max-width: 380px;
+      }
+
+      .sn-prompt-bar {
+        display: flex; align-items: center; justify-content: space-between;
+        padding: 12px 18px;
+        width: 100%;
+        margin-bottom: 14px;
+        border-radius: 12px;
+        background: var(--soft-2);
+        font: 16px/1.35 var(--font-body);
+        color: var(--muted);
+        box-sizing: border-box;
+      }
+
       .sn-stack {
         position: relative;
         width: 100%; max-width: 380px;
@@ -2996,7 +3017,39 @@
       }
       window.addEventListener("resize", syncViewport);
       window.addEventListener("orientationchange", syncViewport);
+      // Re-capture initial viewport height on orientation change so keyboard
+      // detection threshold stays correct after rotation.
+      window.addEventListener("orientationchange", () => {
+        setTimeout(() => {
+          _initialVH = window.visualViewport ? window.visualViewport.height : window.innerHeight;
+        }, 300);
+      });
       syncViewport();
+
+      // Robust keyboard detection fallback for devices where visualViewport
+      // resize fires late or never (some iOS PWA / Android WebView edge cases).
+      // When an input/textarea is focused, we poll viewport height briefly to
+      // catch the keyboard animation. This is belt-and-suspenders on top of the
+      // visualViewport listener above.
+      (function installKeyboardFallback() {
+        let kbPollId = null;
+        function pollKeyboard(duration) {
+          if (kbPollId) clearInterval(kbPollId);
+          const end = Date.now() + duration;
+          kbPollId = setInterval(() => {
+            syncViewport();
+            if (Date.now() > end) { clearInterval(kbPollId); kbPollId = null; }
+          }, 60);
+        }
+        document.addEventListener("focusin", (e) => {
+          if (e.target && (e.target.tagName === "INPUT" || e.target.tagName === "TEXTAREA")) {
+            pollKeyboard(600);
+          }
+        });
+        document.addEventListener("focusout", () => {
+          pollKeyboard(600);
+        });
+      })();
 
       // -------- Fullscreen --------
       // Browsers only allow Fullscreen API requests during a user gesture, so
@@ -3875,17 +3928,19 @@
 
             <div class="sn-top-spacer"></div>
             <div class="sn-stack-area" id="snStackArea">
-              ${!state.promptDismissed ? `
-              <div class="sn-prompt-bar" id="snPromptBar" style="display:flex;align-items:center;justify-content:space-between;padding:10px 16px;max-width:380px;width:100%;margin:0 auto 12px;border-radius:10px;background:var(--soft-2);font:15px/1.3 var(--font-body);color:var(--muted);box-sizing:border-box;">
-                <div style="display:flex;align-items:center;gap:8px;">
-                  <svg viewBox="0 0 16 16" width="14" height="14" style="opacity:0.5;flex-shrink:0"><path d="M2 12.5 L2 4 C2 3 3 2 4 2 L12 2 C13 2 14 3 14 4 L14 12 C14 13 13 14 12 14 L4 14 C3 14 2 13 2 12 Z M5 5 L11 5 M5 8 L9 8" stroke="currentColor" stroke-width="1.3" fill="none" stroke-linecap="round"/></svg>
-                  Describe what came up for you. Did you feel chills?
-                </div>
-                <button id="snPromptClose" data-action="sn-prompt-close" style="background:none;border:none;padding:4px;cursor:pointer;color:var(--muted);flex-shrink:0;">
-                  <svg viewBox="0 0 16 16" width="12" height="12"><path d="M4 4 L12 12 M12 4 L4 12" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
-                </button>
-              </div>` : ''}
-              <div class="sn-stack" id="snStack"></div>
+              <div class="sn-stack-group">
+                ${!state.promptDismissed ? `
+                <div class="sn-prompt-bar" id="snPromptBar">
+                  <div style="display:flex;align-items:center;gap:10px;">
+                    <svg viewBox="0 0 16 16" width="15" height="15" style="opacity:0.5;flex-shrink:0"><path d="M2 12.5 L2 4 C2 3 3 2 4 2 L12 2 C13 2 14 3 14 4 L14 12 C14 13 13 14 12 14 L4 14 C3 14 2 13 2 12 Z M5 5 L11 5 M5 8 L9 8" stroke="currentColor" stroke-width="1.3" fill="none" stroke-linecap="round"/></svg>
+                    Describe what came up for you. Did you feel chills?
+                  </div>
+                  <button id="snPromptClose" data-action="sn-prompt-close" style="background:none;border:none;padding:4px;cursor:pointer;color:var(--muted);flex-shrink:0;">
+                    <svg viewBox="0 0 16 16" width="12" height="12"><path d="M4 4 L12 12 M12 4 L4 12" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
+                  </button>
+                </div>` : ''}
+                <div class="sn-stack" id="snStack"></div>
+              </div>
             </div>
             <div class="sn-bottom-bar">
               <button class="sn-new-btn" id="snNewBtn" title="New note" aria-label="New note">
@@ -4324,7 +4379,9 @@
         const absSteps = Math.abs(steps);
         const ms = Math.min(620, 220 + absSteps * 110);
         snAnimateTo(steps, ms, () => {
-          snPos = snPos + steps;
+          snPos = Math.round(snPos + steps);
+          // Clamp to valid range
+          snPos = Math.max(0, Math.min(snNotes.length - 1, snPos));
           snDragOffset = 0;
           snTransitioning = false;
           snRenderStack();
@@ -4339,8 +4396,15 @@
       }
 
       function snSnapBack() {
-        if (Math.abs(snDragOffset) < 0.001) return;
-        snAnimateTo(0, 220, () => snRenderStack());
+        if (Math.abs(snDragOffset) < 0.001) {
+          snDragOffset = 0;
+          snRenderStack();
+          return;
+        }
+        snAnimateTo(0, 220, () => {
+          snDragOffset = 0;
+          snRenderStack();
+        });
       }
 
       // ----- jolt (REAL BACKEND) -----
@@ -4733,14 +4797,24 @@
         const velocity = elapsed > 0 ? -dy / elapsed : 0;
         const drag = snDragOffset;
 
+        // Velocity-based snap: project where the drag would land
         const FLICK_GAIN = 0.6;
         const projected = drag + velocity * FLICK_GAIN;
 
+        // Round to nearest integer card position
         let target = Math.round(projected);
-        if (Math.abs(projected) < 0.18) target = 0;
+
+        // Dead zone: if barely moved, snap back
+        if (Math.abs(projected) < 0.18 && Math.abs(velocity) < 0.3) target = 0;
+
+        // Velocity flick override: fast swipe should always advance at least 1
+        if (Math.abs(velocity) > 0.5 && target === 0) {
+          target = velocity > 0 ? 1 : -1;
+        }
 
         if (snPos === 0 && target < 0 && snCanCreateNewNote()) {
           snAnimateTo(0, 160, () => {
+            snDragOffset = 0;
             snRenderStack();
             snNewBlankNote();
           });
@@ -5423,8 +5497,8 @@
                   <button class="survey-option ${selected === opt ? 'selected' : ''}" data-action="survey-pick" data-value="${escapeAttr(opt)}">${opt}</button>
                 `).join('')}
               </div>
-              <div class="question-spacer"></div>
-              <div class="composer">
+              <div class="question-spacer" style="min-height:24px"></div>
+              <div class="composer" style="margin-top:auto">
                 <div class="composer-box no-instruction">
                   <div class="composer-pill">
                     <input
@@ -5628,7 +5702,15 @@
         // Match body background to screen theme so no white bleed shows
         // below the app container on devices with bottom safe areas.
         const darkScreens = ["headphones", "meditation", "stimulus", "intro"];
-        document.body.style.background = darkScreens.includes(state.screen) ? "#000" : "#fff";
+        const isDark = darkScreens.includes(state.screen);
+        document.body.style.background = isDark ? "#000" : "#fff";
+        // Update theme-color meta so the system navigation bar / status bar
+        // matches the current screen's background on Android and iOS.
+        const meta = document.querySelector('meta[name="theme-color"]');
+        if (meta) meta.setAttribute("content", isDark ? "#000000" : "#ffffff");
+        // Also update fullscreen body background
+        const fs = document.querySelector(':fullscreen body, :-webkit-full-screen body');
+        // (CSS handles this via :fullscreen selectors, but we set body bg above as well)
 
         if (state.screen === "splash") {
           app.innerHTML = renderSplash();
@@ -6241,13 +6323,14 @@
       // ============ EVENT HANDLERS ============
 
       // Prevent input blur when tapping send buttons so the first tap submits
-      // instead of just dismissing the keyboard.
+      // instead of just dismissing the keyboard. Covers ALL send/submit buttons.
+      const _sendBtnSelector = ".send, .email-submit, [data-action='q-send'], [data-action='survey-send'], [data-action='feedback-send'], [data-action='submit-email'], [data-action='do-login'], [data-action='do-register']";
       app.addEventListener("mousedown", (e) => {
-        const btn = e.target.closest(".send, [data-action='q-send'], [data-action='survey-send'], [data-action='feedback-send']");
+        const btn = e.target.closest(_sendBtnSelector);
         if (btn) e.preventDefault();
       });
       app.addEventListener("touchstart", (e) => {
-        const btn = e.target.closest(".send, [data-action='q-send'], [data-action='survey-send'], [data-action='feedback-send']");
+        const btn = e.target.closest(_sendBtnSelector);
         if (btn) e.preventDefault();
       }, { passive: false });
 
