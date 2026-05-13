@@ -4217,56 +4217,12 @@
           pillEl.style.display = "";
         }
 
-        // Direct onclick handlers for reliable button clicks on all devices.
-        // These bypass event delegation which can be unreliable on some
-        // mobile browsers when the event must bubble from app to document.
-        // Use removeEventListener/addEventListener pattern to avoid stacking.
-        const noteRef = note;
-        const jbHandler = (e) => {
-          e.stopPropagation();
-          e.preventDefault();
-          const idx = snNotes.findIndex((n) => String(n.id) === String(noteRef.id));
-          if (idx >= 0) snJoltAt(idx);
-        };
-        const wbHandler = (e) => {
-          e.stopPropagation();
-          e.preventDefault();
-          const idx = snNotes.findIndex((n) => String(n.id) === String(noteRef.id));
-          if (idx >= 0) snJoltAt(idx);
-        };
-        const sbHandler = (e) => {
-          e.stopPropagation();
-          e.preventDefault();
-          const idx = snNotes.findIndex((n) => String(n.id) === String(noteRef.id));
-          if (idx >= 0) snOpenShareSheet(snNotes[idx]);
-        };
-        // Clean up old listeners to avoid stacking
-        if (jb._handler) jb.removeEventListener("click", jb._handler);
-        if (wb._handler) wb.removeEventListener("click", wb._handler);
-        if (sb._handler) sb.removeEventListener("click", sb._handler);
-        jb._handler = jbHandler;
-        wb._handler = wbHandler;
-        sb._handler = sbHandler;
-        jb.addEventListener("click", jbHandler);
-        wb.addEventListener("click", wbHandler);
-        sb.addEventListener("click", sbHandler);
-        // Also handle pointerup directly so touch gestures can't swallow the tap
-        if (wb._ptrHandler) wb.removeEventListener("pointerup", wb._ptrHandler);
-        if (sb._ptrHandler) sb.removeEventListener("pointerup", sb._ptrHandler);
-        const wbPtrHandler = (e) => {
-          e.stopPropagation();
-          const idx = snNotes.findIndex((n) => String(n.id) === String(noteRef.id));
-          if (idx >= 0) snJoltAt(idx);
-        };
-        const sbPtrHandler = (e) => {
-          e.stopPropagation();
-          const idx = snNotes.findIndex((n) => String(n.id) === String(noteRef.id));
-          if (idx >= 0) snOpenShareSheet(snNotes[idx]);
-        };
-        wb._ptrHandler = wbPtrHandler;
-        sb._ptrHandler = sbPtrHandler;
-        wb.addEventListener("pointerup", wbPtrHandler);
-        sb.addEventListener("pointerup", sbPtrHandler);
+        // Button clicks are handled by the delegated click handler in
+        // snInstallListenersOnce() which matches data-action="sn-jolt" and
+        // data-action="sn-share", finds the parent .sn-card, and calls
+        // snJoltAt / snOpenShareSheet.  No direct onclick/addEventListener
+        // needed here -- keeping it delegated avoids double-fire and
+        // stopPropagation conflicts on mobile.
 
         const newPill = snPillContent(note.state);
         if (pillEl.innerHTML !== newPill) pillEl.innerHTML = newPill;
@@ -4838,10 +4794,9 @@
       }
 
       function snDragStart(y) {
-        if (snTransitioning) return false;
+        // If an animation is running (snap or transition), cancel it and
+        // snap to the nearest integer position so the card never gets stuck.
         if (snActiveAnimation) {
-          // Snap to the nearest integer position before cancelling so the
-          // card doesn't get stuck between positions.
           const nearestStep = Math.round(snDragOffset);
           snActiveAnimation.cancel();
           snPos = Math.max(0, Math.min(snNotes.length - 1, snPos + nearestStep));
@@ -4849,6 +4804,7 @@
           snTransitioning = false;
           snRenderStack();
         }
+        if (snTransitioning) return false;
         snTouchActive = true;
         snTouchStartY = y;
         snTouchLastY = y;
@@ -6230,12 +6186,35 @@
           // Start stimulus audio (meditation already stopped via onended)
           if (state.audioUrl) {
             stimulusAudio = new Audio(state.audioUrl);
-            stimulusAudio.play().catch(() => {});
+            stimulusAudio.play().catch((err) => {
+              console.warn("[Stimulus] Audio play failed:", err);
+              // Autoplay may be blocked — show a tap-to-play prompt
+              const hint = app.querySelector(".canvas-hint");
+              if (hint) hint.textContent = "tap to play your Jolt";
+              const tapHandler = () => {
+                document.removeEventListener("pointerdown", tapHandler);
+                if (stimulusAudio) {
+                  stimulusAudio.play().catch(() => {
+                    // Still can't play — skip to first-sticky
+                    setTimeout(goToFirstSticky, 500);
+                  });
+                }
+              };
+              document.addEventListener("pointerdown", tapHandler, { once: true });
+            });
+            stimulusAudio.onerror = () => {
+              console.warn("[Stimulus] Audio load error for", state.audioUrl);
+              // Audio file missing (e.g. /tmp eviction) — skip to next screen
+              setTimeout(goToFirstSticky, 1500);
+            };
             state.audioStartTime = Date.now();
             setupMediaSession("Your Jolt");
             stimulusAudio.onended = () => {
               setTimeout(goToFirstSticky, 1500);
             };
+          } else {
+            // No audio URL — skip to first-sticky after a brief pause
+            setTimeout(goToFirstSticky, 1500);
           }
         } else if (state.meditationDone && !state.genDone) {
           // Show wait overlay
@@ -6263,7 +6242,24 @@
         setupMediaSession("Your Jolt");
         if (state.audioUrl) {
           stimulusAudio = new Audio(state.audioUrl);
-          stimulusAudio.play().catch(() => {});
+          stimulusAudio.play().catch((err) => {
+            console.warn("[Stimulus] Audio play failed:", err);
+            const hint = app.querySelector(".canvas-hint");
+            if (hint) hint.textContent = "tap to play your Jolt";
+            const tapHandler = () => {
+              document.removeEventListener("pointerdown", tapHandler);
+              if (stimulusAudio) {
+                stimulusAudio.play().catch(() => {
+                  setTimeout(goToFirstSticky, 500);
+                });
+              }
+            };
+            document.addEventListener("pointerdown", tapHandler, { once: true });
+          });
+          stimulusAudio.onerror = () => {
+            console.warn("[Stimulus] Audio load error for", state.audioUrl);
+            setTimeout(goToFirstSticky, 1500);
+          };
           state.audioStartTime = Date.now();
           stimulusAudio.onended = () => {
             setTimeout(goToFirstSticky, 1500);
