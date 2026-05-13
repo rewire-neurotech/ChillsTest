@@ -3212,6 +3212,33 @@
           .replace(/'/g, "&#39;");
       }
 
+      // ============ FLOW-STATE PERSISTENCE ============
+      // Saves the active generation flow (meditation/stimulus) to localStorage
+      // so it can be resumed after an accidental page reload on mobile.
+      const _FLOW_KEY = "jolter_active_flow";
+
+      function saveFlowState() {
+        try {
+          localStorage.setItem(_FLOW_KEY, JSON.stringify({
+            jobId: state.jobId,
+            meditationUrl: state.meditationUrl,
+            ts: Date.now(),
+          }));
+        } catch (_) {}
+      }
+
+      function clearFlowState() {
+        try { localStorage.removeItem(_FLOW_KEY); } catch (_) {}
+      }
+
+      function loadFlowState() {
+        try {
+          const raw = localStorage.getItem(_FLOW_KEY);
+          if (!raw) return null;
+          return JSON.parse(raw);
+        } catch (_) { return null; }
+      }
+
       // ============ API ============
       async function api(path, opts = {}) {
         const headers = opts.headers || {};
@@ -5256,6 +5283,7 @@
             state.token = null;
             state.user = null;
             localStorage.removeItem("jolter_token");
+            clearFlowState();
             state.screen = "splash";
             render();
           });
@@ -6109,6 +6137,7 @@
           state.genProgress = 0;
           state.genStage = "queued";
           state.screen = "meditation";
+          saveFlowState();
           render();
         } catch (e) {
           alert("Generation failed: " + e.message);
@@ -6275,6 +6304,7 @@
         stopParticles();
         stopAllAudio();
         releaseWakeLock();
+        clearFlowState();
 
         // Auto-save chills data before leaving stimulus
         saveChillsData();
@@ -6402,6 +6432,7 @@
       function restart() {
         stopParticles();
         stopAllAudio();
+        clearFlowState();
         state.screen = "splash";
         state.onboardIndex = 0;
         state.questionIndex = 0;
@@ -6649,7 +6680,47 @@
             // Returning user who already finished their first jolt lands
             // straight on the sticky-notes home, skipping splash/intro/4Q.
             if (state.user.hasCompletedFirstJolt) {
-              state.screen = "sticky-notes";
+              // Check for an interrupted meditation/stimulus flow.
+              // If the page reloaded mid-flow (browser killed the tab,
+              // pull-to-refresh, service-worker restart, etc.) we can
+              // resume because the backend still has the generation job.
+              const flow = loadFlowState();
+              const FLOW_MAX_AGE_MS = 30 * 60 * 1000; // 30 minutes
+              if (flow && flow.jobId && flow.ts && (Date.now() - flow.ts < FLOW_MAX_AGE_MS)) {
+                try {
+                  const st = await api("/api/demo/generate/status/" + flow.jobId);
+                  if (st.stage === "done") {
+                    // Generation finished while we were away -- jump to stimulus
+                    state.jobId = flow.jobId;
+                    state.sessionId = st.session_id;
+                    state.audioUrl = st.audio_url;
+                    state.genDone = true;
+                    state.meditationDone = true; // skip meditation replay
+                    state.screen = "stimulus";
+                  } else if (st.stage === "error") {
+                    // Generation failed -- clear flow, land on sticky-notes
+                    clearFlowState();
+                    state.screen = "sticky-notes";
+                  } else {
+                    // Still generating -- resume meditation + polling
+                    state.jobId = flow.jobId;
+                    state.meditationUrl = flow.meditationUrl || null;
+                    state.genDone = false;
+                    state.meditationDone = false;
+                    state.genProgress = st.progress || 0;
+                    state.genStage = st.stage || "queued";
+                    state.screen = "meditation";
+                  }
+                } catch (e) {
+                  // Status check failed -- clear stale flow, land on sticky-notes
+                  clearFlowState();
+                  state.screen = "sticky-notes";
+                }
+              } else {
+                // No active flow (or expired) -- normal landing
+                clearFlowState();
+                state.screen = "sticky-notes";
+              }
             }
           } catch (e) {
             state.token = null;
