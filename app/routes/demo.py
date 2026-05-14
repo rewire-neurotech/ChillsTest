@@ -19,8 +19,8 @@ from pydub import AudioSegment
 from app.core.config import cfg
 from app.db import get_db, SessionLocal, engine
 from app.models import DemoSession, User, AuditLog, StickyNote, PushSubscription
-from app.services.prompt import build_user_prompt
-from app.services.llm import generate_speech
+from app.services.prompt import build_user_prompt, build_question_prompt
+from app.services.llm import generate_speech, call_claude
 from app.services.tts import synth
 from app.services.mix import mix as mix_audio
 from app.services.music_selector import select_track
@@ -70,6 +70,25 @@ def _ensure_job_columns():
         print(f"[Demo] Auto-migration note: {e}")
 
 _ensure_job_columns()
+
+
+def _ensure_note_columns():
+    """Add prompt_question column to sticky_notes if missing.
+    Runs once on startup."""
+    from sqlalchemy import inspect, text
+    try:
+        insp = inspect(engine)
+        existing = {c['name'] for c in insp.get_columns('sticky_notes')}
+        with engine.begin() as conn:
+            if 'prompt_question' not in existing:
+                conn.execute(text(
+                    "ALTER TABLE sticky_notes ADD COLUMN prompt_question TEXT"
+                ))
+                print("[Demo] Added 'prompt_question' column to sticky_notes")
+    except Exception as e:
+        print(f"[Demo] Auto-migration (sticky_notes) note: {e}")
+
+_ensure_note_columns()
 
 
 # --- DB-backed job status updates (replaces in-memory _jobs dict) ---
@@ -125,6 +144,60 @@ def _send_push_notifications(user_id: int):
         pass
     finally:
         db.close()
+
+
+# --- Sticky note question generation helper ---
+
+def _generate_note_question(user_id: int, q1: str, q2: str, q3: str, q4: str, db_session=None):
+    """Generate a personalized journal question for a new sticky note.
+    Uses the user's original Q1-Q4 answers and their last 3 jolts.
+    Returns the question string, or empty string if generation fails."""
+    try:
+        # Get recent jolt speech texts for context
+        recent_jolts_text = "none yet"
+        own_db = False
+        db = db_session
+        if db is None:
+            db = SessionLocal()
+            own_db = True
+        try:
+            recent_sessions = (
+                db.query(DemoSession)
+                .filter(DemoSession.user_id == user_id, DemoSession.speech_text.isnot(None))
+                .order_by(DemoSession.created_at.desc())
+                .limit(3)
+                .all()
+            )
+            if recent_sessions:
+                summaries = []
+                for s in recent_sessions:
+                    text = decrypt_field(s.speech_text) or ""
+                    # Take first 80 words as a summary of each jolt
+                    words = text.split()[:80]
+                    if words:
+                        summaries.append(" ".join(words) + "...")
+                if summaries:
+                    recent_jolts_text = " | ".join(summaries)
+        finally:
+            if own_db:
+                db.close()
+
+        # Build the prompt with user context
+        system_prompt = build_question_prompt(
+            q1_low_voice=q1,
+            q2_chills=q2,
+            q3_first_call=q3,
+            q4_unseen=q4,
+            recent_jolts=recent_jolts_text,
+        )
+
+        # Call Claude for a short question
+        question = call_claude(system_prompt=system_prompt, user_message="Generate.", max_tokens=100)
+        print(f"[Demo] Generated note question: {question}")
+        return question
+    except Exception as e:
+        print(f"[Demo] Note question generation error: {e}")
+        return ""
 
 
 # --- Request / Response schemas ---
@@ -449,38 +522,44 @@ Continue now. Only the continuation text. No preamble."""
                             print(f"[Demo] Note {note_id} not found for user {user_id}, skipping note update")
                     else:
                         # First jolt from questions flow: create 4 answer notes
-                        # + 1 blank reflection note.
+                        # + 1 reflection note with a personalized question.
                         # Created in order so that newest-first ordering puts
-                        # the blank note on top, then q4, q3, q2, q1 below.
-                        answers = [
-                            ("q1", q1),
-                            ("q2", q2),
-                            ("q3", q3),
-                            ("q4", q4),
+                        # the reflection note on top, then q4, q3, q2, q1 below.
+                        #
+                        # Issue 3: Notes are IDLE (joltable), not watched.
+                        # Each note includes the question context as a prefix.
+                        answer_labels = [
+                            ("q1", "When you are at your lowest, the voice in your head says: ", q1),
+                            ("q2", "The last time you got chills or goosebumps: ", q2),
+                            ("q3", "If something beautiful happened, the first person you'd call: ", q3),
+                            ("q4", "Something true about you that nobody sees: ", q4),
                         ]
-                        for label, answer_text in answers:
+                        for label, prefix, answer_text in answer_labels:
                             if answer_text and answer_text.strip():
+                                full_text = prefix + answer_text
                                 note = StickyNote(
                                     user_id=user_id,
-                                    text=encrypt_field(answer_text),
-                                    state="watched",
-                                    session_id=session_id,
+                                    text=encrypt_field(full_text),
+                                    state="idle",
+                                    session_id=None,
                                     place=place,
                                 )
                                 db.add(note)
                         db.flush()
-                        print(f"[Demo] Created 4 answer notes for user {user_id}, session {session_id}")
+                        print(f"[Demo] Created 4 answer notes (idle, joltable) for user {user_id}")
 
-                        # Create blank reflection note (newest = top of stack)
+                        # Create reflection note with personalized question (newest = top of stack)
+                        question = _generate_note_question(user_id, q1, q2, q3, q4, db_session=db)
                         blank_note = StickyNote(
                             user_id=user_id,
                             text="",
                             state="idle",
                             session_id=None,
                             place=place,
+                            prompt_question=question if question else None,
                         )
                         db.add(blank_note)
-                        print(f"[Demo] Created blank reflection note for user {user_id}")
+                        print(f"[Demo] Created reflection note for user {user_id} (question: {question[:50] if question else 'none'})")
 
                     # Mark first jolt completed on user
                     user = db.query(User).filter(User.id == user_id).first()
