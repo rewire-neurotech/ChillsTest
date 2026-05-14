@@ -106,14 +106,16 @@
         background: #000;
       }
 
-      /* Each screen fills the app container */
+      /* Each screen fills the FULL app container (inset:0) so its background
+         covers everything — including the gap behind the keyboard. Content is
+         pushed above the keyboard via padding-bottom: var(--kb-gap). */
       .screen {
         position: absolute;
-        top: 0; left: 0; right: 0;
-        height: var(--vh, 100%);
+        inset: 0;
         display: flex;
         flex-direction: column;
         padding: max(20px, var(--safe-top)) 24px max(16px, var(--safe-bottom));
+        padding-bottom: max(max(16px, var(--safe-bottom)), var(--kb-gap, 0px));
         background: #fff;
         overflow-y: auto;
         -webkit-overflow-scrolling: touch;
@@ -122,19 +124,6 @@
       .screen.dark {
         background: #000;
         color: #fff;
-      }
-
-      /* Remove bottom padding when keyboard is open so composer sits flush */
-      #app.keyboard-open .screen {
-        padding-bottom: 0 !important;
-      }
-      #app.keyboard-open .sn-screen {
-        padding-bottom: 0 !important;
-      }
-      #app.keyboard-open .intro-screen,
-      #app.keyboard-open .hp-screen,
-      #app.keyboard-open .fs-screen {
-        padding-bottom: 0 !important;
       }
 
       /* Top bar (back + skip/page indicator) */
@@ -1890,7 +1879,7 @@
       }
 
       .hp-footer {
-        padding: 12px 28px calc(28px + env(safe-area-inset-bottom));
+        padding: 12px 28px 28px;
         z-index: 2;
       }
       .hp-ready-btn {
@@ -2174,8 +2163,7 @@
          ============================================================ */
       .sn-screen {
         position: absolute;
-        top: 0; left: 0; right: 0;
-        height: var(--vh, 100%);
+        inset: 0;
         font-family:
           -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'SF Pro Display',
           system-ui, 'Helvetica Neue', sans-serif;
@@ -2186,10 +2174,9 @@
         -moz-osx-font-smoothing: grayscale;
         overflow: hidden;
         overscroll-behavior: none;
-        touch-action: none;
         display: flex; flex-direction: column;
         padding-top: env(safe-area-inset-top);
-        padding-bottom: env(safe-area-inset-bottom);
+        padding-bottom: max(env(safe-area-inset-bottom), var(--kb-gap, 0px));
       }
 
       .sn-top-spacer {
@@ -2417,7 +2404,8 @@
         caret-color: #5b4af0;
       }
       .sn-card .sn-body { cursor: text; }
-      .sn-body textarea { pointer-events: auto; user-select: text; -webkit-user-select: text; }
+      .sn-body textarea { pointer-events: none; user-select: text; -webkit-user-select: text; }
+      .sn-body textarea:focus { pointer-events: auto; }
       .sn-body .sn-text { pointer-events: none; }
       .sn-card.watched .sn-body textarea,
       .sn-card.watched .sn-body .sn-text { caret-color: #fff; }
@@ -2475,8 +2463,9 @@
 
       .sn-card.shake { animation: snCardJolt .6s cubic-bezier(.36,.07,.19,.97); }
 
-      /* Ensure card buttons always show pointer cursor even inside grab-cursor stack area */
-      .sn-card button { cursor: pointer !important; position: relative; z-index: 2; }
+      /* Ensure card buttons always show pointer cursor and receive touch/click events
+         even inside the grab-cursor stack area with touch-action:none */
+      .sn-card button { cursor: pointer !important; position: relative; z-index: 2; touch-action: manipulation; }
 
       /* Modal — playback gate */
       .sn-modal {
@@ -3043,14 +3032,15 @@
       function syncViewport() {
         const vv = window.visualViewport;
         const h = vv ? vv.height : window.innerHeight;
+        const fullH = vv ? (vv.offsetTop + vv.height) : window.innerHeight;
         document.documentElement.style.setProperty("--vh", h + "px");
+        // --kb-gap: how much space the keyboard occupies. Screens use this as
+        // padding-bottom so their BACKGROUND fills the full area (no white gap)
+        // while CONTENT sits above the keyboard.
+        const kbGap = Math.max(0, _initialVH - h);
+        document.documentElement.style.setProperty("--kb-gap", kbGap + "px");
         const root = document.getElementById("app");
         if (root) {
-          // Do NOT set root.style.height -- #app stays full viewport via
-          // position:fixed + inset:0.  Screen containers inside use --vh to
-          // track the visible area so content sits above the keyboard.
-          // This eliminates the white body-background gap that appeared
-          // between the app content and the soft keyboard on mobile.
           const kbOpen = h < _initialVH * 0.75;
           root.classList.toggle("keyboard-open", kbOpen);
         }
@@ -4378,25 +4368,8 @@
             }
           };
 
-          // Direct click handlers as safety net (belt + suspenders with delegation)
-          const _jb = el.querySelector(".sn-jolt-btn");
-          const _wb = el.querySelector(".sn-watched-btn");
-          const _sb = el.querySelector(".sn-share-btn");
-          if (_jb) _jb.onclick = (e) => {
-            e.stopPropagation();
-            const ci = snNotes.findIndex((n) => String(n.id) === String(note.id));
-            if (ci >= 0) snJoltAt(ci);
-          };
-          if (_wb) _wb.onclick = (e) => {
-            e.stopPropagation();
-            const ci = snNotes.findIndex((n) => String(n.id) === String(note.id));
-            if (ci >= 0) snJoltAt(ci);
-          };
-          if (_sb) _sb.onclick = (e) => {
-            e.stopPropagation();
-            const ci = snNotes.findIndex((n) => String(n.id) === String(note.id));
-            if (ci >= 0) snOpenShareSheet(snNotes[ci]);
-          };
+          // Button clicks are handled by the delegated click handler in
+          // snInstallListenersOnce(). No direct onclick handlers here.
 
           const ta = el.querySelector("textarea");
           ta.oninput = () => {
@@ -4770,9 +4743,9 @@
       }
       function snCanCreateNewNote() {
         if (snNotes.length >= 20) return false;
-        // Prevent stacking empty notes: block only if the top note is blank
+        // Block only if already viewing a blank top note (don't stack empties)
         const top = snNotes[0];
-        if (top && !(top.text || "").trim()) return false;
+        if (snPos === 0 && top && !(top.text || "").trim()) return false;
         return true;
       }
       function snNudgeNewBtn() {
@@ -5078,6 +5051,23 @@
           if (snInEditable(e.target)) return;
           if (e.button !== 0) return;
           if (snIsInteractiveTarget(e.target)) return;
+          // Mouse-only: clicking in the focused card's body area should focus
+          // the textarea with native caret placement, not start a drag.
+          // (Touch swiping is handled by the separate touchstart handler.)
+          const bodyEl = e.target.closest && e.target.closest(".sn-body");
+          if (bodyEl) {
+            const cardEl = bodyEl.closest(".sn-card");
+            const focusedNote = snNotes[snPos];
+            if (cardEl && focusedNote &&
+                String(cardEl.dataset.id) === String(focusedNote.id)) {
+              const ta = bodyEl.querySelector("textarea");
+              if (ta && ta.style.display !== "none") {
+                // Focus textarea; don't start drag
+                setTimeout(() => ta.focus(), 0);
+                return;
+              }
+            }
+          }
           snGestureStartedAsDrag = false;
           snGestureCardId = snFindTappedCardId(e.target);
           if (!snDragStart(e.clientY)) return;
