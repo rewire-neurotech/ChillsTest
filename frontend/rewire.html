@@ -2322,9 +2322,17 @@
       }
 
       .sn-top-row {
+        position: absolute;
+        top: 22px;
+        left: 22px;
+        right: 22px;
         display: flex; justify-content: space-between; align-items: flex-start;
         gap: 10px;
-        position: relative; z-index: 5;
+        z-index: 10;
+        pointer-events: none;
+      }
+      .sn-top-row > * {
+        pointer-events: auto;
       }
 
       .sn-jolt-btn {
@@ -2393,9 +2401,11 @@
       .sn-watched-btn:active { transform: scale(0.96); }
 
       .sn-body {
-        margin-top: 18px; flex: 1; min-height: 0;
+        margin-top: 54px; flex: 1; min-height: 0;
         overflow: hidden;
         position: relative;
+        z-index: 1;
+        padding-bottom: 44px;
       }
       .sn-body textarea, .sn-body .sn-text {
         width: 100%; height: 100%;
@@ -2417,10 +2427,17 @@
       .sn-body .sn-placeholder { opacity: 0.32; font-style: italic; }
 
       .sn-card-footer {
-        margin-top: 12px;
+        position: absolute;
+        bottom: 18px;
+        left: 22px;
+        right: 22px;
         display: flex; align-items: center; justify-content: space-between;
         min-height: 24px;
-        position: relative; z-index: 5;
+        z-index: 10;
+        pointer-events: none;
+      }
+      .sn-card-footer > * {
+        pointer-events: auto;
       }
       .sn-pill {
         font-size: 10px; letter-spacing: 0.16em; font-weight: 600;
