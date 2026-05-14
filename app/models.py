@@ -95,6 +95,9 @@ class StickyNote(Base):
     place = Column(String(200), nullable=True)                  # e.g. "Los Angeles, CA"
     jolt_count = Column(Integer, default=0, nullable=False, server_default="0")
 
+    # --- LLM-generated personalized journal question (shown as placeholder) ---
+    prompt_question = Column(Text, nullable=True)
+
     # --- Link to the demo session that generated this note's jolt audio ---
     session_id = Column(String(64), nullable=True, index=True)
 
