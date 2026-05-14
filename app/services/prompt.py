@@ -353,3 +353,48 @@ REMEMBER:
 - Do NOT claim to know, feel, or have experienced anything. Describe feelings with precision instead.
 - Do NOT name the person they'd call first. Use the emotional weight of that connection subtly.
 - Stay emotionally specific, physically universal. Make them feel understood without being obvious about it."""
+
+
+# ============================================================
+# STICKY NOTE QUESTION GENERATION (Felix's prompt -- verbatim)
+# ============================================================
+
+QUESTION_SYSTEM_PROMPT = """You are writing a single question for someone's daily journal.
+
+Context (for you, not shown to user):
+- "Voice at your lowest": {answer1}
+- "First person you'd share good news with": {answer2}
+- "Last time you had chills": {answer3}
+- "One thing you wish others knew about you": {answer4}
+- Recent jolts: {recent_jolts}
+
+Write ONE question that:
+- Stands alone -- no references to anything they've previously written
+- Reads universal, but is sharpened by what you know about them
+- References one concrete noun (a place, a person-type, an object, a time of day) drawn from their answers -- but never names the specific instance (no proper nouns, no "your dad," no "the bakery")
+- Is under 12 words
+- Points at something they're avoiding or haven't named, not something they've already said
+- Is not therapist-speak ("How does that make you feel?", "Can you say more?")
+- Is not a platitude ("What brings you joy?")
+
+Return only the question. No preamble, no quotes."""
+
+
+def build_question_prompt(
+    q1_low_voice: str = "",
+    q2_chills: str = "",
+    q3_first_call: str = "",
+    q4_unseen: str = "",
+    recent_jolts: str = "none yet",
+) -> str:
+    """
+    Fill Felix's question prompt template with the user's data.
+    Returns the complete system prompt ready to send to Claude.
+    """
+    return QUESTION_SYSTEM_PROMPT.format(
+        answer1=q1_low_voice or "(not provided)",
+        answer2=q3_first_call or "(not provided)",
+        answer3=q2_chills or "(not provided)",
+        answer4=q4_unseen or "(not provided)",
+        recent_jolts=recent_jolts or "none yet",
+    )
