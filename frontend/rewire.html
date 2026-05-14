@@ -38,6 +38,10 @@
           sans-serif;
       }
 
+      html {
+        background: #000;
+      }
+
       * {
         box-sizing: border-box;
         -webkit-tap-highlight-color: transparent;
@@ -1458,8 +1462,7 @@
          ============================================================ */
       .intro-screen {
         position: absolute;
-        top: 0; left: 0; right: 0;
-        height: var(--vh, 100%);
+        inset: 0;
         background: radial-gradient(ellipse 100% 60% at 50% 0%,
           #fafaf6 0%, #f5f4ef 60%, #efece6 100%);
         color: #1a1a1c;
@@ -1747,8 +1750,7 @@
          ============================================================ */
       .hp-screen {
         position: absolute;
-        top: 0; left: 0; right: 0;
-        height: var(--vh, 100%);
+        inset: 0;
         font-family:
           -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'SF Pro Display',
           system-ui, 'Helvetica Neue', sans-serif;
@@ -1936,8 +1938,7 @@
          ============================================================ */
       .fs-screen {
         position: absolute;
-        top: 0; left: 0; right: 0;
-        height: var(--vh, 100%);
+        inset: 0;
         font-family:
           -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'SF Pro Display',
           system-ui, 'Helvetica Neue', sans-serif;
@@ -2323,6 +2324,7 @@
       .sn-top-row {
         display: flex; justify-content: space-between; align-items: flex-start;
         gap: 10px;
+        position: relative; z-index: 5;
       }
 
       .sn-jolt-btn {
@@ -2333,6 +2335,7 @@
         font-size: 11px; font-weight: 600; letter-spacing: 0.10em;
         display: inline-flex; align-items: center; gap: 6px;
         white-space: nowrap;
+        position: relative; z-index: 5; pointer-events: auto;
         transition:
           background .35s ease,
           color .35s ease,
@@ -2377,6 +2380,7 @@
         font-size: 11px; font-weight: 600; letter-spacing: 0.10em;
         display: inline-flex; align-items: center; gap: 7px;
         white-space: nowrap;
+        position: relative; z-index: 5; pointer-events: auto;
         background: #fff;
         color: #18181b;
         box-shadow:
@@ -2416,6 +2420,7 @@
         margin-top: 12px;
         display: flex; align-items: center; justify-content: space-between;
         min-height: 24px;
+        position: relative; z-index: 5;
       }
       .sn-pill {
         font-size: 10px; letter-spacing: 0.16em; font-weight: 600;
@@ -2443,6 +2448,7 @@
         color: inherit;
         display: flex; align-items: center; justify-content: center;
         box-shadow: inset 0 0 0 1px rgba(0,0,0,0.05);
+        position: relative; z-index: 5; pointer-events: auto;
         transition: background .2s ease, transform .18s cubic-bezier(.2,.8,.2,1);
       }
       .sn-card.ready .sn-share-btn {
@@ -4342,7 +4348,7 @@
           if (el.parentNode !== stack) stack.appendChild(el);
 
           const editable =
-            idx === 0 && off === 0 && snDragOffset === 0 && !snTransitioning;
+            off === 0 && snDragOffset === 0 && !snTransitioning;
           snFillCard(el, note, editable);
 
           const { ty, scale, opacity, blur, z } = snTransformFor(off, snDragOffset);
@@ -4360,19 +4366,39 @@
             }
           };
 
+          // Direct click handlers as safety net (belt + suspenders with delegation)
+          const _jb = el.querySelector(".sn-jolt-btn");
+          const _wb = el.querySelector(".sn-watched-btn");
+          const _sb = el.querySelector(".sn-share-btn");
+          if (_jb) _jb.onclick = (e) => {
+            e.stopPropagation();
+            const ci = snNotes.findIndex((n) => String(n.id) === String(note.id));
+            if (ci >= 0) snJoltAt(ci);
+          };
+          if (_wb) _wb.onclick = (e) => {
+            e.stopPropagation();
+            const ci = snNotes.findIndex((n) => String(n.id) === String(note.id));
+            if (ci >= 0) snJoltAt(ci);
+          };
+          if (_sb) _sb.onclick = (e) => {
+            e.stopPropagation();
+            const ci = snNotes.findIndex((n) => String(n.id) === String(note.id));
+            if (ci >= 0) snOpenShareSheet(snNotes[ci]);
+          };
+
           const ta = el.querySelector("textarea");
           ta.oninput = () => {
-            if (idx === 0) {
-              snNotes[0].text = ta.value;
-              snNotes[0].when = new Date().toISOString();
-              const d2 = new Date(snNotes[0].when);
+            if (off === 0 && idx < snNotes.length) {
+              snNotes[idx].text = ta.value;
+              snNotes[idx].when = new Date().toISOString();
+              const d2 = new Date(snNotes[idx].when);
               el.querySelector(".sn-when").textContent =
                 `${snFmtDate(d2)} · ${snFmtTime(d2)}`;
-              snScheduleSaveText(snNotes[0]);
+              snScheduleSaveText(snNotes[idx]);
             }
           };
           ta.onblur = () => {
-            if (idx === 0) snFlushSaveText(snNotes[0]);
+            if (off === 0 && idx < snNotes.length) snFlushSaveText(snNotes[idx]);
           };
         });
       }
@@ -4394,6 +4420,8 @@
         // Skip backend write for client-only notes (locally-created ones get
         // a real id once /api/notes responds).
         if (typeof note.id !== "number") return;
+        // Skip if session was cleared (prevents 401 cascade from debounce timers)
+        if (!state.token) return;
         try {
           await api(`/api/notes/${note.id}`, {
             method: "PUT",
@@ -4615,18 +4643,18 @@
           snModalAudio = new Audio(n.audio_url);
           snModalAudio.play().catch((err) => {
             console.warn("[Modal] Audio play failed:", err);
-            snShowToast("Could not play audio");
+            snShowToast("Audio expired -- jolt this note again");
             snCloseModal();
           });
           snModalAudio.onerror = () => {
             console.warn("[Modal] Audio load error for", n.audio_url);
-            snShowToast("Audio not available");
+            snShowToast("Audio expired -- jolt this note again");
             snCloseModal();
           };
           snModalAudio.onended = () => snCloseModal();
         } else {
           // No audio URL - show feedback and close
-          snShowToast("No audio available for this note");
+          snShowToast("No audio available -- jolt this note to generate");
           setTimeout(() => snCloseModal(), 300);
         }
       }
@@ -4751,8 +4779,23 @@
         if (snTransitioning) return;
         if (!snCanCreateNewNote()) {
           snNudgeNewBtn();
-          if (snPos === 0) {
-            snCardEls.get(snNotes[0].id)?.querySelector("textarea")?.focus();
+          // If blocked because top note is blank, scroll to it and focus
+          const top = snNotes[0];
+          if (top && !(top.text || "").trim()) {
+            if (snPos !== 0) {
+              snTransitionTo(0, -1);
+              // Focus textarea after transition settles
+              setTimeout(() => {
+                const el = snCardEls.get(snNotes[0].id);
+                const ta = el && el.querySelector("textarea");
+                if (ta) ta.focus();
+              }, 500);
+            } else {
+              const el = snCardEls.get(snNotes[0].id);
+              const ta = el && el.querySelector("textarea");
+              if (ta) ta.focus();
+            }
+            snShowToast("Write something here first");
           }
           return;
         }
@@ -5005,7 +5048,7 @@
           snDragEnd();
           if (!wasDrag && cardId) {
             const focusedNote = snNotes[snPos];
-            if (focusedNote && String(focusedNote.id) === String(cardId) && snPos === 0) {
+            if (focusedNote && String(focusedNote.id) === String(cardId)) {
               const el = snCardEls.get(focusedNote.id);
               const ta = el && el.querySelector("textarea");
               if (ta) setTimeout(() => ta.focus(), 0);
@@ -5040,7 +5083,7 @@
             window.removeEventListener("mouseup", onUp);
             if (!wasDrag && cardId) {
               const focusedNote = snNotes[snPos];
-              if (focusedNote && String(focusedNote.id) === String(cardId) && snPos === 0) {
+              if (focusedNote && String(focusedNote.id) === String(cardId)) {
                 const el = snCardEls.get(focusedNote.id);
                 const ta = el && el.querySelector("textarea");
                 if (ta) ta.focus();
@@ -5203,6 +5246,12 @@
 
       // ----- screen mount -----
       async function startStickyNotes() {
+        // If user logged out and back in, the old snCardEls map might hold
+        // stale DOM references. Clear them so cards are rebuilt fresh.
+        if (snCardEls.size > 0) {
+          snCardEls.clear();
+        }
+
         snInstallListenersOnce();
 
         // Wire screen-local buttons that aren't card-scoped.
@@ -5813,7 +5862,7 @@
           pollTimer = null;
         }
 
-        // Match body AND #app background to current screen theme so no
+        // Match body, html AND #app background to current screen theme so no
         // white bleed shows when the keyboard opens or on devices with
         // bottom safe areas.  #app stays full viewport; the gap between
         // the --vh-sized screen and #app's bottom shows #app's background.
@@ -5821,13 +5870,20 @@
         const isDark = darkScreens.includes(state.screen);
         const warmScreens = ["sticky-notes", "first-sticky"];
         const isWarm = warmScreens.includes(state.screen);
-        const bgColor = isDark ? "#000" : (isWarm ? "#efece6" : "#fff");
+        // Use per-screen bottom color for seamless gap coverage
+        let bgColor;
+        if (state.screen === "headphones") bgColor = "#0c0c0e";
+        else if (state.screen === "intro" || state.screen === "first-sticky") bgColor = "#efece6";
+        else if (isWarm) bgColor = "#efece6";
+        else if (isDark) bgColor = "#000";
+        else bgColor = "#fff";
+        document.documentElement.style.background = bgColor;
         document.body.style.background = bgColor;
         app.style.background = bgColor;
         // Update theme-color meta so the system navigation bar / status bar
         // matches the current screen's background on Android and iOS.
         const meta = document.querySelector('meta[name="theme-color"]');
-        if (meta) meta.setAttribute("content", isDark ? "#000000" : "#ffffff");
+        if (meta) meta.setAttribute("content", bgColor);
         // Also update fullscreen body background
         const fs = document.querySelector(':fullscreen body, :-webkit-full-screen body');
         // (CSS handles this via :fullscreen selectors, but we set body bg above as well)
