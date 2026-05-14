@@ -122,6 +122,13 @@
         color: #fff;
       }
 
+      /* When keyboard is open, shrink screen to visual viewport so
+         content above the input becomes scrollable */
+      .keyboard-open .screen {
+        bottom: auto;
+        height: var(--vh);
+      }
+
       /* Top bar (back + skip/page indicator) */
       .topbar {
         display: flex;
@@ -753,7 +760,7 @@
         display: flex;
         flex-direction: column;
         min-height: 0;
-        overflow: hidden;
+        overflow-y: auto;
       }
 
       .question-head {
@@ -799,7 +806,7 @@
       /* spacer pushes composer to the bottom but stays scrollable if title is long */
       .question-spacer {
         flex: 1;
-        min-height: 0;
+        min-height: 20px;
       }
 
       /* Composer is pinned to bottom of the screen (which shrinks when keyboard opens) */
@@ -1217,6 +1224,7 @@
         flex-direction: column;
         min-height: 0;
         padding-top: 8px;
+        overflow-y: auto;
       }
 
       .auth-title {
@@ -4276,6 +4284,9 @@
 
         const ta = el.querySelector("textarea");
         const txt = el.querySelector(".sn-text");
+        // Use LLM-generated question as placeholder if available
+        const ph = note.prompt_question || "Write what just lit up\u2026";
+        if (ta.placeholder !== ph) ta.placeholder = ph;
         if (editable) {
           if (ta.style.display === "none") ta.style.display = "";
           if (txt.style.display !== "none") txt.style.display = "none";
@@ -4285,7 +4296,7 @@
         } else {
           if (ta.style.display !== "none") ta.style.display = "none";
           if (txt.style.display === "none") txt.style.display = "";
-          const wantText = note.text || "(empty)";
+          const wantText = note.text || (note.prompt_question || "(empty)");
           if (txt.textContent !== wantText) txt.textContent = wantText;
           const wantPlaceholder = !note.text;
           if (wantPlaceholder !== txt.classList.contains("sn-placeholder")) {
@@ -4826,11 +4837,14 @@
           tempNote.id = created.id;
           tempNote.when = created.created_at || tempNote.when;
           tempNote.place = created.place;
+          tempNote.prompt_question = created.prompt_question || "";
           if (tmpEl) {
             tmpEl.dataset.id = created.id;
             snCardEls.delete(tempId);
             snCardEls.set(created.id, tmpEl);
           }
+          // Re-render to pick up the LLM-generated placeholder question
+          snRenderStack();
         } catch (e) {
           // Roll back optimistic insert.
           snNotes = snNotes.filter((n) => n.id !== tempId);
@@ -5495,6 +5509,7 @@
               ? `/api/demo/audio/${n.session_id}.mp3`
               : null,
             jolt_count: n.jolt_count || 0,
+            prompt_question: n.prompt_question || "",
           }));
           // If the first note is a fresh blank, focus stays on it. Otherwise
           // we still land on index 0 (newest).
