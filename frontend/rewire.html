@@ -4,7 +4,7 @@
     <meta charset="UTF-8" />
     <meta
       name="viewport"
-      content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover"
+      content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover, interactive-widget=overlays-content"
     />
     <!-- iOS Safari: hides browser chrome when launched from Home Screen - Important!! -->
     <meta name="apple-mobile-web-app-capable" content="yes" />
@@ -15,7 +15,7 @@
     <meta name="apple-mobile-web-app-title" content="Jolter" />
     <!-- Android Chrome: similar standalone behavior -->
     <meta name="mobile-web-app-capable" content="yes" />
-    <meta name="theme-color" content="#ffffff" />
+    <meta name="theme-color" content="#000000" />
     <title>Jolter</title>
     <style>
       :root {
@@ -2387,12 +2387,12 @@
         top: 58px;
         left: 22px;
         right: 22px;
-        bottom: 18px;
+        bottom: 56px;
         overflow: hidden;
       }
       .sn-body textarea, .sn-body .sn-text {
         position: absolute;
-        top: 0; left: 0; right: 0; bottom: 40px;
+        top: 0; left: 0; right: 0; bottom: 0;
         width: 100%;
         border: none; outline: none;
         background: transparent;
@@ -2414,9 +2414,9 @@
 
       .sn-card-footer {
         position: absolute;
-        bottom: 0;
-        left: 0;
-        right: 0;
+        bottom: 18px;
+        left: 22px;
+        right: 22px;
         display: flex; align-items: center; justify-content: space-between;
         min-height: 24px;
         z-index: 10;
@@ -4210,13 +4210,13 @@
             <button class="sn-jolt-btn" data-action="sn-jolt"></button>
           </div>
           <div class="sn-body">
-            <textarea rows="5" placeholder="Write what just lit up…"></textarea>
+            <textarea rows="5" placeholder="Write what just lit up\u2026"></textarea>
             <div class="sn-text" style="display:none"></div>
-            <div class="sn-card-footer">
-              <div class="sn-pill"></div>
-              <button class="sn-watched-btn" data-action="sn-jolt" style="display:none"></button>
-              <button class="sn-share-btn" data-action="sn-share">${SN_ICON.share}</button>
-            </div>
+          </div>
+          <div class="sn-card-footer">
+            <div class="sn-pill"></div>
+            <button class="sn-watched-btn" data-action="sn-jolt" style="display:none"></button>
+            <button class="sn-share-btn" data-action="sn-share">${SN_ICON.share}</button>
           </div>
         `;
         return el;
