@@ -2328,7 +2328,6 @@
         right: 22px;
         display: flex; justify-content: space-between; align-items: flex-start;
         gap: 10px;
-        z-index: 10;
       }
 
       .sn-jolt-btn {
@@ -2397,11 +2396,12 @@
       .sn-watched-btn:active { transform: scale(0.96); }
 
       .sn-body {
-        margin-top: 54px; flex: 1; min-height: 0;
+        position: absolute;
+        top: 58px;
+        left: 22px;
+        right: 22px;
+        bottom: 58px;
         overflow: hidden;
-        position: relative;
-        z-index: 1;
-        padding-bottom: 44px;
       }
       .sn-body textarea, .sn-body .sn-text {
         width: 100%; height: 100%;
@@ -2429,7 +2429,6 @@
         right: 22px;
         display: flex; align-items: center; justify-content: space-between;
         min-height: 24px;
-        z-index: 10;
       }
       .sn-pill {
         font-size: 10px; letter-spacing: 0.16em; font-weight: 600;
