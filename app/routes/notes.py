@@ -16,7 +16,7 @@ from sqlalchemy.orm import Session
 
 from app.core.config import cfg
 from app.db import get_db
-from app.models import StickyNote, User, Subscription
+from app.models import StickyNote, User, Subscription, DemoSession
 from app.routes.auth import get_current_user_required
 from app.utils.encryption import encrypt_field, decrypt_field
 
@@ -46,6 +46,7 @@ class NoteResponse(BaseModel):
     place: Optional[str] = None
     jolt_count: int
     session_id: Optional[str] = None
+    prompt_question: Optional[str] = None
     created_at: str
     updated_at: str
 
@@ -76,6 +77,7 @@ def _note_to_response(note: StickyNote) -> NoteResponse:
         place=note.place,
         jolt_count=note.jolt_count,
         session_id=note.session_id,
+        prompt_question=note.prompt_question,
         created_at=note.created_at.isoformat() if note.created_at else "",
         updated_at=note.updated_at.isoformat() if note.updated_at else "",
     )
@@ -146,12 +148,38 @@ def create_note(
     user: User = Depends(get_current_user_required),
     db: Session = Depends(get_db),
 ):
-    """Create a new sticky note."""
+    """Create a new sticky note. Generates a personalized journal question
+    using the user's original Q1-Q4 answers and recent jolts."""
+    # Generate a personalized question for this note
+    question = ""
+    try:
+        # Look up user's original Q1-Q4 from their first DemoSession
+        first_session = (
+            db.query(DemoSession)
+            .filter(DemoSession.user_id == user.id, DemoSession.q1_low_voice.isnot(None))
+            .order_by(DemoSession.created_at.asc())
+            .first()
+        )
+        if first_session:
+            from app.routes.demo import _generate_note_question
+            question = _generate_note_question(
+                user_id=user.id,
+                q1=decrypt_field(first_session.q1_low_voice) or "",
+                q2=decrypt_field(first_session.q2_chills) or "",
+                q3=decrypt_field(first_session.q3_first_call) or "",
+                q4=decrypt_field(first_session.q4_unseen) or "",
+                db_session=db,
+            )
+    except Exception as e:
+        print(f"[Notes] Question generation error: {e}")
+        # Note is still created, just without a question
+
     note = StickyNote(
         user_id=user.id,
         text=encrypt_field(req.text) if req.text else "",
         state="idle",
         place=req.place,
+        prompt_question=question if question else None,
     )
     db.add(note)
     db.commit()
