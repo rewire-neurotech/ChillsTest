@@ -4369,6 +4369,27 @@
 
           el.onclick = (e) => {
             if (e.target.closest("[data-action]")) return;
+            // Detect clicks in the footer zone by Y position.
+            // Clicks often land on sn-body or sn-card instead of footer
+            // buttons due to stacking/overflow issues. Check if the click
+            // is in the bottom ~60px of the card and dispatch manually.
+            const cardRect = el.getBoundingClientRect();
+            const clickY = e.clientY - cardRect.top;
+            const cardH = cardRect.height;
+            const footerZone = cardH - 60; // bottom 60px = footer area
+            if (off === 0 && clickY > footerZone) {
+              const clickX = e.clientX - cardRect.left;
+              const cardW = cardRect.width;
+              const ci = snNotes.findIndex((n) => String(n.id) === String(note.id));
+              if (ci < 0) return;
+              // Right ~50px = share button, rest = watched/jolt button
+              if (clickX > cardW - 50) {
+                snOpenShareSheet(snNotes[ci]);
+              } else {
+                snJoltAt(ci);
+              }
+              return;
+            }
             if (off > 0 && !snTransitioning) {
               snTransitionTo(idx, +1);
             }
