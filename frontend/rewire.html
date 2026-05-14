@@ -2400,7 +2400,7 @@
         top: 58px;
         left: 22px;
         right: 22px;
-        bottom: 58px;
+        bottom: 18px;
         overflow: hidden;
       }
       .sn-body textarea, .sn-body .sn-text {
@@ -2411,7 +2411,7 @@
         font-family: inherit;
         font-size: 18px; line-height: 1.4; font-weight: 400;
         letter-spacing: -0.005em;
-        resize: none; padding: 0;
+        resize: none; padding: 0 0 44px 0;
         caret-color: #5b4af0;
       }
       .sn-card .sn-body { cursor: text; }
@@ -2424,11 +2424,13 @@
 
       .sn-card-footer {
         position: absolute;
-        bottom: 18px;
-        left: 22px;
-        right: 22px;
+        bottom: 0;
+        left: 0;
+        right: 0;
         display: flex; align-items: center; justify-content: space-between;
         min-height: 24px;
+        z-index: 10;
+        pointer-events: auto;
       }
       .sn-pill {
         font-size: 10px; letter-spacing: 0.16em; font-weight: 600;
@@ -4218,11 +4220,11 @@
           <div class="sn-body">
             <textarea rows="5" placeholder="Write what just lit up…"></textarea>
             <div class="sn-text" style="display:none"></div>
-          </div>
-          <div class="sn-card-footer">
-            <div class="sn-pill"></div>
-            <button class="sn-watched-btn" data-action="sn-jolt" style="display:none"></button>
-            <button class="sn-share-btn" data-action="sn-share">${SN_ICON.share}</button>
+            <div class="sn-card-footer">
+              <div class="sn-pill"></div>
+              <button class="sn-watched-btn" data-action="sn-jolt" style="display:none"></button>
+              <button class="sn-share-btn" data-action="sn-share">${SN_ICON.share}</button>
+            </div>
           </div>
         `;
         return el;
@@ -4369,27 +4371,6 @@
 
           el.onclick = (e) => {
             if (e.target.closest("[data-action]")) return;
-            // Detect clicks in the footer zone by Y position.
-            // Clicks often land on sn-body or sn-card instead of footer
-            // buttons due to stacking/overflow issues. Check if the click
-            // is in the bottom ~60px of the card and dispatch manually.
-            const cardRect = el.getBoundingClientRect();
-            const clickY = e.clientY - cardRect.top;
-            const cardH = cardRect.height;
-            const footerZone = cardH - 60; // bottom 60px = footer area
-            if (off === 0 && clickY > footerZone) {
-              const clickX = e.clientX - cardRect.left;
-              const cardW = cardRect.width;
-              const ci = snNotes.findIndex((n) => String(n.id) === String(note.id));
-              if (ci < 0) return;
-              // Right ~50px = share button, rest = watched/jolt button
-              if (clickX > cardW - 50) {
-                snOpenShareSheet(snNotes[ci]);
-              } else {
-                snJoltAt(ci);
-              }
-              return;
-            }
             if (off > 0 && !snTransitioning) {
               snTransitionTo(idx, +1);
             }
