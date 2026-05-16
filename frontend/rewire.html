@@ -3085,42 +3085,6 @@
         });
       })();
 
-      // -------- Fullscreen --------
-      // Browsers only allow Fullscreen API requests during a user gesture, so
-      // we attach a one-shot listener that fires on the first tap/click anywhere.
-      // Once granted, we don\'t re-request unless the user explicitly exits.
-      function requestFullscreenOnce() {
-        const el = document.documentElement;
-        const fn =
-          el.requestFullscreen ||
-          el.webkitRequestFullscreen ||
-          el.mozRequestFullScreen ||
-          el.msRequestFullscreen;
-        if (!fn) return;
-        try {
-          const result = fn.call(el, { navigationUI: "hide" });
-          if (result && typeof result.then === "function") {
-            result.catch(() => {
-              /* User denied or unsupported \u2014 silent. */
-            });
-          }
-        } catch (err) {
-          // Safari throws if not in a user gesture; we'll retry on the next click.
-        }
-      }
-
-      function maybeEnterFullscreen() {
-        if (document.fullscreenElement || document.webkitFullscreenElement)
-          return;
-        requestFullscreenOnce();
-      }
-
-      // Every user interaction tries to re-enter fullscreen if exited.
-      document.addEventListener("pointerdown", maybeEnterFullscreen);
-      document.addEventListener("touchstart", maybeEnterFullscreen, {
-        passive: true,
-      });
-
       // -------- Data --------
       const onboarding = [
         {
