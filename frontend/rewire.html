@@ -6746,6 +6746,7 @@
                     state.audioUrl = st.audio_url;
                     state.genDone = true;
                     state.meditationDone = true; // skip meditation replay
+                    clearFlowState(); // prevent re-entry loop on refresh
                     state.screen = "stimulus";
                   } else if (st.stage === "error") {
                     // Generation failed -- clear flow, land on sticky-notes
