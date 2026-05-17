@@ -4711,16 +4711,8 @@
           if (top && !(top.text || "").trim()) {
             if (snPos !== 0) {
               snTransitionTo(0, -1);
-              // Focus textarea after transition settles
-              setTimeout(() => {
-                const el = snCardEls.get(snNotes[0].id);
-                const ta = el && el.querySelector("textarea");
-                if (ta) ta.focus();
-              }, 500);
             } else {
-              const el = snCardEls.get(snNotes[0].id);
-              const ta = el && el.querySelector("textarea");
-              if (ta) ta.focus();
+              // Already at the blank note
             }
             snShowToast("Write something here first");
           }
@@ -4749,7 +4741,6 @@
             snDragOffset = 0;
             snTransitioning = false;
             snRenderStack();
-            snCardEls.get(snNotes[0].id)?.querySelector("textarea")?.focus();
           });
         });
 
@@ -5021,25 +5012,17 @@
           (e) => {
             if (state.screen !== "sticky-notes") return;
             if (!snTouchActive) return;
+            // Prevent browser scroll while dragging cards
+            e.preventDefault();
             const dy = Math.abs(e.touches[0].clientY - snTouchStartY);
             if (dy > 6) snGestureStartedAsDrag = true;
             snDragMove(e.touches[0].clientY);
           },
-          { passive: true },
+          { passive: false },
         );
         function handleTouchEnd() {
           if (state.screen !== "sticky-notes") return;
-          const wasDrag = snGestureStartedAsDrag;
-          const cardId = snGestureCardId;
           snDragEnd();
-          if (!wasDrag && cardId) {
-            const focusedNote = snNotes[snPos];
-            if (focusedNote && String(focusedNote.id) === String(cardId)) {
-              const el = snCardEls.get(focusedNote.id);
-              const ta = el && el.querySelector("textarea");
-              if (ta) setTimeout(() => ta.focus(), 0);
-            }
-          }
           snGestureCardId = null;
         }
         document.addEventListener("touchend", handleTouchEnd);
@@ -5063,8 +5046,7 @@
                 String(cardEl.dataset.id) === String(focusedNote.id)) {
               const ta = bodyEl.querySelector("textarea");
               if (ta && ta.style.display !== "none") {
-                // Focus textarea; don't start drag
-                setTimeout(() => ta.focus(), 0);
+                // Don't start drag on body click; let browser handle natively
                 return;
               }
             }
@@ -5085,12 +5067,7 @@
             window.removeEventListener("mousemove", onMove);
             window.removeEventListener("mouseup", onUp);
             if (!wasDrag && cardId) {
-              const focusedNote = snNotes[snPos];
-              if (focusedNote && String(focusedNote.id) === String(cardId)) {
-                const el = snCardEls.get(focusedNote.id);
-                const ta = el && el.querySelector("textarea");
-                if (ta) ta.focus();
-              }
+              // User clicked (not dragged) on the focused card; let browser handle natively
             }
             snGestureCardId = null;
           };
@@ -5172,8 +5149,7 @@
             const err = document.getElementById("pwCodeError");
             if (err) err.textContent = "";
             if (row) {
-              const showing = row.classList.toggle("show");
-              if (showing && input) setTimeout(() => input.focus(), 200);
+              row.classList.toggle("show");
             }
             return;
           }
@@ -5939,25 +5915,6 @@
         } else if (state.screen === "feedback")
           app.innerHTML = renderFeedback();
         else if (state.screen === "done") app.innerHTML = renderDone();
-
-        // Auto-focus inputs -- but NOT on question screens (Felix: keyboard should not auto-open)
-        // and NOT on done screen unless email is focused, and NOT on intro / headphones /
-        // first-sticky / sticky-notes (sticky-notes has its own textarea focus logic).
-        if (
-          state.screen !== "question" &&
-          state.screen !== "survey" &&
-          state.screen !== "splash" &&
-          state.screen !== "intro" &&
-          state.screen !== "headphones" &&
-          state.screen !== "first-sticky" &&
-          state.screen !== "sticky-notes"
-        ) {
-          const input = app.querySelector("input[data-input]");
-          const isDoneScreen = state.screen === "done" && !state.emailFocused;
-          if (input && !isDoneScreen) {
-            requestAnimationFrame(() => input.focus({ preventScroll: true }));
-          }
-        }
       }
 
       // ============ AUTH FLOW ============
