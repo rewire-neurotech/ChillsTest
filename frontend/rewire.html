@@ -3944,7 +3944,7 @@
       const SN_ICON = {
         bolt: `<svg viewBox="0 0 16 16" width="12" height="12" aria-hidden="true"><path d="M9.2 1 L3.4 8.8 L7 8.8 L5.8 15 L12.6 6.6 L9 6.6 L10.2 1 Z" fill="currentColor"/></svg>`,
         play: `<svg viewBox="0 0 16 16" width="11" height="11" aria-hidden="true"><path d="M5.2 3.2 L12.8 8 L5.2 12.8 Z" fill="currentColor"/></svg>`,
-        share: `<svg viewBox="0 0 16 16" width="13" height="13" aria-hidden="true"><path d="M8 1.4 L8 10.4 M8 1.4 L5.3 4.1 M8 1.4 L10.7 4.1" stroke="currentColor" stroke-width="1.6" fill="none" stroke-linecap="round" stroke-linejoin="round"/><path d="M3.2 8 L3.2 13.5 L12.8 13.5 L12.8 8" stroke="currentColor" stroke-width="1.6" fill="none" stroke-linecap="round"/></svg>`,
+        share: `<span style="display:flex;align-items:center;justify-content:center;width:13px;height:13px;flex-shrink:0;color:inherit"><svg viewBox="0 0 16 16" width="13" height="13" aria-hidden="true" style="color:inherit"><path d="M8 1.4 L8 10.4 M8 1.4 L5.3 4.1 M8 1.4 L10.7 4.1" stroke="currentColor" stroke-width="1.6" fill="none" stroke-linecap="round" stroke-linejoin="round"/><path d="M3.2 8 L3.2 13.5 L12.8 13.5 L12.8 8" stroke="currentColor" stroke-width="1.6" fill="none" stroke-linecap="round"/></svg></span>`,
       };
 
       // ----- DOM cache -----
@@ -5001,7 +5001,10 @@
             const sa = document.querySelector(stackAreaSel);
             if (!sa || !sa.contains(e.target)) return;
             if (snInEditable(e.target)) return;
-            if (snIsInteractiveTarget(e.target)) return;
+            // NOTE: we intentionally do NOT check snIsInteractiveTarget here.
+            // Button taps are handled by the nuclear pointerup handler in
+            // capture phase. Blocking drag-start on buttons made ~40% of the
+            // card surface un-swipeable, causing the "stuck" feeling.
             snGestureStartedAsDrag = false;
             snGestureCardId = snFindTappedCardId(e.target);
             snDragStart(e.touches[0].clientY);
@@ -5926,6 +5929,7 @@
           };
           localStorage.setItem("jolter_token", res.token);
           state.authError = "";
+          console.log("[Auth] Login: hasCompletedFirstJolt =", res.has_completed_first_jolt);
           if (state.user.hasCompletedFirstJolt) {
             state.screen = "sticky-notes";
             render();
@@ -6032,6 +6036,7 @@
           };
           localStorage.setItem("jolter_token", res.token);
           state.authError = "";
+          console.log("[Auth] Google: hasCompletedFirstJolt =", res.has_completed_first_jolt);
           if (state.user.hasCompletedFirstJolt) {
             state.screen = "sticky-notes";
             render();
@@ -6192,11 +6197,33 @@
         // Acquire wake lock and set up media session
         acquireWakeLock();
         setupMediaSession("Meditation");
-        // Play meditation audio
+        // Play meditation audio.
+        // CRITICAL: set loop=true so the element never fires onended.
+        // iOS revokes the audio gesture blessing on onended, which would
+        // prevent stimulus from auto-playing. By looping, the element
+        // stays in "playing" state and the gesture context is preserved.
         if (state.meditationUrl) {
           meditationAudio = new Audio(state.meditationUrl);
+          meditationAudio.loop = true;
           meditationAudio.play().catch(() => {});
-          meditationAudio.onended = handleMeditationEnd;
+          let meditationFirstPassDone = false;
+          meditationAudio.addEventListener("timeupdate", function medWatch() {
+            if (!meditationAudio) return;
+            if (meditationFirstPassDone) return;
+            const dur = meditationAudio.duration;
+            if (!dur || !isFinite(dur)) return;
+            // Detect first play-through nearing completion
+            if (meditationAudio.currentTime >= dur - 0.3) {
+              meditationFirstPassDone = true;
+              state.meditationDone = true;
+              if (state.genDone && state.audioUrl) {
+                // Both ready -- swap src NOW while still playing (gesture alive)
+                meditationAudio.removeEventListener("timeupdate", medWatch);
+              }
+              // Always call: transitions if both ready, shows wait overlay if not
+              checkTransitionToStimulus();
+            }
+          });
         }
         // Start polling generation status
         pollTimer = setInterval(pollStatus, 2500);
@@ -6254,16 +6281,18 @@
               '<span class="chills-counter"></span><span></span>';
           const hint = app.querySelector(".canvas-hint");
           if (hint) hint.textContent = "tap when you feel something";
-          // Start stimulus audio (meditation already stopped via onended)
+          // Start stimulus audio.
+          // meditationAudio is still playing (loop=true kept gesture alive).
+          // Setting a new src while playing preserves the gesture context.
           if (state.audioUrl) {
-            // Reuse the meditationAudio element instead of creating new Audio().
-            // The browser blessed this element from the "I'm ready" tap gesture;
-            // a new Audio() would require another user gesture on mobile.
+            // Reuse the meditationAudio element (still blessed by gesture).
             if (meditationAudio) {
               stimulusAudio = meditationAudio;
               meditationAudio = null;
+              stimulusAudio.loop = false;
               stimulusAudio.onended = null;
               stimulusAudio.onerror = null;
+              stimulusAudio.ontimeupdate = null;
               stimulusAudio.src = state.audioUrl;
             } else {
               stimulusAudio = new Audio(state.audioUrl);
