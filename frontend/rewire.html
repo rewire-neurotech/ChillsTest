@@ -3343,6 +3343,8 @@
       // ============ AUDIO ============
       let meditationAudio = null;
       let stimulusAudio = null;
+      let _stimulusTransitioned = false;   // guard: prevent double audio creation
+      let _stimulusSafetyTimer = null;     // fallback: force transition if onended never fires
 
       function stopAllAudio() {
         if (meditationAudio) {
@@ -6240,7 +6242,8 @@
       }
 
       function checkTransitionToStimulus() {
-        if (state.genDone && state.meditationDone) {
+        if (state.genDone && state.meditationDone && !_stimulusTransitioned) {
+          _stimulusTransitioned = true;
           // Seamless transition: don't rebuild DOM, just swap audio and update HUD
           state.screen = "stimulus";
           state.chillsCount = 0;
@@ -6284,6 +6287,15 @@
             stimulusAudio.onended = () => {
               setTimeout(goToFirstSticky, 1500);
             };
+            // Safety fallback: if onended never fires (Safari iOS edge case),
+            // force transition after 8 minutes so the user is never stuck.
+            if (_stimulusSafetyTimer) clearTimeout(_stimulusSafetyTimer);
+            _stimulusSafetyTimer = setTimeout(() => {
+              if (state.screen === "stimulus") {
+                console.warn("[Stimulus] Safety timeout -- forcing transition");
+                goToFirstSticky();
+              }
+            }, 480000);
           } else {
             // No audio URL — skip to first-sticky after a brief pause
             setTimeout(goToFirstSticky, 1500);
@@ -6336,6 +6348,15 @@
           stimulusAudio.onended = () => {
             setTimeout(goToFirstSticky, 1500);
           };
+          // Safety fallback: if onended never fires (Safari iOS edge case),
+          // force transition after 8 minutes so the user is never stuck.
+          if (_stimulusSafetyTimer) clearTimeout(_stimulusSafetyTimer);
+          _stimulusSafetyTimer = setTimeout(() => {
+            if (state.screen === "stimulus") {
+              console.warn("[Stimulus] Safety timeout -- forcing transition");
+              goToFirstSticky();
+            }
+          }, 480000);
         }
       }
 
@@ -6344,6 +6365,13 @@
       // 1.5s after stimulus audio ends. From here "Capture it" advances
       // to the next step (currently feedback; becomes sticky-notes in 4.5).
       function goToFirstSticky() {
+        // Reset transition guard and safety timer
+        _stimulusTransitioned = false;
+        if (_stimulusSafetyTimer) {
+          clearTimeout(_stimulusSafetyTimer);
+          _stimulusSafetyTimer = null;
+        }
+
         stopParticles();
         stopAllAudio();
         releaseWakeLock();
@@ -6476,6 +6504,12 @@
         stopParticles();
         stopAllAudio();
         clearFlowState();
+        // Reset transition guard and safety timer
+        _stimulusTransitioned = false;
+        if (_stimulusSafetyTimer) {
+          clearTimeout(_stimulusSafetyTimer);
+          _stimulusSafetyTimer = null;
+        }
         state.screen = "splash";
         state.onboardIndex = 0;
         state.questionIndex = 0;
