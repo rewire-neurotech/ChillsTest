@@ -2441,6 +2441,7 @@
 
       .sn-share-btn {
         appearance: none; border: none; cursor: pointer;
+        padding: 0; line-height: 0;
         width: 32px; height: 32px; border-radius: 50%;
         background: rgba(0,0,0,0.05);
         color: inherit;
@@ -5925,7 +5926,12 @@
           };
           localStorage.setItem("jolter_token", res.token);
           state.authError = "";
-          startIntro();
+          if (state.user.hasCompletedFirstJolt) {
+            state.screen = "sticky-notes";
+            render();
+          } else {
+            startIntro();
+          }
         } catch (e) {
           state.authError = e.message || "Login failed.";
           render();
@@ -5962,7 +5968,12 @@
           };
           localStorage.setItem("jolter_token", res.token);
           state.authError = "";
-          startIntro();
+          if (state.user.hasCompletedFirstJolt) {
+            state.screen = "sticky-notes";
+            render();
+          } else {
+            startIntro();
+          }
         } catch (e) {
           state.authError = e.message || "Registration failed.";
           render();
@@ -6021,7 +6032,12 @@
           };
           localStorage.setItem("jolter_token", res.token);
           state.authError = "";
-          startIntro();
+          if (state.user.hasCompletedFirstJolt) {
+            state.screen = "sticky-notes";
+            render();
+          } else {
+            startIntro();
+          }
         } catch (e) {
           state.authError = e && e.message ? e.message : "Google login failed.";
           render();
@@ -6240,7 +6256,18 @@
           if (hint) hint.textContent = "tap when you feel something";
           // Start stimulus audio (meditation already stopped via onended)
           if (state.audioUrl) {
-            stimulusAudio = new Audio(state.audioUrl);
+            // Reuse the meditationAudio element instead of creating new Audio().
+            // The browser blessed this element from the "I'm ready" tap gesture;
+            // a new Audio() would require another user gesture on mobile.
+            if (meditationAudio) {
+              stimulusAudio = meditationAudio;
+              meditationAudio = null;
+              stimulusAudio.onended = null;
+              stimulusAudio.onerror = null;
+              stimulusAudio.src = state.audioUrl;
+            } else {
+              stimulusAudio = new Audio(state.audioUrl);
+            }
             stimulusAudio.play().catch((err) => {
               console.warn("[Stimulus] Audio play failed:", err);
               // Autoplay may be blocked — show a tap-to-play prompt
