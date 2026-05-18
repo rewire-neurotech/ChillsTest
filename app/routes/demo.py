@@ -11,7 +11,7 @@ from pathlib import Path
 from typing import Optional, List
 
 from fastapi import APIRouter, Depends, HTTPException, Request
-from fastapi.responses import StreamingResponse
+from fastapi.responses import StreamingResponse, Response
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
 from pydub import AudioSegment
@@ -708,12 +708,16 @@ def serve_audio(filename: str, request: Request, db: Session = Depends(get_db)):
     except Exception:
         pass  # Don't block audio serving if logging fails
 
-    # Decrypt file and stream
+    # Decrypt file and return with Content-Length so the browser knows
+    # the full size, can report accurate duration, and fires onended.
     audio_bytes = decrypt_file_to_bytes(str(filepath))
-    return StreamingResponse(
-        io.BytesIO(audio_bytes),
+    return Response(
+        content=audio_bytes,
         media_type="audio/mpeg",
-        headers={"Content-Disposition": f"inline; filename={filename}"},
+        headers={
+            "Content-Disposition": f"inline; filename={filename}",
+            "Accept-Ranges": "bytes",
+        },
     )
 
 
