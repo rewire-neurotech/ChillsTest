@@ -11,7 +11,7 @@ from pathlib import Path
 from typing import Optional, List
 
 from fastapi import APIRouter, Depends, HTTPException, Request
-from fastapi.responses import Response, StreamingResponse
+from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
 from pydub import AudioSegment
@@ -144,24 +144,6 @@ def _send_push_notifications(user_id: int):
         pass
     finally:
         db.close()
-
-
-# --- Temp file cleanup helper ---
-
-def _cleanup_temp_files(paths):
-    """Remove temporary files created during generation.
-    Only deletes files under /tmp to avoid accidentally removing output files."""
-    cleaned = 0
-    for p in paths:
-        try:
-            f = Path(p)
-            if f.exists() and str(f).startswith("/tmp"):
-                f.unlink()
-                cleaned += 1
-        except Exception:
-            pass
-    if cleaned:
-        print(f"[Demo] Cleaned up {cleaned} temp files")
 
 
 # --- Sticky note question generation helper ---
@@ -315,7 +297,6 @@ def _trim_at_boundary(text: str, words_to_cut: int) -> str:
 
 def _run_generate(job_id: str, q0: str, q1: str, q2: str, q3: str, q4: str, track_name: str, user_id: int = None, note_id: int = None, place: str = None):
     """Run the full generation pipeline in a background thread."""
-    _temp_files = set()  # track temp files for cleanup
     try:
         start = time.time()
         session_id = job_id  # reuse job_id as session_id
@@ -370,7 +351,6 @@ def _run_generate(job_id: str, q0: str, q1: str, q2: str, q3: str, q4: str, trac
             voice_id=voice_id,
             key=cfg.ELEVENLABS_API_KEY,
         )
-        _temp_files.add(voice_wav_path)
         print(f"[Demo] TTS done: {voice_wav_path}")
 
         _update_job_db(session_id, stage="refining", progress=60)
@@ -421,7 +401,6 @@ Continue now. Only the continuation text. No preamble."""
                 voice_id=voice_id,
                 key=cfg.ELEVENLABS_API_KEY,
             )
-            _temp_files.add(best_wav)
             tts_ms = duration_ms(load_audio(best_wav))
             print(f"[Demo] Correction attempt {attempt + 1}: {tts_ms}ms (target: {spoken_target_ms}ms)")
 
@@ -437,7 +416,6 @@ Continue now. Only the continuation text. No preamble."""
             vc = AudioSegment.from_file(voice_wav_path)
             vc = vc[:spoken_target_ms].fade_out(800)
             capped_wav = tempfile.NamedTemporaryFile(delete=False, suffix=".wav")
-            _temp_files.add(capped_wav.name)
             vc.export(capped_wav.name, format="wav")
             voice_wav_path = capped_wav.name
             print(f"[Demo] Voice hard-capped to {spoken_target_ms}ms")
@@ -457,7 +435,6 @@ Continue now. Only the continuation text. No preamble."""
             padded = voice_audio[:content_ms]
 
         padded_wav = tempfile.NamedTemporaryFile(delete=False, suffix=".wav")
-        _temp_files.add(padded_wav.name)
         padded.export(padded_wav.name, format="wav")
         voice_wav_path = padded_wav.name
 
@@ -470,7 +447,6 @@ Continue now. Only the continuation text. No preamble."""
         #    By trimming first, the retiming factor is ~1:1 and music plays at natural speed.
         music_trimmed = music_audio[:content_ms]
         trimmed_music_tmp = tempfile.NamedTemporaryFile(delete=False, suffix=".mp3")
-        _temp_files.add(trimmed_music_tmp.name)
         music_trimmed.export(trimmed_music_tmp.name, format="mp3", bitrate="256k")
         music_mix_path = trimmed_music_tmp.name
 
@@ -607,11 +583,6 @@ Continue now. Only the continuation text. No preamble."""
         print(f"[Demo] Generation error for job {job_id}: {e}")
         _update_job_db(job_id, stage="error", gen_error=str(e))
 
-    finally:
-        # Always clean up temp files, whether generation succeeded or failed.
-        # This prevents /tmp from filling up and causing Render evictions.
-        _cleanup_temp_files(_temp_files)
-
 
 # --- Endpoints ---
 
@@ -720,73 +691,29 @@ def save_email(req: EmailRequest, db: Session = Depends(get_db)):
 
 @r.get("/audio/{filename}")
 def serve_audio(filename: str, request: Request, db: Session = Depends(get_db)):
-    """Serve a generated audio file (final mix or voice-only raw). Decrypts on-the-fly.
-    Supports HTTP Range requests for Safari iOS compatibility."""
+    """Serve a generated audio file (final mix or voice-only raw). Decrypts on-the-fly."""
     filepath = cfg.out_dir_path / filename
     if not filepath.exists():
         raise HTTPException(status_code=404, detail="Audio not found")
 
-    # Audit log audio access (only for non-range initial requests to avoid log spam)
-    range_header = request.headers.get("range")
-    if not range_header:
-        try:
-            log = AuditLog(
-                action="audio_access",
-                target=filename,
-                ip_address=request.client.host if request.client else None,
-            )
-            db.add(log)
-            db.commit()
-        except Exception:
-            pass  # Don't block audio serving if logging fails
+    # Audit log audio access
+    try:
+        log = AuditLog(
+            action="audio_access",
+            target=filename,
+            ip_address=request.client.host if request.client else None,
+        )
+        db.add(log)
+        db.commit()
+    except Exception:
+        pass  # Don't block audio serving if logging fails
 
-    # Decrypt file into memory
+    # Decrypt file and stream
     audio_bytes = decrypt_file_to_bytes(str(filepath))
-    total_size = len(audio_bytes)
-
-    # Common headers for all responses
-    headers = {
-        "Accept-Ranges": "bytes",
-        "Content-Disposition": f"inline; filename={filename}",
-        "Cache-Control": "no-cache",
-    }
-
-    # Handle Range requests (required by Safari iOS for reliable audio playback)
-    if range_header:
-        try:
-            range_spec = range_header.strip().replace("bytes=", "")
-            parts = range_spec.split("-")
-            start = int(parts[0]) if parts[0] else 0
-            end = int(parts[1]) if len(parts) > 1 and parts[1] else total_size - 1
-            end = min(end, total_size - 1)
-
-            if start >= total_size or start > end:
-                return Response(
-                    status_code=416,
-                    headers={"Content-Range": f"bytes */{total_size}"},
-                )
-
-            content_length = end - start + 1
-            headers["Content-Range"] = f"bytes {start}-{end}/{total_size}"
-            headers["Content-Length"] = str(content_length)
-
-            return Response(
-                content=audio_bytes[start:end + 1],
-                status_code=206,
-                media_type="audio/mpeg",
-                headers=headers,
-            )
-        except (ValueError, IndexError):
-            # Malformed Range header -- fall through to full response
-            pass
-
-    # Full response (no Range header or malformed Range)
-    headers["Content-Length"] = str(total_size)
-    return Response(
-        content=audio_bytes,
-        status_code=200,
+    return StreamingResponse(
+        io.BytesIO(audio_bytes),
         media_type="audio/mpeg",
-        headers=headers,
+        headers={"Content-Disposition": f"inline; filename={filename}"},
     )
 
 
