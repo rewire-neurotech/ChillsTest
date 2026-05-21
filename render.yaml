@@ -6,6 +6,10 @@ services:
     startCommand: uvicorn app.main:app --host 0.0.0.0 --port $PORT
     customDomains:
       - name: app.rewire.bio
+    disk:
+      name: audio-storage
+      mountPath: /data/audio
+      sizeGB: 1
     envVars:
       - key: ANTHROPIC_API_KEY
         sync: false
@@ -18,7 +22,7 @@ services:
       - key: ALLOWED_ORIGINS
         value: "*"
       - key: OUT_DIR
-        value: /tmp/rewire-demo-output
+        value: /data/audio
       - key: PUBLIC_BASE_URL
         sync: false
       - key: JWT_SECRET
