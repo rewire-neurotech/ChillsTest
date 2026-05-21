@@ -22,7 +22,7 @@ class Config:
     # --- Paths ---
     BASE_DIR: Path = Path(__file__).resolve().parent.parent
     ASSETS_DIR: Path = BASE_DIR / "assets"
-    OUT_DIR: str = os.getenv("OUT_DIR", "/tmp/rewire-demo-output")
+    OUT_DIR: str = os.getenv("OUT_DIR", "/data/audio")
 
     @property
     def out_dir_path(self) -> Path:
