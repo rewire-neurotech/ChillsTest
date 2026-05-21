@@ -4785,7 +4785,7 @@
         snGestureStartedAsDrag = false,
         snGestureCardId = null;
 
-      const SN_CARD_HEIGHT_PX = 180;
+      const SN_CARD_HEIGHT_PX = 150;
 
       function snInEditable(target) {
         if (!target) return false;
@@ -4809,10 +4809,18 @@
       }
 
       function snDragStart(y) {
-        // If an animation is running (snap or transition), cancel it and
-        // snap to the nearest integer position so the card never gets stuck.
+        // If an animation is running, cancel it and snap to the right position.
+        // Commit animations (snTransitioning=true) round AWAY from zero so the
+        // previous swipe completes. Snapbacks round TOWARD zero.
         if (snActiveAnimation) {
-          const nearestStep = Math.round(snDragOffset);
+          let nearestStep;
+          if (snTransitioning) {
+            // Commit in progress: complete it (round away from zero)
+            nearestStep = snDragOffset > 0 ? Math.ceil(snDragOffset) : Math.floor(snDragOffset);
+          } else {
+            // Snapback or other animation: round toward zero
+            nearestStep = snDragOffset > 0 ? Math.floor(snDragOffset) : Math.ceil(snDragOffset);
+          }
           snActiveAnimation.cancel();
           snPos = Math.max(0, Math.min(snNotes.length - 1, snPos + nearestStep));
           snDragOffset = 0;
@@ -4875,7 +4883,7 @@
         const drag = snDragOffset;
 
         // Velocity-based snap: project where the drag would land
-        const FLICK_GAIN = 0.6;
+        const FLICK_GAIN = 0.8;
         const projected = drag + velocity * FLICK_GAIN;
 
         // Round to nearest integer card position
@@ -4884,8 +4892,8 @@
         // Dead zone: if barely moved, snap back
         if (Math.abs(projected) < 0.18 && Math.abs(velocity) < 0.3) target = 0;
 
-        // Velocity flick override: fast swipe should always advance at least 1
-        if (Math.abs(velocity) > 0.5 && target === 0) {
+        // Velocity flick override: moderate swipe should always advance at least 1
+        if (Math.abs(velocity) > 0.35 && target === 0) {
           target = velocity > 0 ? 1 : -1;
         }
 
@@ -4931,7 +4939,12 @@
           const dy = Math.abs(e.clientY - _nuclearDownY);
           if (dx > 10 || dy > 10) return;
           _nuclearHandled = false;
-          const btns = document.querySelectorAll(
+          // Only check buttons on the FRONT card to prevent ghost taps
+          // on background cards whose bounding rects overlap visible area.
+          const frontNote = snNotes[snPos];
+          const frontCard = frontNote ? snCardEls.get(frontNote.id) : null;
+          if (!frontCard) return;
+          const btns = frontCard.querySelectorAll(
             ".sn-jolt-btn, .sn-watched-btn, .sn-share-btn"
           );
           for (const btn of btns) {
@@ -4943,13 +4956,6 @@
               e.clientX >= r.left - pad && e.clientX <= r.right + pad &&
               e.clientY >= r.top - pad && e.clientY <= r.bottom + pad
             ) {
-              const cardEl = btn.closest(".sn-card");
-              if (!cardEl) continue;
-              const cardId = cardEl.dataset.id;
-              const idx = snNotes.findIndex(
-                (n) => String(n.id) === String(cardId)
-              );
-              if (idx < 0) continue;
               e.stopPropagation();
               e.preventDefault();
               _nuclearHandled = true;
@@ -4957,11 +4963,11 @@
                 btn.classList.contains("sn-jolt-btn") ||
                 btn.classList.contains("sn-watched-btn")
               ) {
-                console.log("[NUCLEAR] Button hit:", btn.className, "note:", cardId);
-                snJoltAt(idx);
+                console.log("[NUCLEAR] Button hit:", btn.className, "note:", frontNote.id);
+                snJoltAt(snPos);
               } else if (btn.classList.contains("sn-share-btn")) {
-                console.log("[NUCLEAR] Share hit, note:", cardId);
-                snOpenShareSheet(snNotes[idx]);
+                console.log("[NUCLEAR] Share hit, note:", frontNote.id);
+                snOpenShareSheet(frontNote);
               }
               return;
             }
